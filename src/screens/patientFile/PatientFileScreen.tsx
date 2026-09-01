@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useMemo, useState } from 'react';
 import {
   FlatList,
   Linking,
@@ -8,8 +10,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   AppCard,
   AppHeader,
@@ -278,13 +278,13 @@ export const PatientFileScreen = ({ navigation }: Props) => {
                     </Text>
                   </View>
 
-                  {/* Orange Download / Action Button */}
+                  {/* Open / Download Action Button */}
                   <TouchableOpacity
                     style={styles.fileActionBtn}
                     onPress={() => handleDownload(item)}
                     activeOpacity={0.8}
                   >
-                    <MaterialIcons name="description" size={22} color="#FFFFFF" />
+                    <MaterialIcons name="open-in-new" size={20} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
               </AppCard>

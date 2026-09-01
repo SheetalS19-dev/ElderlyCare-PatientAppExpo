@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
   },
   inlineCategoryPill: {
     alignSelf: 'flex-start',
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 8,
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
   shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 10,
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   careCallout: {
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     borderRadius: 16,
     padding: 16,
     borderLeftWidth: 4,

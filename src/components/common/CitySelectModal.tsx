@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   cityRowSelected: {
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     borderColor: Colors.primaryColor,
   },
   cityRowLeft: {
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#FFF4EC',
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
   },

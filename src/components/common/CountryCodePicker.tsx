@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F7FAFC',
   },
   itemRowSelected: {
-    backgroundColor: '#FFF7ED',
+    backgroundColor: '#EFF6FF',
   },
   flagText: {
     fontSize: 22,

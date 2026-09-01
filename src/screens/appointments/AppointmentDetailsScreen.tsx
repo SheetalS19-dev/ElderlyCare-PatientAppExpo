@@ -56,11 +56,24 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
 
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
   const [isInvoiceModalVisible, setIsInvoiceModalVisible] = useState(false);
   const [isInvoiceProcessing, setIsInvoiceProcessing] = useState(false);
   const [invoiceProcessingMsg, setInvoiceProcessingMsg] = useState('Preparing invoice...');
+
+  const handleAddToGoogleCalendar = () => {
+    if (!appointment) return;
+    const doctName = formatDoctorName(appointment.doct_f_name, appointment.doct_l_name);
+    const title = encodeURIComponent(`Doctor Appointment - ${doctName}`);
+    const details = encodeURIComponent(
+      `Appointment ID: #${appointment.id}\nDepartment: ${appointment.dept_title || 'General'}\nType: ${appointment.type || 'Consultation'}\nClinic: ${appointment.clinic_title || 'Elderly Care'}`
+    );
+    const gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}`;
+    Linking.openURL(gCalUrl).catch(() => showToast('Could not open Google Calendar'));
+  };
+
 
   const appointment: AppointmentModel | null = React.useMemo(() => {
     if (!rawAppointment) return null;
@@ -315,7 +328,7 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
             <View style={styles.infoDivider} />
 
             <View style={styles.infoItemRow}>
-              <View style={[styles.infoIconBox, { backgroundColor: '#FFF5EB' }]}>
+              <View style={[styles.infoIconBox, { backgroundColor: '#EFF6FF' }]}>
                 <MaterialIcons
                   name={isVideoCall ? 'videocam' : 'local-hospital'}
                   size={18}
@@ -343,8 +356,8 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
             <View style={styles.infoDivider} />
 
             <View style={styles.infoItemRow}>
-              <View style={[styles.infoIconBox, { backgroundColor: '#FEF3C7' }]}>
-                <MaterialIcons name="person" size={18} color="#D97706" />
+              <View style={[styles.infoIconBox, { backgroundColor: '#EFF6FF' }]}>
+                <MaterialIcons name="person" size={18} color="#2563EB" />
               </View>
               <View style={styles.infoItemMeta}>
                 <Text style={styles.infoItemLabel}>Patient Name</Text>
@@ -370,6 +383,18 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
           </View>
         )}
 
+        {/* Queue Arrival & QR Code Card (Web Appointment Details Sync) */}
+        <TouchableOpacity style={styles.qrCard} activeOpacity={0.85} onPress={() => setShowQrModal(true)}>
+          <View style={styles.qrIconCircle}>
+            <MaterialIcons name="qr-code-2" size={22} color={Colors.primaryColor} />
+          </View>
+          <View style={styles.qrMeta}>
+            <Text style={styles.qrTitle}>Clinic Queue QR Code</Text>
+            <Text style={styles.qrSubtitle}>Scan QR code at clinic for queue number generation</Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={22} color={Colors.primaryColor} />
+        </TouchableOpacity>
+
         {/* Invoice Action Card */}
         <TouchableOpacity style={styles.invoiceCard} activeOpacity={0.85} onPress={handleOpenInvoiceModal}>
           <View style={styles.invoiceIconCircle}>
@@ -382,17 +407,66 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
           <MaterialIcons name="chevron-right" size={22} color={Colors.primaryColor} />
         </TouchableOpacity>
 
+        {/* Prescription Vault Quick Card */}
+        <TouchableOpacity style={styles.invoiceCard} activeOpacity={0.85} onPress={() => navigation.navigate('PrescriptionList')}>
+          <View style={styles.invoiceIconCircle}>
+            <MaterialIcons name="description" size={22} color={Colors.primaryColor} />
+          </View>
+          <View style={styles.invoiceMeta}>
+            <Text style={styles.invoiceTitle}>Issued Digital Prescriptions</Text>
+            <Text style={styles.invoiceSubtitle}>View prescriptions for this appointment</Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={22} color={Colors.primaryColor} />
+        </TouchableOpacity>
+
+        {/* Medical Files & Reports Quick Card */}
+        <TouchableOpacity style={styles.invoiceCard} activeOpacity={0.85} onPress={() => navigation.navigate('PatientFile')}>
+          <View style={styles.invoiceIconCircle}>
+            <MaterialIcons name="folder-open" size={22} color={Colors.primaryColor} />
+          </View>
+          <View style={styles.invoiceMeta}>
+            <Text style={styles.invoiceTitle}>Patient Files & Medical History</Text>
+            <Text style={styles.invoiceSubtitle}>Uploaded diagnostic reports & records</Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={22} color={Colors.primaryColor} />
+        </TouchableOpacity>
+
+        {/* Clinic Contact & Address Card */}
+        <AppCard style={styles.clinicContactCard}>
+          <Text style={styles.clinicCardTitle}>Clinic Contact & Location</Text>
+          <View style={styles.clinicInfoRow}>
+            <MaterialIcons name="business" size={18} color={Colors.primaryColor} />
+            <Text style={styles.clinicInfoText}>{appointment.clinic_title || 'Elderly Care Clinic'}</Text>
+          </View>
+          {!!(appointment as any).clinic_address && (
+            <View style={styles.clinicInfoRow}>
+              <MaterialIcons name="location-on" size={18} color={Colors.secondaryFontColor} />
+              <Text style={styles.clinicInfoText}>{(appointment as any).clinic_address}</Text>
+            </View>
+          )}
+          <View style={styles.clinicActionRow}>
+            <TouchableOpacity
+              style={styles.callClinicBtn}
+              onPress={() => Linking.openURL('tel:9876543227').catch(() => showToast('Could not initiate call'))}
+            >
+              <MaterialIcons name="phone" size={16} color={Colors.white} />
+              <Text style={styles.callClinicBtnText}>Call Clinic</Text>
+            </TouchableOpacity>
+          </View>
+        </AppCard>
+
+
         {/* Review Trigger Card */}
         {canReview && (
           <TouchableOpacity style={styles.reviewCard} activeOpacity={0.85} onPress={() => setShowReviewModal(true)}>
             <View style={styles.reviewIconCircle}>
-              <MaterialIcons name="star-outline" size={22} color="#D97706" />
+              <MaterialIcons name="star-outline" size={22} color="#2563EB" />
             </View>
             <View style={styles.reviewMeta}>
               <Text style={styles.reviewTitle}>Rate & Review Doctor</Text>
               <Text style={styles.reviewSubtitle}>Share your feedback to help others</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={22} color="#D97706" />
+            <MaterialIcons name="chevron-right" size={22} color="#2563EB" />
           </TouchableOpacity>
         )}
 
@@ -401,7 +475,7 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
           <View style={styles.cancelSection}>
             {activeCancelReq ? (
               <TouchableOpacity style={styles.cancelBannerPending} onPress={handleWithdrawCancel} disabled={isWithdrawing}>
-                <MaterialIcons name="hourglass-empty" size={18} color="#D97706" />
+                <MaterialIcons name="hourglass-empty" size={18} color="#2563EB" />
                 <Text style={styles.withdrawText}>
                   {isWithdrawing ? 'Withdrawing request…' : 'Cancellation requested — tap to withdraw'}
                 </Text>
@@ -467,6 +541,48 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Clinic Queue Arrival QR Code Modal */}
+      <Modal visible={showQrModal} transparent animationType="slide" onRequestClose={() => setShowQrModal(false)}>
+        <View style={styles.dialogOverlay}>
+          <View style={styles.qrDialogBox}>
+            <View style={styles.dialogHeaderRow}>
+              <Text style={styles.qrDialogTitle}>Appointment Queue QR Code</Text>
+              <TouchableOpacity onPress={() => setShowQrModal(false)}>
+                <MaterialIcons name="close" size={22} color={Colors.secondaryFontColor} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.qrBadgeRow}>
+              <View style={styles.qrIdBadge}>
+                <Text style={styles.qrIdBadgeText}>ID: #{appointment.id}</Text>
+              </View>
+              <View style={styles.qrTypeBadge}>
+                <Text style={styles.qrTypeBadgeText}>{appointment.type || 'OPD'}</Text>
+              </View>
+            </View>
+
+            <View style={styles.qrImageWrap}>
+              <MaterialIcons name="qr-code-2" size={130} color={Colors.primaryColor} />
+              <Text style={styles.qrInstructionText}>
+                Visit the clinic and scan the provided QR code to instantly generate your appointment queue number.
+              </Text>
+            </View>
+
+            <View style={styles.calendarBtnRow}>
+              <TouchableOpacity style={styles.calendarBtn} onPress={handleAddToGoogleCalendar}>
+                <MaterialIcons name="event" size={18} color={Colors.primaryColor} />
+                <Text style={styles.calendarBtnText}>Add to Google Calendar</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={styles.qrCloseBtn} onPress={() => setShowQrModal(false)}>
+              <Text style={styles.qrCloseBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
 
       {/* Document Action Modal for Invoice */}
       <DocumentActionModal
@@ -560,7 +676,7 @@ const styles = StyleSheet.create({
   doctorName: { fontSize: Typography.fontSize.base, fontFamily: Typography.fontFamily.bold, color: Colors.primaryFontColor },
   specBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
@@ -655,7 +771,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -682,13 +798,13 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: '#DBEAFE',
   },
   reviewIconCircle: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -701,7 +817,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#EFF6FF',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 10,
@@ -714,7 +830,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   cancelText: { fontSize: 13, fontFamily: Typography.fontFamily.bold, color: Colors.redColor },
-  withdrawText: { fontSize: 13, fontFamily: Typography.fontFamily.medium, color: '#D97706' },
+  withdrawText: { fontSize: 13, fontFamily: Typography.fontFamily.medium, color: '#2563EB' },
   bottomSpacer: { height: 20 },
   dialogOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
   dialogBox: { backgroundColor: Colors.white, borderRadius: 16, padding: 20 },
@@ -728,7 +844,175 @@ const styles = StyleSheet.create({
   dialogBtnConfirm: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, backgroundColor: Colors.primaryColor },
   dialogBtnTextConfirm: { fontSize: Typography.fontSize.sm, fontFamily: Typography.fontFamily.bold, color: '#FFFFFF' },
   dialogBtnTextMuted: { fontSize: Typography.fontSize.sm, fontFamily: Typography.fontFamily.medium, color: Colors.secondaryFontColor },
+  infoBtnTextConfirm: { fontSize: Typography.fontSize.sm, fontFamily: Typography.fontFamily.bold, color: '#FFFFFF' },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   infoLabel: { fontSize: Typography.fontSize.sm, color: Colors.secondaryFontColor },
   infoValue: { fontSize: Typography.fontSize.sm, fontFamily: Typography.fontFamily.medium, color: Colors.primaryFontColor },
+
+  /* QR Code & Web Appointment Sync Styles */
+  qrCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  qrIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: Colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  qrMeta: {
+    flex: 1,
+  },
+  qrTitle: {
+    fontSize: 13,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.primaryFontColor,
+  },
+  qrSubtitle: {
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.regular,
+    color: Colors.secondaryFontColor,
+    marginTop: 2,
+  },
+  qrDialogBox: {
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    padding: 20,
+  },
+  qrDialogTitle: {
+    fontSize: 16,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.primaryFontColor,
+  },
+  qrBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginVertical: 12,
+  },
+  qrIdBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  qrIdBadgeText: {
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.primaryColor,
+  },
+  qrTypeBadge: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  qrTypeBadgeText: {
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.bold,
+    color: '#059669',
+  },
+  qrImageWrap: {
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginVertical: 10,
+  },
+  qrInstructionText: {
+    fontSize: 12,
+    fontFamily: Typography.fontFamily.regular,
+    color: Colors.secondaryFontColor,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginTop: 12,
+  },
+  calendarBtnRow: {
+    marginVertical: 10,
+  },
+  calendarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EFF6FF',
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    gap: 6,
+  },
+  calendarBtnText: {
+    fontSize: 12,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.primaryColor,
+  },
+  qrCloseBtn: {
+    backgroundColor: Colors.primaryColor,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  qrCloseBtnText: {
+    fontSize: 14,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.white,
+  },
+  clinicContactCard: {
+    marginBottom: 12,
+    padding: 14,
+  },
+  clinicCardTitle: {
+    fontSize: 13,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.primaryFontColor,
+    marginBottom: 10,
+  },
+  clinicInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  clinicInfoText: {
+    fontSize: 12,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.primaryFontColor,
+    flex: 1,
+  },
+  clinicActionRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  callClinicBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primaryColor,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  callClinicBtnText: {
+    fontSize: 12,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.white,
+  },
 });
+

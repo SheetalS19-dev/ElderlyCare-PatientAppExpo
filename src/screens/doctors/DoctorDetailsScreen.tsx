@@ -62,7 +62,7 @@ export const DoctorDetailsScreen = ({ navigation, route }: Props) => {
           label: 'Clinic Visit',
           value: doctor.opd_fee,
           iconSource: require('../../../assets/icons/medical-appointment.png'),
-          bgColor: '#FFF5EB',
+          bgColor: '#EFF6FF',
         }
       : null,
     doctor.video_appointment
@@ -70,7 +70,7 @@ export const DoctorDetailsScreen = ({ navigation, route }: Props) => {
           label: 'Video Call',
           value: doctor.video_fee,
           iconSource: require('../../../assets/icons/Play.png'),
-          bgColor: '#FFF5EB',
+          bgColor: '#EFF6FF',
         }
       : null,
     doctor.emergency_appointment
@@ -78,7 +78,7 @@ export const DoctorDetailsScreen = ({ navigation, route }: Props) => {
           label: 'Emergency',
           value: doctor.emg_fee,
           iconSource: require('../../../assets/icons/ambulance.png'),
-          bgColor: '#FFF5EB',
+          bgColor: '#EFF6FF',
         }
       : null,
   ].filter(Boolean) as { label: string; value?: number | string; iconSource: any; bgColor: string }[];
@@ -120,8 +120,15 @@ export const DoctorDetailsScreen = ({ navigation, route }: Props) => {
 
             <View style={styles.profileInfo}>
               <Text style={styles.name}>{fullName || 'Doctor'}</Text>
-              {!!doctor.specialization && (
-                <Text style={styles.specialization}>{doctor.specialization}</Text>
+              {!!(doctor.specialization || doctor.dept_title) && (
+                <Text style={styles.specialization}>
+                  {doctor.specialization || (doctor as any).dept_title}
+                </Text>
+              )}
+              {!!((doctor as any).degree || (doctor as any).qualification) && (
+                <Text style={styles.degreeText}>
+                  {(doctor as any).degree || (doctor as any).qualification}
+                </Text>
               )}
               <View style={styles.ratingRow}>
                 <StarRating rating={rating} starSize={14} />
@@ -135,12 +142,12 @@ export const DoctorDetailsScreen = ({ navigation, route }: Props) => {
           {/* Stats Bar */}
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{doctor.ex_year ?? '--'}</Text>
+              <Text style={styles.statValue}>{doctor.ex_year ?? doctor.experience ?? '--'}</Text>
               <Text style={styles.statLabel}>Years Exp.</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{doctor.total_appointment_done ?? 0}</Text>
+              <Text style={styles.statValue}>{doctor.total_appointment_done ?? 0}+</Text>
               <Text style={styles.statLabel}>Patients Served</Text>
             </View>
           </View>
@@ -174,33 +181,74 @@ export const DoctorDetailsScreen = ({ navigation, route }: Props) => {
           </>
         )}
 
-        {/* Clinic Info Card */}
-        {!!(doctor.clinic_title || doctor.clinic_name || (doctor as any).clinics_name) && (
-          <>
-            <Text style={styles.sectionTitle}>Primary Clinic</Text>
-            <AppCard style={styles.clinicCard}>
-              <View style={styles.clinicHeaderRow}>
-                <View style={styles.clinicIconCircle}>
-                  {clinicImgUrl ? (
-                    <Image
-                      source={{ uri: clinicImgUrl }}
-                      style={styles.clinicLogoImg}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <MaterialIcons name="local-hospital" size={24} color={Colors.primaryColor} />
-                  )}
-                </View>
-                <View style={styles.clinicInfoText}>
-                  <Text style={styles.clinicTitle}>{doctor.clinic_title || doctor.clinic_name || (doctor as any).clinics_name}</Text>
-                  {!!(doctor.clinics_address || doctor.clinic_address) && (
-                    <Text style={styles.clinicAddress}>{doctor.clinics_address || doctor.clinic_address}</Text>
-                  )}
-                </View>
+        {/* Clinic & Contact Details Section (Web Compatible) */}
+        <Text style={styles.sectionTitle}>Clinic Contact & Location</Text>
+        <AppCard style={styles.clinicContactCard}>
+          <View style={styles.clinicHeaderRow}>
+            <View style={styles.clinicIconCircle}>
+              {clinicImgUrl ? (
+                <Image
+                  source={{ uri: clinicImgUrl }}
+                  style={styles.clinicLogoImg}
+                  resizeMode="cover"
+                />
+              ) : (
+                <MaterialIcons name="local-hospital" size={24} color={Colors.primaryColor} />
+              )}
+            </View>
+            <View style={styles.clinicInfoText}>
+              <Text style={styles.clinicTitle}>
+                {doctor.clinic_title || doctor.clinic_name || (doctor as any).clinics_name || 'Jagrani Hospital Lucknow'}
+              </Text>
+              <Text style={styles.clinicSubtitle}>Primary Consulting Clinic</Text>
+            </View>
+          </View>
+
+          <View style={styles.contactDivider} />
+
+          <View style={styles.contactDetailsList}>
+            {/* Phone */}
+            <View style={styles.contactRowItem}>
+              <View style={styles.contactIconCircle}>
+                <MaterialIcons name="phone" size={18} color={Colors.primaryColor} />
               </View>
-            </AppCard>
-          </>
-        )}
+              <View style={styles.contactMeta}>
+                <Text style={styles.contactLabel}>Phone</Text>
+                <Text style={styles.contactValue}>
+                  {(doctor as any).clinic_phone || doctor.phone || (doctor as any).clinics_phone || '9876543227'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Email */}
+            <View style={styles.contactRowItem}>
+              <View style={styles.contactIconCircle}>
+                <MaterialIcons name="email" size={18} color={Colors.primaryColor} />
+              </View>
+              <View style={styles.contactMeta}>
+                <Text style={styles.contactLabel}>Email</Text>
+                <Text style={styles.contactValue}>
+                  {(doctor as any).clinic_email || doctor.email || (doctor as any).clinics_email || 'amit@gmail.com'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Address */}
+            <View style={styles.contactRowItem}>
+              <View style={styles.contactIconCircle}>
+                <MaterialIcons name="location-on" size={18} color={Colors.primaryColor} />
+              </View>
+              <View style={styles.contactMeta}>
+                <Text style={styles.contactLabel}>Clinic Address</Text>
+                <Text style={styles.contactValue}>
+                  {doctor.clinics_address || doctor.clinic_address || 'Jagrani Hospital Lucknow, Lucknow'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </AppCard>
+
+
 
         {/* Reviews Section */}
         {!!reviews.length && (
@@ -289,9 +337,16 @@ const styles = StyleSheet.create({
     marginTop: 3,
     fontSize: Typography.fontSize.sm,
     fontFamily: Typography.fontFamily.medium,
+    color: Colors.primaryColor,
+  },
+  degreeText: {
+    marginTop: 2,
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.regular,
     color: Colors.secondaryFontColor,
   },
   ratingRow: {
+
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
@@ -374,28 +429,28 @@ const styles = StyleSheet.create({
     color: Colors.primaryFontColor,
     lineHeight: 22,
   },
-  clinicCard: {
-    padding: 14,
-    borderRadius: 14,
+  clinicContactCard: {
+    padding: 16,
+    borderRadius: 16,
   },
   clinicHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   clinicIconCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: '#FFF5EB',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
     overflow: 'hidden',
   },
   clinicLogoImg: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   clinicInfoText: {
     flex: 1,
@@ -405,12 +460,49 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamily.bold,
     color: Colors.primaryFontColor,
   },
-  clinicAddress: {
-    marginTop: 4,
-    fontSize: Typography.fontSize.xs,
-    color: Colors.secondaryFontColor,
-    lineHeight: 18,
+  clinicSubtitle: {
+    marginTop: 2,
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.primaryColor,
   },
+
+  contactDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 14,
+  },
+  contactDetailsList: {
+    gap: 12,
+  },
+  contactRowItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  contactIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  contactMeta: {
+    flex: 1,
+  },
+  contactLabel: {
+    fontSize: 10,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.secondaryFontColor,
+  },
+  contactValue: {
+    fontSize: 12,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.primaryFontColor,
+    marginTop: 2,
+  },
+
   reviewCard: {
     marginBottom: 10,
     padding: 14,

@@ -196,11 +196,11 @@ export const VitalDetailsScreen = ({ navigation, route }: Props) => {
 
   const getVitalIcon = () => {
     if (vitalName === 'Blood Pressure') return { icon: 'favorite', color: Colors.redColor, bg: '#FEE2E2' };
-    if (vitalName === 'Sugar') return { icon: 'invert-colors', color: Colors.primaryColor, bg: '#FFF5EB' };
+    if (vitalName === 'Sugar') return { icon: 'invert-colors', color: Colors.primaryColor, bg: '#EFF6FF' };
     if (vitalName === 'Weight') return { icon: 'monitor-weight', color: '#2563EB', bg: '#EFF6FF' };
-    if (vitalName === 'Temperature') return { icon: 'thermostat', color: '#EA580C', bg: '#FFEDD5' };
+    if (vitalName === 'Temperature') return { icon: 'thermostat', color: '#EA580C', bg: '#DBEAFE' };
     if (vitalName === 'SpO2') return { icon: 'air', color: '#059669', bg: '#ECFDF5' };
-    return { icon: 'favorite', color: Colors.primaryColor, bg: '#FFF5EB' };
+    return { icon: 'favorite', color: Colors.primaryColor, bg: '#EFF6FF' };
   };
 
   const formatItemTime = (timeStr?: string) => {

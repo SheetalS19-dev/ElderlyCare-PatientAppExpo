@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 20,
     paddingVertical: 10,
-    backgroundColor: Colors.primaryColor || '#fe8423',
+    backgroundColor: Colors.primaryColor || '#2563EB',
     borderRadius: 8,
   },
   retryText: {

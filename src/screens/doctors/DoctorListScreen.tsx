@@ -327,9 +327,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#FFF7ED',
+    backgroundColor: '#EFF6FF',
     borderBottomWidth: 1,
-    borderBottomColor: '#FFEDD5',
+    borderBottomColor: '#DBEAFE',
   },
   filterText: {
     flex: 1,

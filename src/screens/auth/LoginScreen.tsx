@@ -1269,7 +1269,7 @@ const styles = StyleSheet.create({
   },
   otpBoxFocused: {
     borderColor: Colors.primaryColor,
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
   },
   otpBoxFilled: {
     borderColor: Colors.primaryColor,

@@ -90,7 +90,7 @@ export const ContactUsScreen = ({ navigation }: Props) => {
 
         {/* Support Email */}
         <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleSupportEmail}>
-          <View style={[styles.iconCircle, { backgroundColor: '#FFF5EB' }]}>
+          <View style={[styles.iconCircle, { backgroundColor: '#EFF6FF' }]}>
             <MaterialIcons name="email" size={22} color={Colors.primaryColor} />
           </View>
           <View style={styles.info}>
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   actionPill: {
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -248,12 +248,12 @@ const styles = StyleSheet.create({
   faqCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF7ED',
+    backgroundColor: '#EFF6FF',
     borderRadius: 16,
     padding: 14,
     marginTop: 6,
     borderWidth: 1,
-    borderColor: '#FED7AA',
+    borderColor: '#DBEAFE',
   },
   faqIconCircle: {
     width: 44,

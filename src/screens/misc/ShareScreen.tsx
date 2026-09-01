@@ -116,7 +116,7 @@ export const ShareScreen = ({ navigation }: Props) => {
 
             <AppCard style={styles.featureCard}>
               <View style={styles.featureRow}>
-                <View style={[styles.featureIconBox, { backgroundColor: '#FFF5EB' }]}>
+                <View style={[styles.featureIconBox, { backgroundColor: '#EFF6FF' }]}>
                   <MaterialIcons name="description" size={22} color={Colors.primaryColor} />
                 </View>
                 <View style={styles.featureInfo}>
@@ -166,12 +166,12 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
     borderWidth: 1.5,
-    borderColor: '#FFEDD5',
+    borderColor: '#DBEAFE',
   },
   heroTitle: {
     fontSize: Typography.fontSize.lg,

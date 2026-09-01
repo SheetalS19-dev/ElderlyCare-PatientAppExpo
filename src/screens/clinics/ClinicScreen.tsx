@@ -175,8 +175,8 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
                 onPress={() => handleOpenUrl(`mailto:${clinic.email}`)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.iconCircle, { backgroundColor: '#FEF3C7' }]}>
-                  <Ionicons name="mail" size={18} color="#D97706" />
+                <View style={[styles.iconCircle, { backgroundColor: '#EFF6FF' }]}>
+                  <Ionicons name="mail" size={18} color="#2563EB" />
                 </View>
                 <Text style={styles.actionText}>Email</Text>
               </TouchableOpacity>
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 16,
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   countBadge: {
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
     color: Colors.primaryFontColor,
   },
   specTag: {
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,

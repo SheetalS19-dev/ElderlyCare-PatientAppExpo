@@ -67,7 +67,9 @@ export interface TxnModel {
   amount?: number | string;
   transaction_type?: 'Credited' | 'Debited' | string;
   type?: string;
+  description?: string;
   is_wallet_txn?: number;
+
   last_wallet_amount?: number | string;
   new_wallet_amount?: number | string;
   notes?: string | null;

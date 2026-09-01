@@ -46,10 +46,10 @@ const parseAppointmentDate = (rawDate?: string) => {
 const getStatusBadge = (status?: string) => {
   const s = (status || '').toLowerCase().trim();
   if (s === 'pending') {
-    return { bg: '#FEF3C7', color: '#D97706', label: 'Pending' };
+    return { bg: '#EFF6FF', color: '#2563EB', label: 'Pending' };
   }
   if (s === 'rescheduled') {
-    return { bg: '#FFEDD5', color: '#EA580C', label: 'Rescheduled' };
+    return { bg: '#DBEAFE', color: '#EA580C', label: 'Rescheduled' };
   }
   if (s === 'rejected' || s === 'cancelled' || s === 'canceled') {
     return { bg: '#FEE2E2', color: '#DC2626', label: 'Cancelled' };
@@ -133,7 +133,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
         <View style={styles.headerInfo}>
           <View style={styles.topMetaRow}>
             {/* Consultation Type Badge */}
-            <View style={[styles.typePill, { backgroundColor: isVideo ? '#EFF6FF' : '#FFF5EB' }]}>
+            <View style={[styles.typePill, { backgroundColor: isVideo ? '#EFF6FF' : '#EFF6FF' }]}>
               <MaterialIcons
                 name={isVideo ? 'videocam' : 'local-hospital'}
                 size={12}
@@ -257,11 +257,11 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#FFEDD5',
+    borderColor: '#DBEAFE',
   },
   onlineDot: {
     position: 'absolute',
@@ -328,11 +328,11 @@ const styles = StyleSheet.create({
     width: 52,
     height: 56,
     borderRadius: 12,
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FED7AA',
+    borderColor: '#DBEAFE',
   },
   dateMonth: {
     fontSize: 9,

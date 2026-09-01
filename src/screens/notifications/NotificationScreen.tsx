@@ -90,7 +90,7 @@ export const NotificationScreen = ({ navigation }: Props) => {
 
   const getNotificationIconInfo = (item: NotificationModel) => {
     if (item.appointment_id) {
-      return { icon: 'event', color: Colors.primaryColor, bg: '#FFF5EB' };
+      return { icon: 'event', color: Colors.primaryColor, bg: '#EFF6FF' };
     }
     if (item.prescription_id) {
       return { icon: 'description', color: '#0284C7', bg: '#E0F2FE' };
@@ -101,7 +101,7 @@ export const NotificationScreen = ({ navigation }: Props) => {
     if (item.file_id) {
       return { icon: 'folder', color: '#8B5CF6', bg: '#EDE9FE' };
     }
-    return { icon: 'notifications', color: Colors.primaryColor, bg: '#FFF5EB' };
+    return { icon: 'notifications', color: Colors.primaryColor, bg: '#EFF6FF' };
   };
 
   return (
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
   },

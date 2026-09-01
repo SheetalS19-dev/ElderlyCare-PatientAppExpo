@@ -77,8 +77,8 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
     .spinner {
       width: 44px;
       height: 44px;
-      border: 4px solid #FFE4D6;
-      border-top: 4px solid #fe8423;
+      border: 4px solid #DBEAFE;
+      border-top: 4px solid #2563EB;
       border-radius: 50%;
       animation: spin 1s linear infinite;
       margin-bottom: 16px;
@@ -125,7 +125,7 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
           contact: "${cleanPhone}",
           name: "${prefillName.replace(/"/g, '\\"')}"
         },
-        theme: { color: "#fe8423" },
+        theme: { color: "#2563EB" },
         handler: function (response) {
           sendMessage({
             status: "success",

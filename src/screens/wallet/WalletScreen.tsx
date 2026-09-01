@@ -35,7 +35,6 @@ import {
   useAddWalletMoneyMutation,
   useGetWalletTransactionsQuery,
 } from '../../redux/apis/walletApi';
-import { openRazorpayCheckout } from '../../services/razorpayService';
 import type { TxnModel } from '../../types';
 import { DateTimeUtils, showToast } from '../../utils';
 
@@ -89,6 +88,26 @@ export const WalletScreen = () => {
     if (Array.isArray((transactions as any)?.result)) return (transactions as any).result;
     return [];
   }, [transactions]);
+
+  const totalCredited = useMemo(() => {
+    return txnList.reduce((acc, item: any) => {
+      const type = (item.transaction_type || item.type || '').toLowerCase();
+      if (type === 'credited' || type === 'credit') {
+        return acc + (Number(item.amount) || 0);
+      }
+      return acc;
+    }, 0);
+  }, [txnList]);
+
+  const totalSpent = useMemo(() => {
+    return txnList.reduce((acc, item: any) => {
+      const type = (item.transaction_type || item.type || '').toLowerCase();
+      if (type === 'debited' || type === 'debit') {
+        return acc + (Number(item.amount) || 0);
+      }
+      return acc;
+    }, 0);
+  }, [txnList]);
 
   const handleProcess = async () => {
     const numeric = Number(amount);
@@ -165,7 +184,7 @@ export const WalletScreen = () => {
           contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + 20, 30) }]}
           ListHeaderComponent={
             <>
-              {/* Balance Card in Brand Theme with container_bg */}
+              {/* Main Balance Card */}
               <ImageBackground
                 source={require('../../../assets/icons/container_bg.png')}
                 style={styles.balanceCard}
@@ -174,10 +193,10 @@ export const WalletScreen = () => {
               >
                 <View style={styles.balanceHeaderRow}>
                   <View>
-                    <Text style={styles.balanceLabel}>Available Balance</Text>
+                    <Text style={styles.balanceLabel}>CURRENT BALANCE</Text>
                     <Text style={styles.balanceValue}>
                       {AppConstants.appCurrency}
-                      {walletBalance.toFixed(2)}
+                      {walletBalance.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                     </Text>
                   </View>
                   <View style={styles.walletIconCircle}>
@@ -191,14 +210,30 @@ export const WalletScreen = () => {
                   onPress={() => setShowAddMoney(true)}
                 >
                   <MaterialIcons name="add-circle" size={18} color={Colors.primaryColor} />
-                  <Text style={styles.addMoneyBtnText}>Add Money to Wallet</Text>
+                  <Text style={styles.addMoneyBtnText}>+ Add Money to Wallet</Text>
                 </TouchableOpacity>
               </ImageBackground>
 
+              {/* Stat Summary Cards Row (Web Wallet Matching) */}
+              <View style={styles.summaryStatsGrid}>
+                <View style={styles.statSummaryCard}>
+                  <Text style={styles.statSummaryLabel}>Total Credited</Text>
+                  <Text style={[styles.statSummaryValue, { color: '#10B981' }]}>
+                    {AppConstants.appCurrency}{totalCredited.toLocaleString('en-IN')}
+                  </Text>
+                </View>
+
+                <View style={styles.statSummaryCard}>
+                  <Text style={styles.statSummaryLabel}>Wallet Spent</Text>
+                  <Text style={[styles.statSummaryValue, { color: '#EF4444' }]}>
+                    {AppConstants.appCurrency}{totalSpent.toLocaleString('en-IN')}
+                  </Text>
+                </View>
+              </View>
+
               {/* Transactions Section Title */}
               <View style={styles.sectionTitleRow}>
-                <Text style={styles.sectionTitle}>Transaction History</Text>
-                <Text style={styles.sectionCount}>({txnList.length})</Text>
+                <Text style={styles.sectionTitle}>Transaction History ({txnList.length})</Text>
               </View>
             </>
           }
@@ -341,56 +376,65 @@ export const WalletScreen = () => {
   );
 };
 
-const TxnRow = memo(({ txn }: { txn: TxnModel }) => {
+const TxnRow = memo(({ txn }: { txn: TxnModel | any }) => {
   const rawType = (txn.transaction_type || txn.type || 'Credited').trim();
   const isCredit = rawType.toLowerCase() === 'credited' || rawType.toLowerCase() === 'credit';
   const color = isCredit ? '#10B981' : '#EF4444';
-  const paymentId = txn.payment_transaction_id || txn.transaction_id;
-  const paymentMethod = txn.payment_method;
+  const bg = isCredit ? '#ECFDF5' : '#FEF2F2';
+  const border = isCredit ? '#A7F3D0' : '#FCA5A5';
+
+  const txnId = txn.id ? `TXN: #${txn.id}` : '';
+  const payId = txn.payment_transaction_id || txn.transaction_id;
+  const payIdText = payId ? `PAY: ${payId}` : '';
+
+  const paymentMode = (txn.payment_method || '').trim() || (isCredit ? 'Net Banking' : 'Wallet');
+  const patientName = `${txn.patient_f_name ?? ''} ${txn.patient_l_name ?? ''}`.trim();
+  const notesText = txn.notes || txn.description || 'Wallet Transaction';
   const numAmount = Number(txn.amount ?? 0);
 
   return (
     <View style={styles.txnCard}>
-      <View style={styles.txnRow}>
-        <View style={[styles.txnDot, { backgroundColor: isCredit ? '#ECFDF5' : '#FEF2F2' }]}>
-          <MaterialIcons
-            name={isCredit ? 'arrow-downward' : 'arrow-upward'}
-            size={20}
-            color={color}
-          />
-        </View>
-
-        <View style={styles.txnInfo}>
-          <View style={styles.txnTopLine}>
-            <Text style={styles.txnTitle} numberOfLines={1}>
-              {isCredit ? 'Wallet Top-up' : 'Service Payment'}
-            </Text>
-            <Text style={[styles.txnAmount, { color }]}>
-              {isCredit ? '+' : '−'} {AppConstants.appCurrency}{numAmount.toFixed(2)}
+      {/* Top Row: Type Pill Badge & Payment Method Mode (Left) + Amount (Right) */}
+      <View style={styles.txnTopRow}>
+        <View style={styles.txnLeftGroup}>
+          <View style={[styles.statusBadgePill, { backgroundColor: bg, borderColor: border }]}>
+            <Text style={[styles.statusBadgePillText, { color }]}>
+              {isCredit ? 'Credited' : 'Debited'}
             </Text>
           </View>
-
-          {!!paymentId && (
-            <Text style={styles.txnIdText} numberOfLines={1}>
-              Ref: {paymentId}
-            </Text>
-          )}
-
-          <View style={styles.txnBottomLine}>
-            <Text style={styles.txnDate}>
-              {DateTimeUtils.getDataFormatWithTime(txn.created_at)}
-            </Text>
-            {!!paymentMethod && (
-              <View style={styles.methodBadge}>
-                <Text style={styles.methodBadgeText}>{paymentMethod}</Text>
-              </View>
-            )}
+          <View style={styles.paymentModeBadge}>
+            <Text style={styles.paymentModeBadgeText}>{paymentMode}</Text>
           </View>
         </View>
+
+        <Text style={[styles.txnAmountText, { color }]}>
+          {isCredit ? '+ ₹' : '- ₹'}{numAmount.toLocaleString('en-IN')}
+        </Text>
+      </View>
+
+      {/* Middle Row: Ref IDs & Date */}
+      <View style={styles.txnMetaRow}>
+        <Text style={styles.txnIdText} numberOfLines={1}>
+          {txnId} {payIdText ? `• ${payIdText}` : ''}
+        </Text>
+        <Text style={styles.txnDateText}>
+          {DateTimeUtils.getDataFormatWithTime(txn.created_at)}
+        </Text>
+      </View>
+
+      {/* Bottom Row: Patient & Description */}
+      <View style={styles.txnBottomRow}>
+        <Text style={styles.notesText} numberOfLines={1}>
+          {notesText} {patientName ? `(Patient: ${patientName})` : ''}
+        </Text>
       </View>
     </View>
   );
 });
+
+
+
+
 
 const styles = StyleSheet.create({
   container: {
@@ -465,17 +509,63 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
-    gap: 6,
+    marginTop: 4,
   },
   sectionTitle: {
     fontSize: Typography.fontSize.md,
     fontFamily: Typography.fontFamily.bold,
     color: Colors.primaryFontColor,
   },
-  sectionCount: {
+  /* Web Wallet Summary Stats Row */
+
+  summaryStatsGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  statSummaryCard: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  statSummaryLabel: {
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.secondaryFontColor,
+    marginBottom: 4,
+  },
+  statSummaryValue: {
+    fontSize: 18,
+    fontFamily: Typography.fontFamily.bold,
+  },
+  totalTxnBanner: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  totalTxnBannerLabel: {
     fontSize: 12,
     fontFamily: Typography.fontFamily.medium,
     color: Colors.secondaryFontColor,
+  },
+  totalTxnBannerValue: {
+    fontSize: 16,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.primaryFontColor,
   },
   txnCard: {
     backgroundColor: Colors.white,
@@ -490,41 +580,75 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
   },
-  txnRow: {
+  txnTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
   },
-  txnDot: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
+  txnLeftGroup: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 12,
+    gap: 8,
   },
-  txnInfo: {
-    flex: 1,
+  statusBadgePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
   },
-  txnTopLine: {
+  statusBadgePillText: {
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.bold,
+  },
+  txnAmountText: {
+    fontSize: 16,
+    fontFamily: Typography.fontFamily.bold,
+  },
+  paymentModeBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  paymentModeBadgeText: {
+    fontSize: 10,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.secondaryFontColor,
+  },
+  txnMetaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginVertical: 4,
   },
-  txnTitle: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
-    color: Colors.primaryFontColor,
-  },
-  txnAmount: {
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.bold,
+  txnDateText: {
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.secondaryFontColor,
   },
   txnIdText: {
-    fontSize: 10,
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.primaryFontColor,
+    flex: 1,
+  },
+  txnBottomRow: {
+    marginTop: 6,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  notesText: {
+    fontSize: 11,
     fontFamily: Typography.fontFamily.regular,
     color: Colors.secondaryFontColor,
-    marginTop: 2,
   },
+
+
+
   txnBottomLine: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -596,7 +720,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -655,7 +779,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   methodCardActive: {
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     borderColor: Colors.primaryColor,
   },
   methodIconBox: {
@@ -719,7 +843,7 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   chipActive: {
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     borderColor: Colors.primaryColor,
   },
   chipText: {

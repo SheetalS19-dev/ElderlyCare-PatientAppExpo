@@ -1,15 +1,15 @@
 // Color tokens converted from Flutter ColorResources (colors_constant.dart)
 
 export const Colors = {
-  primaryColor: '#fe8423',
-  secondaryColor: '#fe8423',
+  primaryColor: '#2563EB',
+  secondaryColor: '#2563EB',
   greyBtnColor: '#627D98',
 
-  btnColor: '#fe8423',
+  btnColor: '#2563EB',
   btnColorGreen: '#4CAF50',
   btnColorRed: '#F44336',
 
-  iconColor: '#fe8423',
+  iconColor: '#2563EB',
   redColor: '#EE404C',
   greenFontColor: '#4CAF50',
 
@@ -18,15 +18,20 @@ export const Colors = {
   containerBgColor: '#F7F8FA',
   cardBgColor: '#FFFFFF',
 
-  appBarColor: '#fe8423',
+  appBarColor: '#2563EB',
   primaryFontColor: '#000000',
   mainFontColor: '#000000',
   secondaryFontColor: '#787878',
   borderColor: '#E0E0E0',
 
+  // Soft Blue Tints
+  lightBlueTint: '#EFF6FF',
+  lightBlueBorder: '#DBEAFE',
+
   // Charts
   contentColorCyan: '#50E4FF',
-  contentColorBlue: '#fe8423',
+  contentColorBlue: '#2563EB',
+
   mainGridLineColor: 'rgba(255, 255, 255, 0.1)',
 
   // Generic status & utility colors

@@ -558,11 +558,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 12,
     paddingVertical: 7,
-    backgroundColor: '#FFF7ED',
+    backgroundColor: '#EFF6FF',
     borderRadius: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#FFEDD5',
+    borderColor: '#DBEAFE',
   },
   filterText: {
     flex: 1,

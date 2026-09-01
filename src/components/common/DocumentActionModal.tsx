@@ -106,7 +106,7 @@ export const DocumentActionModal: React.FC<DocumentActionModalProps> = ({
 
               {/* 3. Share via Apps Option */}
               <TouchableOpacity style={styles.actionCard} activeOpacity={0.75} onPress={onShare}>
-                <View style={[styles.actionIconCircle, { backgroundColor: '#FFF5EB' }]}>
+                <View style={[styles.actionIconCircle, { backgroundColor: '#EFF6FF' }]}>
                   <MaterialIcons name="share" size={22} color={Colors.primaryColor} />
                 </View>
                 <View style={styles.actionMeta}>
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,

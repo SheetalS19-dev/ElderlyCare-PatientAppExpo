@@ -58,7 +58,8 @@ export const startRazorpayPayment = async (options: RazorpayOptions) => {
         contact: phoneDigits,
         name: name,
       },
-      theme: { color: '#fe8423' },
+      theme: { color: '#2563EB' },
+
       send_sms_hash: true,
       retry: {
         enabled: true,

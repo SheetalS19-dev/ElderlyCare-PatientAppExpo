@@ -53,7 +53,7 @@ export const AboutUsScreen = ({ navigation }: Props) => {
 
         <View style={styles.featureGrid}>
           <AppCard style={styles.gridCard}>
-            <View style={[styles.gridIconCircle, { backgroundColor: '#FFF5EB' }]}>
+            <View style={[styles.gridIconCircle, { backgroundColor: '#EFF6FF' }]}>
               <MaterialIcons name="event-available" size={22} color={Colors.primaryColor} />
             </View>
             <Text style={styles.gridCardTitle}>Online Bookings</Text>
@@ -107,12 +107,12 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 14,
     borderWidth: 1.5,
-    borderColor: '#FFEDD5',
+    borderColor: '#DBEAFE',
   },
   brandTitle: {
     fontSize: Typography.fontSize.xl,

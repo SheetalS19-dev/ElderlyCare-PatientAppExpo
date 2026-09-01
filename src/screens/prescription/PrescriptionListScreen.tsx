@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useState } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AppCard,
@@ -14,8 +14,9 @@ import {
 import { ApiEndpoints, Colors, Typography } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
+import { useGetFamilyMembersQuery } from '../../redux/apis/bookingApi';
 import { useGetPrescriptionsQuery } from '../../redux/apis/prescriptionApi';
-import type { PrescriptionModel } from '../../types';
+import type { FamilyMemberModel, PrescriptionModel } from '../../types';
 import { DateTimeUtils, formatDoctorName, showToast } from '../../utils';
 import {
   downloadPrescriptionPdf,
@@ -28,9 +29,32 @@ type Props = NativeStackScreenProps<RootStackParamList, 'PrescriptionList'>;
 export const PrescriptionListScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const uid = String(user?.id ?? (user as any)?.user_id ?? '');
+
+  const [selectedFamilyId, setSelectedFamilyId] = useState<string>('');
+
+  const { data: familyData } = useGetFamilyMembersQuery(uid, {
+    skip: !uid,
+  });
+
+  const familyList: FamilyMemberModel[] = useMemo(() => {
+    let list: FamilyMemberModel[] = [];
+    if (Array.isArray(familyData)) {
+      list = familyData;
+    } else if (Array.isArray((familyData as any)?.data)) {
+      list = (familyData as any).data;
+    } else if (Array.isArray((familyData as any)?.data?.data)) {
+      list = (familyData as any).data.data;
+    }
+    return list;
+  }, [familyData]);
+
   const { data: rawData, isLoading, isError, refetch } = useGetPrescriptionsQuery(
-    String(user?.id ?? ''),
-    { skip: !user?.id }
+    {
+      userId: uid,
+      patientId: selectedFamilyId,
+    },
+    { skip: !uid }
   );
 
   const [selectedPrescriptionItem, setSelectedPrescriptionItem] = useState<PrescriptionModel | null>(null);
@@ -43,6 +67,7 @@ export const PrescriptionListScreen = ({ navigation }: Props) => {
     : Array.isArray((rawData as any)?.data)
       ? (rawData as any).data
       : [];
+
 
   const fetchPrescriptionData = async (item: PrescriptionModel) => {
     if (!item.id) {
@@ -194,6 +219,50 @@ export const PrescriptionListScreen = ({ navigation }: Props) => {
     <View style={styles.container}>
       <AppHeader title="Digital Prescriptions" onBackPress={() => navigation.goBack()} />
 
+      {/* Family Member Filter Bar */}
+      <View style={styles.filterSection}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+          <TouchableOpacity
+            style={[styles.filterChip, selectedFamilyId === '' && styles.filterChipActive]}
+            onPress={() => setSelectedFamilyId('')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.filterChipText, selectedFamilyId === '' && styles.filterChipTextActive]}>
+              All
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.filterChip, selectedFamilyId === '0' && styles.filterChipActive]}
+            onPress={() => setSelectedFamilyId('0')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.filterChipText, selectedFamilyId === '0' && styles.filterChipTextActive]}>
+              Self ({user?.f_name || 'Me'})
+            </Text>
+          </TouchableOpacity>
+
+          {familyList.map((m) => {
+            const memberId = String(m.id);
+            const isSelected = selectedFamilyId === memberId;
+            return (
+              <TouchableOpacity
+                key={`fam-rx-${memberId}`}
+                style={[styles.filterChip, isSelected && styles.filterChipActive]}
+                onPress={() => setSelectedFamilyId(memberId)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
+                  {m.f_name} {m.l_name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+
+
       {isLoading ? (
         <LoadingIndicator />
       ) : isError ? (
@@ -323,12 +392,12 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
     borderWidth: 1,
-    borderColor: '#FFEDD5',
+    borderColor: '#DBEAFE',
   },
   summaryInfo: {
     flex: 1,
@@ -357,12 +426,12 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
     borderWidth: 1,
-    borderColor: '#FFEDD5',
+    borderColor: '#DBEAFE',
   },
   rxTag: {
     fontSize: 16,
@@ -429,8 +498,45 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFF5EB',
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
+
+  /* Family Filter Bar */
+  filterSection: {
+    paddingVertical: 10,
+    backgroundColor: Colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  filterScroll: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  filterChipActive: {
+    backgroundColor: Colors.primaryColor,
+    borderColor: Colors.primaryColor,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.primaryFontColor,
+  },
+  filterChipTextActive: {
+    color: Colors.white,
+    fontFamily: Typography.fontFamily.bold,
+  },
 });
+
