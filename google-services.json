@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "172253782909",
+    "project_id": "elderlycarelife",
+    "storage_bucket": "elderlycarelife.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:172253782909:android:72e33657d725fd6919a214",
+        "android_client_info": {
+          "package_name": "com.techwagger.elderlycarepatient"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBh8cdHX7SQfaJQOSw3U80U-r0_dIb_11M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:172253782909:android:5a07baf0c41c937719a214",
+        "android_client_info": {
+          "package_name": "com.techwagger.elderlycarepatient"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBh8cdHX7SQfaJQOSw3U80U-r0_dIb_11M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
