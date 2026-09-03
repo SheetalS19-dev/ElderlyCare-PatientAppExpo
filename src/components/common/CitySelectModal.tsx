@@ -20,9 +20,10 @@ export interface CitySelectModalProps {
   onClose: () => void;
   cities: CityModel[];
   selectedCityId?: string | number | null;
-  onSelectCity: (city: CityModel | null) => void;
+  onSelectCity: (city: CityModel | null | undefined) => void;
   title?: string;
   allowAllCities?: boolean;
+  currentCityName?: string;
 }
 
 export const CitySelectModal: React.FC<CitySelectModalProps> = ({
@@ -33,6 +34,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
   onSelectCity,
   title = 'Select Your Location',
   allowAllCities = true,
+  currentCityName,
 }) => {
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,13 +50,16 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
     );
   }, [cities, searchQuery]);
 
-  const isAllCitiesSelected =
-    !selectedCityId ||
-    String(selectedCityId) === '' ||
-    String(selectedCityId).toUpperCase() === 'ALL' ||
-    String(selectedCityId).toLowerCase() === 'all cities';
+  const isCurrentLocationSelected = selectedCityId === undefined || selectedCityId === 'CURRENT';
 
-  const handleSelect = (city: CityModel | null) => {
+  const isAllCitiesSelected =
+    !isCurrentLocationSelected &&
+    (selectedCityId === null ||
+      String(selectedCityId) === '' ||
+      String(selectedCityId).toUpperCase() === 'ALL' ||
+      String(selectedCityId).toLowerCase() === 'all cities');
+
+  const handleSelect = (city: CityModel | null | undefined) => {
     onSelectCity(city);
     onClose();
   };
@@ -121,6 +126,47 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            {/* Current Location Option */}
+            {!searchQuery.trim() && (
+              <TouchableOpacity
+                style={[styles.cityRow, isCurrentLocationSelected && styles.cityRowSelected]}
+                activeOpacity={0.7}
+                onPress={() => handleSelect(undefined)}
+              >
+                <View style={styles.cityRowLeft}>
+                  <View
+                    style={[
+                      styles.cityIconWrap,
+                      isCurrentLocationSelected && styles.cityIconWrapSelected,
+                      !isCurrentLocationSelected && { backgroundColor: '#E0F2FE' },
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="my-location"
+                      size={18}
+                      color={isCurrentLocationSelected ? Colors.white : '#0284C7'}
+                    />
+                  </View>
+                  <View>
+                    <Text
+                      style={[
+                        styles.cityNameText,
+                        isCurrentLocationSelected && styles.cityNameTextSelected,
+                      ]}
+                    >
+                      Use Current Location
+                    </Text>
+                    <Text style={styles.cityStateText}>
+                      {currentCityName ? `Detected: ${currentCityName}` : 'Auto-detect location'}
+                    </Text>
+                  </View>
+                </View>
+                {isCurrentLocationSelected && (
+                  <MaterialIcons name="check-circle" size={20} color={Colors.primaryColor} />
+                )}
+              </TouchableOpacity>
+            )}
+
             {/* Optional All Cities Option */}
             {allowAllCities && !searchQuery.trim() && (
               <TouchableOpacity
@@ -168,6 +214,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
               filteredCities.map((city: CityModel, index: number) => {
                 const cityIdStr = city.id != null ? String(city.id) : '';
                 const isSelected =
+                  !isCurrentLocationSelected &&
                   !isAllCitiesSelected &&
                   (String(selectedCityId) === cityIdStr ||
                     (city.title && String(selectedCityId).toLowerCase() === city.title.toLowerCase()));

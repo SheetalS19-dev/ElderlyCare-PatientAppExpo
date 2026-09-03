@@ -10,9 +10,11 @@ import {
   EmptyState,
   ErrorState,
   LoadingIndicator,
+  SearchBox,
 } from '../../components';
 import { ApiEndpoints, Colors, Typography } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
+import { useDebounce } from '../../hooks';
 import type { RootStackParamList } from '../../navigation/types';
 import { useGetFamilyMembersQuery } from '../../redux/apis/bookingApi';
 import { useGetPrescriptionsQuery } from '../../redux/apis/prescriptionApi';
@@ -32,6 +34,8 @@ export const PrescriptionListScreen = ({ navigation }: Props) => {
   const uid = String(user?.id ?? (user as any)?.user_id ?? '');
 
   const [selectedFamilyId, setSelectedFamilyId] = useState<string>('');
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
 
   const { data: familyData } = useGetFamilyMembersQuery(uid, {
     skip: !uid,
@@ -62,11 +66,30 @@ export const PrescriptionListScreen = ({ navigation }: Props) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMsg, setProcessingMsg] = useState('Preparing prescription...');
 
-  const prescriptions: PrescriptionModel[] = Array.isArray(rawData)
-    ? rawData
-    : Array.isArray((rawData as any)?.data)
-      ? (rawData as any).data
-      : [];
+  const prescriptions: PrescriptionModel[] = useMemo(() => {
+    let list: PrescriptionModel[] = [];
+    if (Array.isArray(rawData)) list = rawData;
+    else if (Array.isArray((rawData as any)?.data)) list = (rawData as any).data;
+    else if (Array.isArray((rawData as any)?.response)) list = (rawData as any).response;
+
+    if (!debouncedSearch.trim()) return list;
+
+    const q = debouncedSearch.toLowerCase().trim();
+    return list.filter((item: any) => {
+      const docName = `${item.doctor_f_name ?? ''} ${item.doctor_l_name ?? ''}`.toLowerCase();
+      const patientName = `${item.patient_f_name ?? ''} ${item.patient_l_name ?? ''}`.toLowerCase();
+      const clinicName = (item.clinic_name ?? item.clinicName ?? '').toLowerCase();
+      const rxId = String(item.id ?? '').toLowerCase();
+      const dateStr = String(item.created_at ?? item.date ?? '').toLowerCase();
+      return (
+        docName.includes(q) ||
+        patientName.includes(q) ||
+        clinicName.includes(q) ||
+        rxId.includes(q) ||
+        dateStr.includes(q)
+      );
+    });
+  }, [rawData, debouncedSearch]);
 
 
   const fetchPrescriptionData = async (item: PrescriptionModel) => {
@@ -261,7 +284,14 @@ export const PrescriptionListScreen = ({ navigation }: Props) => {
         </ScrollView>
       </View>
 
-
+      {/* Search Input Bar */}
+      <View style={styles.searchWrapper}>
+        <SearchBox
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search doctor, patient, clinic or ID..."
+        />
+      </View>
 
       {isLoading ? (
         <LoadingIndicator />
@@ -275,24 +305,12 @@ export const PrescriptionListScreen = ({ navigation }: Props) => {
             styles.listContent,
             { flexGrow: 1, paddingBottom: Math.max(insets.bottom + 20, 40) },
           ]}
-          ListHeaderComponent={
-            prescriptions.length > 0 ? (
-              <AppCard style={styles.summaryCard}>
-                <View style={styles.summaryRow}>
-                  <View style={styles.rxIconCircle}>
-                    <MaterialIcons name="description" size={26} color={Colors.primaryColor} />
-                  </View>
-                  <View style={styles.summaryInfo}>
-                    <Text style={styles.summaryTitle}>Prescription Vault</Text>
-                    <Text style={styles.summarySubtitle}>
-                      {prescriptions.length} Digital {prescriptions.length === 1 ? 'Prescription' : 'Prescriptions'} Issued
-                    </Text>
-                  </View>
-                </View>
-              </AppCard>
-            ) : null
+          ListEmptyComponent={
+            <EmptyState
+              message={debouncedSearch.trim() ? "No matching prescriptions" : "No prescriptions found"}
+              subtitle={debouncedSearch.trim() ? "Try searching with a different keyword or doctor name" : "Doctor issued prescriptions will appear here"}
+            />
           }
-          ListEmptyComponent={<EmptyState message="No prescriptions found" subtitle="Doctor issued prescriptions will appear here" />}
           renderItem={({ item }) => (
             <AppCard style={styles.card}>
               <TouchableOpacity
@@ -501,6 +519,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  searchWrapper: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
 
   /* Family Filter Bar */

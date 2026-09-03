@@ -35,6 +35,7 @@ import {
 import { storageService } from '../../services/storageService';
 import type { UserModel } from '../../types';
 import { DateTimeUtils, getImageUrl, showToast } from '../../utils';
+import { validateDob, validateEmail, validatePhone } from '../../validation/authValidation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
 
@@ -228,6 +229,31 @@ export const EditProfileScreen = ({ navigation }: Props) => {
   const handleUpdate = async () => {
     if (!fName.trim()) {
       showToast('First name is required');
+      return;
+    }
+    if (email.trim()) {
+      const emailRes = validateEmail(email, true);
+      if (!emailRes.isValid) {
+        showToast(emailRes.error || 'Please enter a valid email address');
+        return;
+      }
+    }
+    if (phone.trim()) {
+      const phoneRes = validatePhone(phone, true);
+      if (!phoneRes.isValid) {
+        showToast(phoneRes.error || 'Please enter a valid 10-digit phone number');
+        return;
+      }
+    }
+    if (dob.trim()) {
+      const dobRes = validateDob(dob, false);
+      if (!dobRes.isValid) {
+        showToast(dobRes.error || 'Invalid date of birth');
+        return;
+      }
+    }
+    if (postalCode.trim() && !/^\d{5,6}$/.test(postalCode.trim())) {
+      showToast('Please enter a valid 5 or 6 digit postal code');
       return;
     }
     if (!userId) {
@@ -1015,28 +1041,32 @@ const styles = StyleSheet.create({
   },
   actionsRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
     alignItems: 'center',
     gap: 12,
     marginTop: 24,
     marginBottom: 16,
+    width: '100%',
   },
   cancelBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    flex: 1,
+    height: 48,
     borderRadius: 12,
     backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cancelBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: Typography.fontFamily.bold,
     color: Colors.primaryFontColor,
   },
   updateBtn: {
-    paddingHorizontal: 22,
-    paddingVertical: 12,
+    flex: 1.8,
+    height: 48,
     borderRadius: 12,
     backgroundColor: Colors.primaryColor,
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: Colors.primaryColor,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,

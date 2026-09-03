@@ -35,6 +35,7 @@ import {
   useAddWalletMoneyMutation,
   useGetWalletTransactionsQuery,
 } from '../../redux/apis/walletApi';
+import { startRazorpayPayment } from '../../services/razorpayService';
 import type { TxnModel } from '../../types';
 import { DateTimeUtils, showToast } from '../../utils';
 
@@ -80,6 +81,10 @@ export const WalletScreen = () => {
   const [amountError, setAmountError] = useState<string | undefined>();
   const [processing, setProcessing] = useState(false);
 
+  const PAGE_SIZE = 10;
+  const [displayedLimit, setDisplayedLimit] = useState(PAGE_SIZE);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const walletBalance = Number(user?.wallet_amount ?? (user as any)?.wallet_balance ?? 0);
 
   const txnList: TxnModel[] = useMemo(() => {
@@ -88,6 +93,10 @@ export const WalletScreen = () => {
     if (Array.isArray((transactions as any)?.result)) return (transactions as any).result;
     return [];
   }, [transactions]);
+
+  const paginatedTxnList = useMemo(() => {
+    return txnList.slice(0, displayedLimit);
+  }, [txnList, displayedLimit]);
 
   const totalCredited = useMemo(() => {
     return txnList.reduce((acc, item: any) => {
@@ -109,6 +118,20 @@ export const WalletScreen = () => {
     }, 0);
   }, [txnList]);
 
+  const handleLoadMore = () => {
+    if (loadingMore || isFetching || displayedLimit >= txnList.length) return;
+    setLoadingMore(true);
+    setTimeout(() => {
+      setDisplayedLimit((prev) => prev + PAGE_SIZE);
+      setLoadingMore(false);
+    }, 500);
+  };
+
+  const handleRefresh = async () => {
+    setDisplayedLimit(PAGE_SIZE);
+    await refetch();
+  };
+
   const handleProcess = async () => {
     const numeric = Number(amount);
     if (!amount || isNaN(numeric) || numeric < MIN_AMOUNT || numeric > MAX_AMOUNT) {
@@ -129,8 +152,28 @@ export const WalletScreen = () => {
       else if (selectedMethod === 'Wallet') methodParam = 'Wallet';
       else if (selectedMethod === 'UPI / GPay / PhonePe') methodParam = 'UPI';
 
-      const paymentTxnId = `pay_${Date.now()}`;
+      // 1. Open Razorpay checkout FIRST — amount passed in rupees,
+      //    razorpayService converts to paise internally.
+      const paymentResult: any = await startRazorpayPayment({
+        amount: numeric,
+        name: 'ElderlyCare',
+        description: `Wallet top-up via ${selectedMethod}`,
+        prefill: {
+          email: (user as any)?.email || '',
+          contact: (user as any)?.phone || (user as any)?.mobile || '',
+          name:
+            `${(user as any)?.first_name ?? ''} ${(user as any)?.last_name ?? ''}`.trim() ||
+            'Patient',
+        },
+      });
 
+      const paymentTxnId = paymentResult?.razorpay_payment_id;
+      if (!paymentTxnId) {
+        throw new Error('Payment did not return a transaction id');
+      }
+
+      // 2. Only credit the wallet AFTER Razorpay confirms success,
+      //    using the REAL payment id (not a locally-generated one).
       const addMoneyPayload = {
         user_id: uid,
         amount: String(numeric),
@@ -146,14 +189,18 @@ export const WalletScreen = () => {
       const profileRes = await refetchProfile();
       if (profileRes?.data) {
         const freshData = (profileRes.data as any)?.data ?? profileRes.data;
-        await updateUser({
-          ...(user || {}),
-          ...freshData,
-        });
+        await updateUser({ ...(user || {}), ...freshData });
       }
       refetch();
     } catch (e: any) {
-      showToast(e?.data?.message || e?.message || e?.error || 'Failed to add money to wallet');
+      // Razorpay cancel/dismiss surfaces as an error (code 0 / "Payment Cancelled")
+      const isCancelled =
+        e?.code === 0 || /cancel/i.test(e?.description || e?.message || '');
+      if (!isCancelled) {
+        showToast(
+          e?.data?.message || e?.description || e?.message || e?.error || 'Payment failed. Please try again.'
+        );
+      }
     } finally {
       setProcessing(false);
       setAmount('');
@@ -177,10 +224,12 @@ export const WalletScreen = () => {
         <LoadingIndicator />
       ) : (
         <FlatList
-          data={txnList}
+          data={paginatedTxnList}
           keyExtractor={(item: TxnModel, index: number) => `txn-${item.id ?? index}`}
-          refreshing={isFetching}
-          onRefresh={refetch}
+          refreshing={isFetching && !loadingMore}
+          onRefresh={handleRefresh}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.3}
           contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + 20, 30) }]}
           ListHeaderComponent={
             <>
@@ -210,7 +259,7 @@ export const WalletScreen = () => {
                   onPress={() => setShowAddMoney(true)}
                 >
                   <MaterialIcons name="add-circle" size={18} color={Colors.primaryColor} />
-                  <Text style={styles.addMoneyBtnText}>+ Add Money to Wallet</Text>
+                  <Text style={styles.addMoneyBtnText}>Add Money to Wallet</Text>
                 </TouchableOpacity>
               </ImageBackground>
 
@@ -233,9 +282,19 @@ export const WalletScreen = () => {
 
               {/* Transactions Section Title */}
               <View style={styles.sectionTitleRow}>
-                <Text style={styles.sectionTitle}>Transaction History ({txnList.length})</Text>
+                <Text style={styles.sectionTitle}>
+                  Transaction History ({paginatedTxnList.length} of {txnList.length})
+                </Text>
               </View>
             </>
+          }
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.footerLoaderContainer}>
+                <ActivityIndicator size="small" color={Colors.primaryColor} />
+                <Text style={styles.footerLoaderText}>Loading more transactions...</Text>
+              </View>
+            ) : null
           }
           ListEmptyComponent={
             isLoading ? (
@@ -309,7 +368,7 @@ export const WalletScreen = () => {
                       </Text>
                       {isSelected && (
                         <View style={styles.selectedCheckBadge}>
-                          <MaterialIcons name="check" size={10} color={Colors.white} />
+                          <MaterialIcons name="check" size={12} color={Colors.white} />
                         </View>
                       )}
                     </TouchableOpacity>
@@ -804,12 +863,9 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamily.bold,
   },
   selectedCheckBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: Colors.primaryColor,
     justifyContent: 'center',
     alignItems: 'center',
@@ -832,15 +888,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 22,
+    marginBottom: 20,
   },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    flexGrow: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderRadius: 10,
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chipActive: {
     backgroundColor: '#EFF6FF',
@@ -857,35 +916,37 @@ const styles = StyleSheet.create({
   },
   sheetActionsRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
     alignItems: 'center',
     gap: 12,
-    marginTop: 4,
+    marginTop: 12,
     marginBottom: 8,
+    width: '100%',
   },
   closeBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    flex: 1,
+    height: 48,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#CBD5E1',
     backgroundColor: Colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   closeBtnText: {
     fontSize: 14,
-    fontFamily: Typography.fontFamily.medium,
+    fontFamily: Typography.fontFamily.bold,
     color: Colors.primaryFontColor,
+    textAlign: 'center',
   },
   confirmAddBtn: {
+    flex: 1.5,
+    height: 48,
     flexDirection: 'row',
-    paddingHorizontal: 22,
-    paddingVertical: 12,
     borderRadius: 12,
     backgroundColor: Colors.primaryColor,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 6,
-    minWidth: 130,
     shadowColor: Colors.primaryColor,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -899,5 +960,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Typography.fontFamily.bold,
     color: Colors.white,
+    textAlign: 'center',
+  },
+  footerLoaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    gap: 8,
+  },
+  footerLoaderText: {
+    fontSize: 12,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.secondaryFontColor,
   },
 });

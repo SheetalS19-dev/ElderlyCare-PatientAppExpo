@@ -15,10 +15,18 @@ export const walletApi = baseApi.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder: any) => ({
     getWalletTransactions: builder.query({
-      query: (uid: string) => ({
-        url: ApiEndpoints.getWalletByUidUrl,
-        params: { user_id: uid },
-      }),
+      query: (arg: any) => {
+        const uid = typeof arg === 'string' ? arg : arg?.user_id;
+        const page = typeof arg === 'object' ? arg?.page : undefined;
+        const limit = typeof arg === 'object' ? arg?.limit : undefined;
+        return {
+          url: ApiEndpoints.getWalletByUidUrl,
+          params: {
+            user_id: uid,
+            ...(page !== undefined ? { page, limit: limit ?? 10 } : {}),
+          },
+        };
+      },
       transformResponse: (res: any) => {
         if (Array.isArray(res)) return res;
         if (Array.isArray(res?.data)) return res.data;

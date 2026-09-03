@@ -37,6 +37,7 @@ import {
 import { useGetUserProfileQuery } from '../../redux/apis/userApi';
 import type { FamilyMemberModel, UserModel } from '../../types';
 import { DateTimeUtils, showToast } from '../../utils';
+import { validateDob, validatePhone } from '../../validation/authValidation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FamilyMemberList'>;
 
@@ -179,6 +180,20 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
       showToast('Enter Last Name');
       return;
     }
+    if (phone.trim()) {
+      const phoneRes = validatePhone(phone, true);
+      if (!phoneRes.isValid) {
+        showToast(phoneRes.error || 'Please enter a valid 10-digit phone number');
+        return;
+      }
+    }
+    if (dob.trim()) {
+      const dobRes = validateDob(dob, false);
+      if (!dobRes.isValid) {
+        showToast(dobRes.error || 'Invalid date of birth');
+        return;
+      }
+    }
 
     if (!uid) {
       showToast('User session expired. Please log in again.');
@@ -271,6 +286,10 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
             const memberName =
               `${item.f_name ?? ''} ${item.l_name ?? ''}`.trim() || (isSelf ? 'Self' : 'Family Member');
             const itemDob = item.dob || (isSelf ? currentUser?.dob : '');
+            const relationshipText = isSelf ? 'Self' : (item.relationship || 'Family Member');
+            const initial = memberName ? memberName.charAt(0).toUpperCase() : 'M';
+            const genderVal = item.gender || (isSelf ? currentUser?.gender : '');
+            const phoneVal = item.phone ? `${item.isd_code ? `${item.isd_code} ` : ''}${item.phone}` : (isSelf ? currentUser?.phone : '');
 
             return (
               <AppCard style={styles.card}>
@@ -278,43 +297,23 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
                   activeOpacity={0.85}
                   onPress={() => (isSelf ? navigation.navigate('EditProfile') : openEditModal(item))}
                 >
-                  <View style={styles.row}>
-                    <View style={styles.avatarCircle}>
-                      <MaterialIcons name="person" size={26} color={Colors.primaryColor} />
+                  {/* Card Top Row: Avatar + Name + Relationship + Actions */}
+                  <View style={styles.cardHeaderRow}>
+                    <View style={[styles.avatarCircle, isSelf && styles.avatarCircleSelf]}>
+                      <Text style={[styles.avatarText, isSelf && styles.avatarTextSelf]}>
+                        {initial}
+                      </Text>
                     </View>
-                    <View style={styles.info}>
-                      <View style={styles.nameHeaderRow}>
-                        <Text style={styles.name}>{memberName}</Text>
-                        {!!item.gender && (
-                          <View style={styles.genderBadge}>
-                            <Text style={styles.genderBadgeText}>{item.gender}</Text>
-                          </View>
-                        )}
-                        {isSelf && (
-                          <View style={styles.selfBadge}>
-                            <Text style={styles.selfBadgeText}>Self</Text>
-                          </View>
-                        )}
-                      </View>
-                      <View style={styles.metaRow}>
-                        {!!item.phone && (
-                          <View style={styles.metaItem}>
-                            <MaterialIcons name="phone" size={13} color="#64748B" />
-                            <Text style={styles.metaText}>
-                              {item.isd_code ? `${item.isd_code} ` : ''}{item.phone}
-                            </Text>
-                          </View>
-                        )}
-                        {!!itemDob && (
-                          <View style={styles.metaItem}>
-                            <MaterialIcons name="cake" size={13} color="#64748B" />
-                            <Text style={styles.metaText}>
-                              {DateTimeUtils.getDataFormat(itemDob) || itemDob}
-                            </Text>
-                          </View>
-                        )}
+
+                    <View style={styles.headerInfo}>
+                      <Text style={styles.name} numberOfLines={1}>{memberName}</Text>
+                      <View style={[styles.relationBadge, isSelf ? styles.selfBadge : styles.familyBadge]}>
+                        <Text style={[styles.relationBadgeText, isSelf ? styles.selfBadgeText : styles.familyBadgeText]}>
+                          {relationshipText}
+                        </Text>
                       </View>
                     </View>
+
                     <View style={styles.actionRow}>
                       {isSelf ? (
                         <TouchableOpacity
@@ -322,7 +321,7 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
                           onPress={() => navigation.navigate('EditProfile')}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
-                          <MaterialIcons name="edit" size={18} color={Colors.primaryColor} />
+                          <MaterialIcons name="edit" size={17} color={Colors.primaryColor} />
                         </TouchableOpacity>
                       ) : (
                         <>
@@ -331,19 +330,51 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
                             onPress={() => openEditModal(item)}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
-                            <MaterialIcons name="edit" size={18} color={Colors.primaryColor} />
+                            <MaterialIcons name="edit" size={17} color={Colors.primaryColor} />
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={[styles.actionIconBtn, styles.deleteIconBtn]}
                             onPress={() => handleDelete(String(item.id), memberName)}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
-                            <MaterialIcons name="delete-outline" size={18} color={Colors.redColor} />
+                            <MaterialIcons name="delete-outline" size={17} color={Colors.redColor} />
                           </TouchableOpacity>
                         </>
                       )}
                     </View>
                   </View>
+
+                  {/* Card Bottom Meta Box */}
+                  {(!!genderVal || !!phoneVal || !!itemDob) && (
+                    <View style={styles.metaContainerBox}>
+                      {!!genderVal && (
+                        <View style={styles.metaGridItem}>
+                          <View style={[styles.metaIconCircle, { backgroundColor: '#EFF6FF' }]}>
+                            <MaterialIcons name="wc" size={13} color="#2563EB" />
+                          </View>
+                          <Text style={styles.metaText}>{genderVal}</Text>
+                        </View>
+                      )}
+                      {!!phoneVal && (
+                        <View style={styles.metaGridItem}>
+                          <View style={[styles.metaIconCircle, { backgroundColor: '#ECFDF5' }]}>
+                            <MaterialIcons name="phone" size={13} color="#059669" />
+                          </View>
+                          <Text style={styles.metaText}>{phoneVal}</Text>
+                        </View>
+                      )}
+                      {!!itemDob && (
+                        <View style={styles.metaGridItem}>
+                          <View style={[styles.metaIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                            <MaterialIcons name="cake" size={13} color="#D97706" />
+                          </View>
+                          <Text style={styles.metaText}>
+                            {DateTimeUtils.getDataFormat(itemDob) || itemDob}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
                 </TouchableOpacity>
               </AppCard>
             );
@@ -504,68 +535,125 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgColor },
   listContent: { flexGrow: 1, padding: 16, paddingBottom: 80 },
-  card: { marginBottom: 12, borderRadius: 16, padding: 14 },
-  row: { flexDirection: 'row', alignItems: 'center' },
-  avatarCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#EFF6FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-    borderWidth: 1.5,
-    borderColor: '#DBEAFE',
+  card: {
+    marginBottom: 14,
+    borderRadius: 20,
+    padding: 16,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  info: { flex: 1 },
-  nameHeaderRow: {
+  cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+  },
+  avatarCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    borderWidth: 1.5,
+    borderColor: '#C7D2FE',
+  },
+  avatarCircleSelf: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+  },
+  avatarText: {
+    fontSize: 18,
+    fontFamily: Typography.fontFamily.bold,
+    color: '#4338CA',
+  },
+  avatarTextSelf: {
+    color: '#047857',
+  },
+  headerInfo: {
+    flex: 1,
+    marginRight: 8,
   },
   name: {
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: Typography.fontFamily.bold,
-    color: Colors.primaryFontColor,
+    color: '#0F172A',
+    marginBottom: 3,
+  },
+  relationBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
   },
   selfBadge: {
     backgroundColor: '#ECFDF5',
-    borderWidth: 1,
     borderColor: '#A7F3D0',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
   },
-  selfBadgeText: {
+  familyBadge: {
+    backgroundColor: '#EEF2FF',
+    borderColor: '#C7D2FE',
+  },
+  relationBadgeText: {
     fontSize: 11,
     fontFamily: Typography.fontFamily.bold,
-    color: '#059669',
   },
-  genderBadge: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
+  selfBadgeText: {
+    color: '#047857',
   },
-  genderBadgeText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
-    color: '#2563EB',
+  familyBadgeText: {
+    color: '#4338CA',
   },
-  metaRow: { flexDirection: 'column', marginTop: 6, gap: 4 },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  metaText: { fontSize: 12, color: Colors.secondaryFontColor, fontFamily: Typography.fontFamily.regular },
-  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 8 },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 0,
+  },
   actionIconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
   deleteIconBtn: {
     backgroundColor: '#FEE2E2',
+  },
+  metaContainerBox: {
+    marginTop: 12,
+    paddingTop: 10,
+    paddingHorizontal: 10,
+    paddingBottom: 8,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    gap: 6,
+  },
+  metaGridItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  metaIconCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  metaText: {
+    fontSize: 12,
+    color: '#475569',
+    fontFamily: Typography.fontFamily.medium,
   },
   fab: {
     position: 'absolute',

@@ -1,3 +1,33 @@
+export const isWithinLast7Days = (dateStr?: string | null): boolean => {
+  if (!dateStr) return false;
+  const str = String(dateStr).trim();
+  if (!str || str === 'null' || str === 'undefined') return false;
+
+  const cleanDate = str.split('T')[0].split(' ')[0];
+  const parts = cleanDate.split('-');
+  let itemDate: Date;
+  if (parts.length >= 3) {
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+    if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+      itemDate = new Date(year, month - 1, day, 12, 0, 0);
+    } else {
+      itemDate = new Date(dateStr);
+    }
+  } else {
+    itemDate = new Date(dateStr);
+  }
+
+  if (isNaN(itemDate.getTime())) return false;
+
+  const now = new Date();
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 23, 59, 59, 999);
+  const sevenDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7, 0, 0, 0, 0);
+
+  return itemDate.getTime() >= sevenDaysAgo.getTime() && itemDate.getTime() <= endOfToday.getTime();
+};
+
 export class DateTimeUtils {
   static getDayName(day: number): string {
     switch (day) {
@@ -103,5 +133,9 @@ export class DateTimeUtils {
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const dd = String(today.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
+  }
+
+  static isWithinLast7Days(dateStr?: string | null): boolean {
+    return isWithinLast7Days(dateStr);
   }
 }

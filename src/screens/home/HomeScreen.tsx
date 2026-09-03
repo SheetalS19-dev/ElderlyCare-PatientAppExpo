@@ -1,23 +1,38 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import React, { memo, useCallback, useMemo, useState } from 'react';
+import { requireOptionalNativeModule } from 'expo-modules-core';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Dimensions,
   FlatList,
   Image,
+  KeyboardAvoidingView,
   Linking,
+  Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from 'react-native';
-import Svg, { Line, Path, Circle as SvgCircle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BottomTabBar, CitySelectModal, ErrorState, LoadingIndicator, SearchBox } from '../../components';
+import Svg, { Circle as SvgCircle, Line, Path, Text as SvgText } from 'react-native-svg';
+import {
+  AppButton,
+  AppDatePickerModal,
+  AppTextField,
+  AppTimePickerModal,
+  BottomTabBar,
+  CitySelectModal,
+  ErrorState,
+  LoadingIndicator,
+  SearchBox
+} from '../../components';
 import { Colors, Images, Typography } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
@@ -27,7 +42,6 @@ import { useGetClinicsQuery } from '../../redux/apis/clinicApi';
 import {
   useGetBannersQuery,
   useGetCitiesQuery,
-  useGetCurrentCityQuery,
   useGetDepartmentsQuery,
   useGetDoctorsQuery,
   type BannerModel,
@@ -38,9 +52,9 @@ import {
 import { useGetNotificationsByDateQuery } from '../../redux/apis/notificationApi';
 import { useGetPatientFilesQuery } from '../../redux/apis/patientFilesApi';
 import { useGetUserProfileQuery } from '../../redux/apis/userApi';
-import { useGetVitalsQuery } from '../../redux/apis/vitalsApi';
+import { useDeleteVitalMutation, useGetVitalsQuery, useUpdateVitalMutation } from '../../redux/apis/vitalsApi';
 import { getUserFullName, type FamilyMemberModel, type NotificationModel } from '../../types';
-import { formatDoctorName, getImageUrl, showToast } from '../../utils';
+import { DateTimeUtils, downloadAndSaveFile, formatDoctorName, getImageUrl, isWithinLast7Days, showToast } from '../../utils';
 
 
 
@@ -76,7 +90,10 @@ const extractVitalNumericPoints = (records: any, vitalType: string): { val: numb
 
   if (!list || list.length === 0) return [];
 
-  const slice = [...list].slice(0, 5).reverse();
+  const filteredList = list.filter((item) => isWithinLast7Days(item.date || item.created_at));
+  if (!filteredList || filteredList.length === 0) return [];
+
+  const slice = [...filteredList].slice(0, 5).reverse();
   const points: { val: number; label: string }[] = [];
 
   slice.forEach((item) => {
@@ -120,6 +137,8 @@ interface VitalChartCardProps {
   records: any;
   latestVal: string;
   onPress: () => void;
+  onDeleteRecord?: (id: string | number) => void;
+  onEditRecord?: (item: any) => void;
   fullWidth?: boolean;
   yLabels?: string[];
 }
@@ -136,55 +155,205 @@ const VitalChartCard = ({
   records,
   latestVal,
   onPress,
-  fullWidth = false,
+  onDeleteRecord,
+  onEditRecord,
+  fullWidth = true,
   yLabels = ['4', '3', '2', '1', '0'],
 }: VitalChartCardProps) => {
-  const points = useMemo(() => extractVitalNumericPoints(records, vitalType), [records, vitalType]);
-  const hasData = points.length > 0 && latestVal !== 'N/A';
+  const last7DaysRecords = useMemo(() => {
+    let list: any[] = [];
+    if (Array.isArray(records)) list = records;
+    else if (Array.isArray(records?.data)) list = records.data;
+    else if (Array.isArray(records?.response)) list = records.response;
 
-  const chartData = useMemo(() => {
-    if (points.length === 0) return { pathD: '', coords: [] };
-
-    const vals = points.map((p) => p.val);
-    let minVal = Math.min(...vals);
-    let maxVal = Math.max(...vals);
-    if (minVal === maxVal) {
-      minVal = Math.max(0, minVal - 10);
-      maxVal = maxVal + 10;
-    }
-
-    const marginX = 15;
-    const width = 160;
-    const minY = 10;
-    const maxY = 48;
-    const heightRange = maxY - minY;
-
-    const coords = points.map((p, idx) => {
-      const x = points.length === 1
-        ? width / 2
-        : marginX + (idx / (points.length - 1)) * (width - 2 * marginX);
-      const normalized = (p.val - minVal) / (maxVal - minVal);
-      const y = maxY - normalized * heightRange;
-      return { x, y };
+    const filtered = list.filter((item) => isWithinLast7Days(item.date || item.created_at));
+    return [...filtered].sort((a, b) => {
+      const timeA = new Date(a.date || a.created_at || 0).getTime();
+      const timeB = new Date(b.date || b.created_at || 0).getTime();
+      return timeB - timeA;
     });
+  }, [records]);
 
-    if (coords.length === 1) {
-      return { pathD: `M 15 ${coords[0].y} L 145 ${coords[0].y}`, coords };
+  const hasData = last7DaysRecords.length > 0;
+
+  const { computedYLabels, minY, maxY } = useMemo(() => {
+    if (!hasData) {
+      if (vitalType === 'Weight' || vitalType === 'Temperature') {
+        return { computedYLabels: ['4', '2', '0'], minY: 0, maxY: 4 };
+      }
+      if (vitalType === 'SpO2') {
+        return { computedYLabels: ['100', '90', '80'], minY: 80, maxY: 100 };
+      }
+      return { computedYLabels: ['4', '3', '2', '1', '0'], minY: 0, maxY: 4 };
     }
 
-    let pathD = `M ${coords[0].x} ${coords[0].y}`;
-    for (let i = 1; i < coords.length; i++) {
-      const prev = coords[i - 1];
-      const curr = coords[i];
-      const cpX1 = prev.x + (curr.x - prev.x) / 2;
-      const cpY1 = prev.y;
-      const cpX2 = prev.x + (curr.x - prev.x) / 2;
-      const cpY2 = curr.y;
-      pathD += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${curr.x} ${curr.y}`;
+    if (vitalType === 'Blood Pressure') {
+      let maxV = 0;
+      let minV = 999;
+      last7DaysRecords.forEach((r) => {
+        const s = Number(r.bp_systolic || 0);
+        const d = Number(r.bp_diastolic || 0);
+        if (s > maxV) maxV = s;
+        if (d > 0 && d < minV) minV = d;
+      });
+      if (maxV === 0) maxV = 140;
+      if (minV === 999) minV = 70;
+
+      let top = Math.ceil(maxV / 5) * 5;
+      if (top - maxV < 3) top += 5;
+      let bottom = Math.floor(minV / 5) * 5;
+      if (minV - bottom < 2) bottom -= 5;
+      if (bottom < 0) bottom = 0;
+
+      const step = (top - bottom) / 3;
+      const labels = [
+        String(Math.round(top)),
+        String(Math.round(top - step)),
+        String(Math.round(top - step * 2)),
+        String(Math.round(bottom)),
+      ];
+      return { computedYLabels: labels, minY: bottom, maxY: top };
     }
 
-    return { pathD, coords };
-  }, [points]);
+    if (vitalType === 'Sugar') {
+      let maxV = 0;
+      let minV = 999;
+      last7DaysRecords.forEach((r) => {
+        const f = Number(r.sugar_fasting || 0);
+        const rand = Number(r.sugar_random || 0);
+        if (f > maxV) maxV = f;
+        if (rand > maxV) maxV = rand;
+        if (f > 0 && f < minV) minV = f;
+        if (rand > 0 && rand < minV) minV = rand;
+      });
+      if (maxV === 0) maxV = 160;
+      if (minV === 999) minV = 70;
+
+      let top = Math.ceil(maxV / 10) * 10;
+      let bottom = Math.floor(minV / 10) * 10;
+      if (top <= bottom) top = bottom + 30;
+
+      const step = (top - bottom) / 3;
+      const labels = [
+        String(Math.round(top)),
+        String(Math.round(top - step)),
+        String(Math.round(top - step * 2)),
+        String(Math.round(bottom)),
+      ];
+      return { computedYLabels: labels, minY: bottom, maxY: top };
+    }
+
+    if (vitalType === 'Weight') {
+      let maxV = 0;
+      let minV = 999;
+      last7DaysRecords.forEach((r) => {
+        const v = Number(r.weight || r.value || 0);
+        if (v > maxV) maxV = v;
+        if (v > 0 && v < minV) minV = v;
+      });
+      if (maxV === 0) maxV = 70;
+      if (minV === 999) minV = 50;
+
+      let top = Math.ceil(maxV) + 1;
+      let bottom = Math.floor(minV) - 1;
+      if (top <= bottom) top = bottom + 2;
+
+      const labels = [String(top), String(Math.round((top + bottom) / 2)), String(bottom)];
+      return { computedYLabels: labels, minY: bottom, maxY: top };
+    }
+
+    if (vitalType === 'Temperature') {
+      let maxV = 0;
+      let minV = 999;
+      last7DaysRecords.forEach((r) => {
+        const v = Number(r.temperature || r.value || 0);
+        if (v > maxV) maxV = v;
+        if (v > 0 && v < minV) minV = v;
+      });
+      if (maxV === 0) maxV = 99;
+      if (minV === 999) minV = 95;
+
+      let top = Math.ceil(maxV) + 1;
+      let bottom = Math.floor(minV) - 1;
+      if (top <= bottom) top = bottom + 2;
+
+      const labels = [String(top), String(Math.round((top + bottom) / 2)), String(bottom)];
+      return { computedYLabels: labels, minY: bottom, maxY: top };
+    }
+
+    if (vitalType === 'SpO2') {
+      return { computedYLabels: ['100', '90', '80'], minY: 80, maxY: 100 };
+    }
+
+    return { computedYLabels: yLabels, minY: 0, maxY: 100 };
+  }, [hasData, vitalType, last7DaysRecords, yLabels]);
+
+  const computedUnitLabel = useMemo(() => {
+    if (vitalType === 'Weight') return 'Weight (kg)';
+    if (vitalType === 'Temperature') return 'Temperature (°C)';
+    if (vitalType === 'SpO2') return 'SpO2 (%)';
+    return unit;
+  }, [vitalType, unit]);
+
+  const xAxisLabels = useMemo(() => {
+    if (last7DaysRecords.length > 0) {
+      const slice = [...last7DaysRecords].slice(0, 4).reverse();
+      return slice.map((item) => {
+        const dStr = item.date ? item.date.split('T')[0] : (item.created_at ? item.created_at.split('T')[0] : '');
+        let dateFormatted = dStr ? DateTimeUtils.getDataFormat(dStr) : '';
+        dateFormatted = dateFormatted.replace(/,?\s*\d{4}/g, '').trim();
+
+        const timeFormatted = item.time ? (DateTimeUtils.formatTimeToAmPm(item.time) || item.time) : '';
+        const cleanTime = (timeFormatted && timeFormatted !== '00:00' && timeFormatted !== '12:00 AM') ? timeFormatted : '00:00';
+        return `${dateFormatted} ${cleanTime}`;
+      });
+    }
+    const dates = [];
+    const today = new Date();
+    for (let i = 3; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+      let dateFormatted = DateTimeUtils.getDataFormat(d.toISOString().split('T')[0]);
+      dateFormatted = dateFormatted.replace(/,?\s*\d{4}/g, '').trim();
+      dates.push(`${dateFormatted} 00:00`);
+    }
+    return dates;
+  }, [last7DaysRecords]);
+
+  const chartPoints = useMemo(() => {
+    if (last7DaysRecords.length === 0) return [];
+    const slice = [...last7DaysRecords].slice(0, 4).reverse();
+    const count = slice.length;
+
+    // Fixed 4-column X positions (35, 105, 175, 245) matching 4 X-axis date labels evenly spaced across 270px
+    const colStep = 210 / Math.max(1, count - 1);
+
+    return slice.map((item, idx) => {
+      let sys = 0;
+      let dia = 0;
+      let val = 0;
+      let sugarFasting = 0;
+      let sugarRandom = 0;
+
+      if (vitalType === 'Blood Pressure') {
+        sys = Number(item.bp_systolic || 0);
+        dia = Number(item.bp_diastolic || 0);
+      } else if (vitalType === 'Sugar') {
+        sugarFasting = Number(item.sugar_fasting || 0);
+        sugarRandom = Number(item.sugar_random || 0);
+        val = sugarFasting || sugarRandom || Number(item.value || 0);
+      } else if (vitalType === 'Weight') {
+        val = Number(item.weight || item.value || 0);
+      } else if (vitalType === 'Temperature') {
+        val = Number(item.temperature || item.value || 0);
+      } else if (vitalType === 'SpO2') {
+        val = Number(item.spo2 || item.value || 0);
+      }
+
+      const cx = count === 1 ? 135 : 30 + idx * colStep;
+
+      return { sys, dia, val, sugarFasting, sugarRandom, cx };
+    });
+  }, [last7DaysRecords, vitalType]);
 
   return (
     <TouchableOpacity
@@ -192,84 +361,381 @@ const VitalChartCard = ({
       activeOpacity={0.88}
       onPress={onPress}
     >
-      {/* Top Header Row with Icon */}
+      {/* Top Header Row with Circle Icon, Title, Subtitle, & Red Note if no data */}
       <View style={styles.vitalsCardHeaderRow}>
         <View style={[styles.vitalsIconCircle, { backgroundColor: pillBgColor }]}>
           <MaterialIcons name={iconName} size={18} color={iconColor} />
         </View>
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={styles.vitalsCardTitle} numberOfLines={1}>{title}</Text>
           <Text style={styles.vitalsCardSub} numberOfLines={1}>{subtitle}</Text>
-        </View>
-      </View>
-
-      {/* Mini SVG Chart Line */}
-      <View style={styles.vitalsMiniChartArea}>
-        <View style={styles.vitalsYAxisColumn}>
-          <Text style={styles.vitalsUnitText}>{unit}</Text>
-          {yLabels.slice(0, 3).map((lbl, idx) => (
-            <Text key={`y-${idx}`} style={styles.vitalsYLabel}>{lbl}</Text>
-          ))}
+          {!hasData && (
+            <Text style={{ fontSize: 9, color: '#EF4444', fontFamily: Typography.fontFamily.medium, marginTop: 2, textAlign: 'center' }}>
+              Note: Data beyond 7 days is not shown
+            </Text>
+          )}
         </View>
 
-        <View style={styles.vitalsSvgBox}>
-          <Svg height="60" width="100%" viewBox="0 0 160 60">
-            {/* Grid Lines */}
-            <Line x1="0" y1="10" x2="160" y2="10" stroke="#F1F5F9" strokeWidth="1" />
-            <Line x1="0" y1="30" x2="160" y2="30" stroke="#F1F5F9" strokeWidth="1" />
-            <Line x1="0" y1="50" x2="160" y2="50" stroke="#CBD5E1" strokeWidth="1.5" />
-
-            {hasData && chartData.pathD ? (
-              <>
-                <Path
-                  d={chartData.pathD}
-                  fill="none"
-                  stroke={iconColor}
-                  strokeWidth="2.5"
-                />
-                {chartData.coords.map((c, i) => (
-                  <SvgCircle key={`pt-${i}`} cx={c.x} cy={c.y} r="3.5" fill={iconColor} />
-                ))}
-              </>
-            ) : null}
-          </Svg>
-        </View>
-      </View>
-
-      {/* Table Header Pill */}
-      <View style={styles.vitalsTableHeaderBar}>
-        {headers.slice(0, fullWidth ? 5 : 3).map((h, i) => (
-          <Text key={`head-${i}`} style={styles.vitalsTableHeadCell} numberOfLines={1}>
-            {h}
-          </Text>
-        ))}
-      </View>
-
-      {/* Latest Record / No Records Text */}
-      <View style={styles.vitalsTableBody}>
-        {hasData ? (
-          <Text style={styles.vitalsDataValText}>{latestVal} {unit}</Text>
-        ) : (
-          <Text style={styles.vitalsNoRecordsText}>No Records Found</Text>
+        {vitalType === 'Blood Pressure' && hasData && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' }} />
+              <Text style={{ fontSize: 10, color: '#64748B', fontFamily: Typography.fontFamily.medium }}>Systolic</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#2563EB' }} />
+              <Text style={{ fontSize: 10, color: '#64748B', fontFamily: Typography.fontFamily.medium }}>Diastolic</Text>
+            </View>
+          </View>
+        )}
+        {vitalType === 'Sugar' && hasData && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#0284C7' }} />
+              <Text style={{ fontSize: 10, color: '#64748B', fontFamily: Typography.fontFamily.medium }}>Fasting</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#F97316' }} />
+              <Text style={{ fontSize: 10, color: '#64748B', fontFamily: Typography.fontFamily.medium }}>Random</Text>
+            </View>
+          </View>
         )}
       </View>
+
+      {/* Mini Chart Area with Flexbox Left Column (Unit + Y-Axis Numbers) & SVG Right Area (Grid + Dots + X-Axis) */}
+      <View style={styles.vitalsMiniChartArea}>
+        {/* Left Column: Unit Label + Y-Axis Numbers sitting flush on left */}
+        <View style={styles.vitalsLeftYAxisContainer}>
+          {/* Rotated Vertical Unit Label */}
+          <View style={styles.vitalsRotatedUnitBox}>
+            <Text style={styles.vitalsRotatedUnitText} numberOfLines={1}>
+              {computedUnitLabel}
+            </Text>
+          </View>
+
+          {/* Y-Axis Numbers directly right next to Unit */}
+          <View style={styles.vitalsYAxisNumberColumn}>
+            {computedYLabels.map((lbl, idx) => (
+              <Text key={`ylbl-${idx}`} style={styles.vitalsYAxisNumberText}>
+                {lbl}
+              </Text>
+            ))}
+          </View>
+        </View>
+
+        {/* Right Area: SVG Grid Lines, Dots & X-Axis Dates */}
+        <View style={styles.vitalsSvgBox}>
+          <Svg height="76" width="100%" viewBox="0 0 270 76" preserveAspectRatio="none">
+            {/* Horizontal Grid Lines starting from x1=0 */}
+            {computedYLabels.map((lbl, idx) => {
+              const numCount = computedYLabels.length;
+              const lineY = numCount > 1 ? 8 + idx * (60 / (numCount - 1)) : 38;
+              return (
+                <Line
+                  key={`line-${idx}`}
+                  x1="0"
+                  y1={lineY}
+                  x2="270"
+                  y2={lineY}
+                  stroke={idx === numCount - 1 ? '#CBD5E1' : '#F1F5F9'}
+                  strokeWidth={idx === numCount - 1 ? 1.5 : 1}
+                />
+              );
+            })}
+          </Svg>
+
+          {/* PERFECT UNIFORM CIRCLES (9x9, borderRadius=4.5 - Never distorted by SVG scaling!) */}
+          {hasData && (
+            <View style={styles.vitalsDotsOverlay} pointerEvents="none">
+              {chartPoints.map((pt, i) => {
+                const rangeY = maxY - minY || 1;
+                const leftPercent = `${(pt.cx / 270) * 100}%`;
+
+                if (vitalType === 'Blood Pressure') {
+                  const sysY = 68 - Math.min(60, Math.max(0, ((pt.sys - minY) / rangeY) * 60));
+                  const diaY = 68 - Math.min(60, Math.max(0, ((pt.dia - minY) / rangeY) * 60));
+                  return (
+                    <React.Fragment key={`pts-dot-${i}`}>
+                      {pt.sys > 0 && (
+                        <View
+                          style={{
+                            position: 'absolute',
+                            left: leftPercent as any,
+                            top: sysY - 4.5,
+                            width: 9,
+                            height: 9,
+                            borderRadius: 4.5,
+                            backgroundColor: '#EF4444',
+                            marginLeft: -4.5,
+                          }}
+                        />
+                      )}
+                      {pt.dia > 0 && (
+                        <View
+                          style={{
+                            position: 'absolute',
+                            left: leftPercent as any,
+                            top: diaY - 4.5,
+                            width: 9,
+                            height: 9,
+                            borderRadius: 4.5,
+                            backgroundColor: '#2563EB',
+                            marginLeft: -4.5,
+                          }}
+                        />
+                      )}
+                    </React.Fragment>
+                  );
+                } else if (vitalType === 'Sugar') {
+                  const fastY = 68 - Math.min(60, Math.max(0, ((pt.sugarFasting - minY) / rangeY) * 60));
+                  const randY = 68 - Math.min(60, Math.max(0, ((pt.sugarRandom - minY) / rangeY) * 60));
+                  return (
+                    <React.Fragment key={`pts-dot-${i}`}>
+                      {pt.sugarFasting > 0 && (
+                        <View
+                          style={{
+                            position: 'absolute',
+                            left: leftPercent as any,
+                            top: fastY - 4.5,
+                            width: 9,
+                            height: 9,
+                            borderRadius: 4.5,
+                            backgroundColor: '#0284C7',
+                            marginLeft: -4.5,
+                          }}
+                        />
+                      )}
+                      {pt.sugarRandom > 0 && (
+                        <View
+                          style={{
+                            position: 'absolute',
+                            left: leftPercent as any,
+                            top: randY - 4.5,
+                            width: 9,
+                            height: 9,
+                            borderRadius: 4.5,
+                            backgroundColor: '#F97316',
+                            marginLeft: -4.5,
+                          }}
+                        />
+                      )}
+                    </React.Fragment>
+                  );
+                } else {
+                  const valY = 68 - Math.min(60, Math.max(0, ((pt.val - minY) / rangeY) * 60));
+                  return pt.val > 0 ? (
+                    <View
+                      key={`pts-dot-${i}`}
+                      style={{
+                        position: 'absolute',
+                        left: leftPercent as any,
+                        top: valY - 5,
+                        width: 10,
+                        height: 10,
+                        borderRadius: 5,
+                        backgroundColor: iconColor,
+                        marginLeft: -5,
+                      }}
+                    />
+                  ) : null;
+                }
+              })}
+            </View>
+          )}
+
+          {/* X-Axis Date Labels Row */}
+          <View style={styles.vitalsXAxisRow}>
+            {xAxisLabels.map((lbl, idx) => (
+              <Text key={`x-${idx}`} style={styles.vitalsXLabel} numberOfLines={1}>
+                {lbl}
+              </Text>
+            ))}
+          </View>
+        </View>
+      </View>
+
+      {/* Responsive Full Width Scrollable Table */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={true}
+        contentContainerStyle={{ flexGrow: 1, width: '100%' }}
+        style={{ width: '100%' }}
+      >
+        <View style={{ width: '100%', minWidth: 310 }}>
+          {/* Table Header Bar */}
+          <View style={styles.vitalsTableHeaderBar}>
+            {headers.map((h, i) => (
+              <Text key={`head-${i}`} style={styles.vitalsTableHeadCell} numberOfLines={1}>
+                {h}
+              </Text>
+            ))}
+          </View>
+
+          {/* Records List (Vertical Scrollable) */}
+          {hasData ? (
+            <ScrollView
+              style={{ maxHeight: 130, width: '100%' }}
+              nestedScrollEnabled={true}
+              showsVerticalScrollIndicator={true}
+            >
+              {last7DaysRecords.map((item, idx) => (
+                <View key={`row-${item.id ?? idx}`} style={styles.vitalsTableRow}>
+                  {vitalType === 'Blood Pressure' ? (
+                    <>
+                      <Text style={styles.vitalsTableCellText}>{item.bp_systolic ?? '--'}</Text>
+                      <Text style={styles.vitalsTableCellText}>{item.bp_diastolic ?? '--'}</Text>
+                    </>
+                  ) : vitalType === 'Sugar' ? (
+                    <>
+                      <Text style={styles.vitalsTableCellText}>{item.sugar_fasting ?? '--'}</Text>
+                      <Text style={styles.vitalsTableCellText}>{item.sugar_random ?? '--'}</Text>
+                    </>
+                  ) : (
+                    <Text style={styles.vitalsTableCellText}>
+                      {item.weight || item.temperature || item.spo2 || item.value || '--'}
+                    </Text>
+                  )}
+                  <Text style={styles.vitalsTableCellText}>
+                    {item.date ? item.date.split('T')[0] : (item.created_at ? item.created_at.split('T')[0] : '--')}
+                  </Text>
+                  <Text style={styles.vitalsTableCellText}>
+                    {item.time ? DateTimeUtils.formatTimeToAmPm(item.time) || item.time : '--'}
+                  </Text>
+
+                  {/* ACTION Column with Edit and Delete Buttons */}
+                  <View style={styles.vitalsTableCellAction}>
+                    <TouchableOpacity
+                      style={styles.actionIconBtnDelete}
+                      onPress={() => onDeleteRecord && item.id && onDeleteRecord(item.id)}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <MaterialIcons name="delete-outline" size={19} color="#EF4444" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.actionIconBtnEdit}
+                      onPress={() => onEditRecord ? onEditRecord(item) : onPress()}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <MaterialIcons name="edit" size={19} color="#059669" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={styles.vitalsTableBody}>
+              <Text style={styles.vitalsNoRecordsText}>No Records Found</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
     </TouchableOpacity>
   );
 };
+
+const SAVED_LOCATION_KEY = 'SAVED_USER_CITY_LOCATION';
 
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<RootNavigation>();
   const { isAuthenticated, user } = useAuth();
   const insets = useSafeAreaInsets();
 
+  const [deleteVital] = useDeleteVitalMutation();
+
+  const handleDeleteVitalRecord = async (id: string | number) => {
+    try {
+      await deleteVital({ id }).unwrap();
+      showToast('Record deleted');
+    } catch (e: any) {
+      showToast(e?.data?.message || 'Could not delete record');
+    }
+  };
+
   const [search, setSearch] = useState('');
   const [selectedCity, setSelectedCity] = useState<CityModel | null | undefined>(undefined);
+  const [deviceLocationCity, setDeviceLocationCity] = useState<string | null>(null);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [citySearchQuery, setCitySearchQuery] = useState('');
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
 
-  // API Queries
-  const { data: currentCityData } = useGetCurrentCityQuery();
+  // 1. Load saved location from AsyncStorage on mount
+  useEffect(() => {
+    const loadSavedLocation = async () => {
+      try {
+        const savedData = await AsyncStorage.getItem(SAVED_LOCATION_KEY);
+        if (savedData) {
+          const parsed = JSON.parse(savedData);
+          if (parsed !== undefined) {
+            setSelectedCity(parsed);
+          }
+        }
+      } catch (err) {
+        console.log('Error loading saved location:', err);
+      }
+    };
+    loadSavedLocation();
+  }, []);
+
+  // 2. Fetch current device location safely (with IP fallback to prevent native module loader crashes)
+  const fetchDeviceCurrentLocation = useCallback(async () => {
+    setIsDetectingLocation(true);
+    try {
+      // First check if ExpoLocation native module exists in current runtime build before requiring it
+      const hasExpoLocationNativeModule = Boolean(requireOptionalNativeModule('ExpoLocation'));
+
+      if (hasExpoLocationNativeModule) {
+        try {
+          const Location = require('expo-location');
+          if (Location && Location.requestForegroundPermissionsAsync) {
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status === 'granted') {
+              const location = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.Balanced,
+              });
+              const geocoded = await Location.reverseGeocodeAsync({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+              });
+              if (geocoded && geocoded.length > 0) {
+                const place = geocoded[0];
+                const cityName = place.city || place.subregion || place.district || place.region || '';
+                if (cityName) {
+                  setDeviceLocationCity(cityName);
+                  setIsDetectingLocation(false);
+                  return;
+                }
+              }
+            }
+          }
+        } catch (expoError) {
+          console.log('Error calling expo-location:', expoError);
+        }
+      }
+
+      // Fallback: IP-based Geolocation (works 100% reliably on all devices/simulators/Expo Go)
+      const ipRes = await fetch('http://ip-api.com/json');
+      if (ipRes.ok) {
+        const ipData = await ipRes.json();
+        if (ipData && ipData.status === 'success' && ipData.city) {
+          setDeviceLocationCity(ipData.city);
+        }
+      }
+    } catch (error) {
+      console.log('Error getting location:', error);
+    } finally {
+      setIsDetectingLocation(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedCity === undefined) {
+      fetchDeviceCurrentLocation();
+    }
+  }, [selectedCity, fetchDeviceCurrentLocation]);
+
+  // API Queries (useGetCurrentCityQuery removed!)
   const { data: citiesData } = useGetCitiesQuery();
   const { data: bannersData } = useGetBannersQuery();
   const {
@@ -277,11 +743,6 @@ export const HomeScreen: React.FC = () => {
     isLoading: deptLoading,
     isError: deptError,
   } = useGetDepartmentsQuery();
-
-  const currentCityName = useMemo(() => {
-    if (typeof currentCityData === 'string') return currentCityData;
-    return currentCityData?.city || currentCityData?.title || 'Lucknow';
-  }, [currentCityData]);
 
   const citiesList: CityModel[] = useMemo(() => {
     if (Array.isArray(citiesData)) return citiesData;
@@ -295,25 +756,61 @@ export const HomeScreen: React.FC = () => {
       return selectedCity;
     }
     if (citiesList.length > 0) {
-      if (currentCityName) {
-        const matched = citiesList.find(
-          (c: CityModel) => c.title?.toLowerCase() === currentCityName.toLowerCase()
-        );
+      if (deviceLocationCity) {
+        const dName = deviceLocationCity.toLowerCase().trim();
+        const matched = citiesList.find((c: CityModel) => {
+          const cTitle = (c.title || '').toLowerCase().trim();
+          return cTitle.includes(dName) || dName.includes(cTitle);
+        });
         if (matched) return matched;
       }
-      const defaultCity = citiesList.find((c: CityModel) =>
-        c.title?.toLowerCase().includes('lucknow')
+      const defaultCity = citiesList.find(
+        (c: CityModel) => (c as any).default_city === 1 || c.title?.toLowerCase().includes('lucknow')
       );
       if (defaultCity) return defaultCity;
     }
     return null;
-  }, [selectedCity, citiesList, currentCityName]);
+  }, [selectedCity, citiesList, deviceLocationCity]);
 
-  const activeCityName = activeCity ? activeCity.title : currentCityName;
+  const activeCityName = activeCity
+    ? activeCity.title
+    : (deviceLocationCity || 'Lucknow');
+
   const activeCityId =
     activeCity?.id != null && String(activeCity.id) !== 'ALL' && String(activeCity.id) !== ''
       ? String(activeCity.id)
       : undefined;
+
+  // Handle selecting city from modal dropdown & persisting to AsyncStorage
+  const handleCitySelect = async (city: CityModel | null | undefined) => {
+    if (city === undefined) {
+      // User tapped "Use Current Location"
+      setSelectedCity(undefined);
+      try {
+        await AsyncStorage.removeItem(SAVED_LOCATION_KEY);
+      } catch (err) {
+        console.log('Error clearing saved location:', err);
+      }
+      fetchDeviceCurrentLocation();
+    } else if (city === null) {
+      // User tapped "All Cities"
+      const allCitiesObj = { id: 'ALL', title: 'All Cities' } as CityModel;
+      setSelectedCity(allCitiesObj);
+      try {
+        await AsyncStorage.setItem(SAVED_LOCATION_KEY, JSON.stringify(allCitiesObj));
+      } catch (err) {
+        console.log('Error saving location:', err);
+      }
+    } else {
+      // User tapped a specific city from dropdown
+      setSelectedCity(city);
+      try {
+        await AsyncStorage.setItem(SAVED_LOCATION_KEY, JSON.stringify(city));
+      } catch (err) {
+        console.log('Error saving location:', err);
+      }
+    }
+  };
 
   const {
     data: doctors,
@@ -347,7 +844,7 @@ export const HomeScreen: React.FC = () => {
   // Fetch Appointments & Medical Files for Dashboard Widgets
   const { data: rawAppointmentsData } = useGetAppointmentsQuery(userIdStr, { skip: !userIdStr });
   const { data: rawPatientFilesData } = useGetPatientFilesQuery(
-    { userId: userIdStr, familyMemberId: selectedMemberId === 'ALL' ? undefined : selectedMemberId },
+    { userId: userIdStr },
     { skip: !userIdStr }
   );
 
@@ -358,20 +855,87 @@ export const HomeScreen: React.FC = () => {
     return [];
   }, [rawAppointmentsData]);
 
-  const latestAppointments = useMemo(() => {
-    return appointmentsList.slice(0, 3);
-  }, [appointmentsList]);
+  const patientAppointments = useMemo(() => {
+    if (!appointmentsList || appointmentsList.length === 0) return [];
+    if (selectedMemberId === 'ALL') return appointmentsList;
 
-  const filesList = useMemo(() => {
-    if (Array.isArray(rawPatientFilesData)) return rawPatientFilesData;
-    if (Array.isArray((rawPatientFilesData as any)?.data)) return (rawPatientFilesData as any).data;
-    if (Array.isArray((rawPatientFilesData as any)?.response)) return (rawPatientFilesData as any).response;
-    return [];
+    if (selectedMemberId === 'SELF') {
+      const mainUserId = String(user?.id ?? (userProfileData as any)?.data?.id ?? userIdStr);
+      const selfFName = (user?.f_name || (userProfileData as any)?.data?.f_name || '').trim().toLowerCase();
+      const familyIds = new Set(familyMembersList.map((m) => String(m.id)));
+
+      return appointmentsList.filter((app: any) => {
+        const pId = app.patient_id != null ? String(app.patient_id) : null;
+        const fId = app.family_member_id != null ? String(app.family_member_id) : null;
+
+        if (pId === mainUserId || fId === mainUserId) return true;
+        if (selfFName && app.patient_f_name?.trim().toLowerCase() === selfFName) return true;
+        if (!pId || !familyIds.has(pId)) return true;
+
+        return false;
+      });
+    }
+
+    const selectedMem = familyMembersList.find((m) => String(m.id) === String(selectedMemberId));
+    const targetFName = selectedMem?.f_name?.trim().toLowerCase();
+
+    return appointmentsList.filter((app: any) => {
+      const pId = app.patient_id != null ? String(app.patient_id) : null;
+      const fId = app.family_member_id != null ? String(app.family_member_id) : null;
+
+      if (pId === String(selectedMemberId) || fId === String(selectedMemberId)) return true;
+      if (targetFName && app.patient_f_name?.trim().toLowerCase() === targetFName) return true;
+
+      return false;
+    });
+  }, [appointmentsList, selectedMemberId, familyMembersList, user, userProfileData, userIdStr]);
+
+  const latestAppointments = useMemo(() => {
+    return patientAppointments.slice(0, 3);
+  }, [patientAppointments]);
+
+  const allFilesList = useMemo(() => {
+    let list: any[] = [];
+    if (Array.isArray(rawPatientFilesData)) list = rawPatientFilesData;
+    else if (Array.isArray((rawPatientFilesData as any)?.data)) list = (rawPatientFilesData as any).data;
+    else if (Array.isArray((rawPatientFilesData as any)?.response)) list = (rawPatientFilesData as any).response;
+    else if (Array.isArray((rawPatientFilesData as any)?.response?.data)) list = (rawPatientFilesData as any).response.data;
+    else if (Array.isArray((rawPatientFilesData as any)?.result)) list = (rawPatientFilesData as any).result;
+    return list;
   }, [rawPatientFilesData]);
 
+  const patientFiles = useMemo(() => {
+    if (!allFilesList || allFilesList.length === 0) return [];
+    if (selectedMemberId === 'ALL') return allFilesList;
+
+    const selectedMem = familyMembersList.find((m) => String(m.id) === String(selectedMemberId));
+    const targetFName = selectedMem?.f_name?.trim().toLowerCase();
+
+    const filtered = allFilesList.filter((item: any) => {
+      const itemMemId = item.family_member_id ?? item.patient_id ?? item.member_id;
+      if (itemMemId != null && String(itemMemId) === String(selectedMemberId)) {
+        return true;
+      }
+      if (selectedMemberId === 'SELF') {
+        const mainUserId = String(user?.id ?? userIdStr);
+        if (itemMemId != null && String(itemMemId) === mainUserId) return true;
+        const selfFName = (user?.f_name || '').trim().toLowerCase();
+        const pName = (item.patient_name || item.f_name || item.title || '').trim().toLowerCase();
+        if (selfFName && pName && (pName.includes(selfFName) || selfFName.includes(pName))) return true;
+      }
+      if (targetFName) {
+        const pName = (item.patient_name || item.f_name || item.title || '').trim().toLowerCase();
+        if (pName && (pName.includes(targetFName) || targetFName.includes(pName))) return true;
+      }
+      return false;
+    });
+
+    return filtered.length > 0 ? filtered : allFilesList;
+  }, [allFilesList, selectedMemberId, familyMembersList, user, userIdStr]);
+
   const latestFiles = useMemo(() => {
-    return filesList.slice(0, 3);
-  }, [filesList]);
+    return patientFiles.slice(0, 3);
+  }, [patientFiles]);
 
   // Dynamic Vitals Queries based on active selected member filter
   const activeFamilyId = useMemo(() => {
@@ -379,26 +943,132 @@ export const HomeScreen: React.FC = () => {
     return selectedMemberId;
   }, [selectedMemberId, userIdStr]);
 
-  const { data: rawBpVitals } = useGetVitalsQuery(
+  const { data: rawBpVitals, refetch: refetchBp } = useGetVitalsQuery(
     { familyMemberId: activeFamilyId, type: 'Blood Pressure' },
     { skip: !activeFamilyId }
   );
-  const { data: rawSugarVitals } = useGetVitalsQuery(
+  const { data: rawSugarVitals, refetch: refetchSugar } = useGetVitalsQuery(
     { familyMemberId: activeFamilyId, type: 'Sugar' },
     { skip: !activeFamilyId }
   );
-  const { data: rawWeightVitals } = useGetVitalsQuery(
+  const { data: rawWeightVitals, refetch: refetchWeight } = useGetVitalsQuery(
     { familyMemberId: activeFamilyId, type: 'Weight' },
     { skip: !activeFamilyId }
   );
-  const { data: rawTempVitals } = useGetVitalsQuery(
+  const { data: rawTempVitals, refetch: refetchTemp } = useGetVitalsQuery(
     { familyMemberId: activeFamilyId, type: 'Temperature' },
     { skip: !activeFamilyId }
   );
-  const { data: rawSpo2Vitals } = useGetVitalsQuery(
+  const { data: rawSpo2Vitals, refetch: refetchSpo2 } = useGetVitalsQuery(
     { familyMemberId: activeFamilyId, type: 'SpO2' },
     { skip: !activeFamilyId }
   );
+
+  // Edit Vital Modal State
+  const [editingVitalItem, setEditingVitalItem] = useState<any | null>(null);
+  const [editingVitalType, setEditingVitalType] = useState<string>('Blood Pressure');
+  const [showEditModal, setShowEditModal] = useState<boolean>(false);
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedTime, setSelectedTime] = useState<string>(new Date().toTimeString().slice(0, 5));
+  const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+  const [showTimePicker, setShowTimePicker] = useState<boolean>(false);
+
+  const [systolic, setSystolic] = useState('');
+  const [diastolic, setDiastolic] = useState('');
+  const [value, setValue] = useState('');
+  const [sugarRandom, setSugarRandom] = useState('');
+
+  const [updateVital, { isLoading: isUpdating }] = useUpdateVitalMutation();
+
+  const openEditModal = (item: any, vitalType: string) => {
+    setEditingVitalItem(item);
+    setEditingVitalType(vitalType);
+    const dateVal = item.date ? item.date.split('T')[0] : (item.created_at ? item.created_at.split('T')[0] : new Date().toISOString().split('T')[0]);
+    setSelectedDate(dateVal);
+    const timeVal = item.time ? item.time.slice(0, 5) : new Date().toTimeString().slice(0, 5);
+    setSelectedTime(timeVal);
+
+    if (vitalType === 'Blood Pressure') {
+      setSystolic(item.bp_systolic ? String(item.bp_systolic) : '');
+      setDiastolic(item.bp_diastolic ? String(item.bp_diastolic) : '');
+    } else if (vitalType === 'Sugar') {
+      setValue(item.sugar_fasting ? String(item.sugar_fasting) : '');
+      setSugarRandom(item.sugar_random ? String(item.sugar_random) : '');
+    } else if (vitalType === 'Weight') {
+      setValue(item.weight || item.value ? String(item.weight || item.value) : '');
+    } else if (vitalType === 'Temperature') {
+      setValue(item.temperature || item.value ? String(item.temperature || item.value) : '');
+    } else if (vitalType === 'SpO2') {
+      setValue(item.spo2 || item.value ? String(item.spo2 || item.value) : '');
+    }
+    setShowEditModal(true);
+  };
+
+  const handleUpdateVitalSubmit = async () => {
+    if (!editingVitalItem?.id) return;
+
+    const payload: any = {
+      id: editingVitalItem.id,
+      user_id: userIdStr,
+      family_member_id: activeFamilyId,
+      type: editingVitalType,
+      date: selectedDate,
+      time: selectedTime,
+    };
+
+    if (editingVitalType === 'Blood Pressure') {
+      if (!systolic.trim() || !diastolic.trim()) {
+        showToast('Enter Systolic and Diastolic values');
+        return;
+      }
+      payload.bp_systolic = systolic;
+      payload.bp_diastolic = diastolic;
+    } else if (editingVitalType === 'Sugar') {
+      if (!value.trim() && !sugarRandom.trim()) {
+        showToast('Enter Fasting or Random sugar reading');
+        return;
+      }
+      payload.sugar_fasting = value;
+      payload.sugar_random = sugarRandom;
+    } else if (editingVitalType === 'Weight') {
+      if (!value.trim()) {
+        showToast('Enter Weight reading');
+        return;
+      }
+      payload.weight = value;
+    } else if (editingVitalType === 'Temperature') {
+      if (!value.trim()) {
+        showToast('Enter Temperature reading');
+        return;
+      }
+      payload.temperature = value;
+    } else if (editingVitalType === 'SpO2') {
+      if (!value.trim()) {
+        showToast('Enter SpO2 reading');
+        return;
+      }
+      payload.spo2 = value;
+    }
+
+    try {
+      const res = await updateVital(payload).unwrap();
+      if (res?.status || res?.response === 200 || res?.message?.includes('successfully')) {
+        showToast('Vital updated successfully');
+        refetchBp();
+        refetchSugar();
+        refetchWeight();
+        refetchTemp();
+        refetchSpo2();
+        setShowEditModal(false);
+      } else {
+        showToast(res?.message || 'Failed to update vital');
+      }
+    } catch (err: any) {
+      showToast(err?.data?.message || err?.message || 'Failed to update vital');
+    }
+  };
+
+
 
   const getLatestVitalValue = (rawData: any, type: string) => {
     if (!rawData) return 'N/A';
@@ -407,7 +1077,11 @@ export const HomeScreen: React.FC = () => {
     else if (Array.isArray(rawData?.data)) list = rawData.data;
     else if (Array.isArray(rawData?.response)) list = rawData.response;
     if (list.length === 0) return 'N/A';
-    const latest = list[0];
+
+    const filteredList = list.filter((item) => isWithinLast7Days(item.date || item.created_at));
+    if (filteredList.length === 0) return 'N/A';
+
+    const latest = filteredList[0];
     if (type === 'Blood Pressure') {
       if (latest.bp_systolic && latest.bp_diastolic) return `${latest.bp_systolic}/${latest.bp_diastolic}`;
       if (latest.value) return String(latest.value);
@@ -441,8 +1115,8 @@ export const HomeScreen: React.FC = () => {
   const activePatientInfo = useMemo(() => {
     const mainUser = userProfileData?.data ?? userProfileData ?? user;
     let recentDocName = 'No Recent Appointment';
-    if (latestAppointments.length > 0) {
-      const app = latestAppointments[0];
+    if (patientAppointments.length > 0) {
+      const app = patientAppointments[0];
       recentDocName = formatDoctorName(app.doct_f_name || app.doctor_name || app.name, app.doct_l_name);
     }
 
@@ -486,7 +1160,7 @@ export const HomeScreen: React.FC = () => {
       relation: 'Account Holder',
       isSelf: true,
     };
-  }, [selectedMemberId, familyMembersList, userProfileData, user, latestAppointments]);
+  }, [selectedMemberId, familyMembersList, userProfileData, user, patientAppointments]);
 
 
 
@@ -805,7 +1479,9 @@ export const HomeScreen: React.FC = () => {
 
             {/* Health Vitals Tracker Header */}
             <View style={styles.vitalsSectionHeader}>
-              <Text style={styles.vitalsSectionTitle}>Health Vitals Tracker ({activePatientInfo.name})</Text>
+              <Text style={styles.vitalsSectionTitle} numberOfLines={1}>
+                Health Vitals Tracker ({activePatientInfo.name})
+              </Text>
               <TouchableOpacity
                 style={styles.viewAllBtn}
                 onPress={() => navigation.navigate('Vitals')}
@@ -827,10 +1503,12 @@ export const HomeScreen: React.FC = () => {
                 iconName="favorite"
                 iconColor="#EF4444"
                 pillBgColor="#FEE2E2"
-                headers={['SYSTOLIC', 'DIASTOLIC', 'DATE']}
+                headers={['SYSTOLIC', 'DIASTOLIC', 'DATE', 'TIME', 'ACTION']}
                 records={rawBpVitals}
                 latestVal={getLatestVitalValue(rawBpVitals, 'Blood Pressure')}
-                onPress={() => navigation.navigate('Vitals')}
+                onPress={() => navigation.navigate('VitalDetails', { vitalName: 'Blood Pressure', familyMemberId: activeFamilyId })}
+                onDeleteRecord={handleDeleteVitalRecord}
+                onEditRecord={(item) => openEditModal(item, 'Blood Pressure')}
               />
 
               {/* 2. Sugar Levels */}
@@ -842,10 +1520,12 @@ export const HomeScreen: React.FC = () => {
                 iconName="opacity"
                 iconColor="#8B5CF6"
                 pillBgColor="#EDE9FE"
-                headers={['FASTING', 'RANDOM', 'DATE']}
+                headers={['FASTING', 'RANDOM', 'DATE', 'TIME', 'ACTION']}
                 records={rawSugarVitals}
                 latestVal={getLatestVitalValue(rawSugarVitals, 'Sugar')}
-                onPress={() => navigation.navigate('Vitals')}
+                onPress={() => navigation.navigate('VitalDetails', { vitalName: 'Sugar', familyMemberId: activeFamilyId })}
+                onDeleteRecord={handleDeleteVitalRecord}
+                onEditRecord={(item) => openEditModal(item, 'Sugar')}
               />
 
               {/* 3. Weight */}
@@ -857,10 +1537,12 @@ export const HomeScreen: React.FC = () => {
                 iconName="fitness-center"
                 iconColor="#10B981"
                 pillBgColor="#D1FAE5"
-                headers={['WEIGHT', 'DATE', 'TIME']}
+                headers={['WEIGHT', 'DATE', 'TIME', 'ACTION']}
                 records={rawWeightVitals}
                 latestVal={getLatestVitalValue(rawWeightVitals, 'Weight')}
-                onPress={() => navigation.navigate('Vitals')}
+                onPress={() => navigation.navigate('VitalDetails', { vitalName: 'Weight', familyMemberId: activeFamilyId })}
+                onDeleteRecord={handleDeleteVitalRecord}
+                onEditRecord={(item) => openEditModal(item, 'Weight')}
               />
 
               {/* 4. Temperature */}
@@ -872,10 +1554,12 @@ export const HomeScreen: React.FC = () => {
                 iconName="thermostat"
                 iconColor="#F59E0B"
                 pillBgColor="#FEF3C7"
-                headers={['TEMP (°F)', 'DATE', 'TIME']}
+                headers={['TEMP (°F)', 'DATE', 'TIME', 'ACTION']}
                 records={rawTempVitals}
                 latestVal={getLatestVitalValue(rawTempVitals, 'Temperature')}
-                onPress={() => navigation.navigate('Vitals')}
+                onPress={() => navigation.navigate('VitalDetails', { vitalName: 'Temperature', familyMemberId: activeFamilyId })}
+                onDeleteRecord={handleDeleteVitalRecord}
+                onEditRecord={(item) => openEditModal(item, 'Temperature')}
               />
 
               {/* 5. SpO2 Oxygen */}
@@ -890,7 +1574,9 @@ export const HomeScreen: React.FC = () => {
                 headers={['SPO2 (%)', 'DATE', 'TIME', 'ACTION']}
                 records={rawSpo2Vitals}
                 latestVal={getLatestVitalValue(rawSpo2Vitals, 'SpO2')}
-                onPress={() => navigation.navigate('Vitals')}
+                onPress={() => navigation.navigate('VitalDetails', { vitalName: 'SpO2', familyMemberId: activeFamilyId })}
+                onDeleteRecord={handleDeleteVitalRecord}
+                onEditRecord={(item) => openEditModal(item, 'SpO2')}
                 fullWidth
                 yLabels={['100', '90', '80']}
               />
@@ -913,9 +1599,9 @@ export const HomeScreen: React.FC = () => {
               <View style={styles.mobileCardStack}>
                 {latestAppointments.length > 0 ? (
                   latestAppointments.map((app: any, idx: number) => {
-                    const docName = formatDoctorName(app.doct_f_name || app.doctor_name || app.name || 'Vivek Singh', app.doct_l_name);
-                    const dateStr = app.date ? String(app.date).split('T')[0] : 'Aug 26, 2026';
-                    const timeStr = app.time_slots || '07:50 PM';
+                    const docName = formatDoctorName(app.doct_f_name || app.doctor_name || app.name || 'Doctor', app.doct_l_name);
+                    const dateStr = app.date ? String(app.date).split('T')[0] : '';
+                    const timeStr = app.time_slots || '';
                     return (
                       <View key={`app-row-${app.id || idx}`} style={styles.mobileCardItem}>
                         <View style={styles.appointmentIconCircle}>
@@ -923,7 +1609,7 @@ export const HomeScreen: React.FC = () => {
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={styles.mobileCardTitle} numberOfLines={1}>{docName}</Text>
-                          <Text style={styles.mobileCardSub}>{dateStr} • {timeStr}</Text>
+                          <Text style={styles.mobileCardSub}>{dateStr}{timeStr ? ` • ${timeStr}` : ''}</Text>
                         </View>
                         <View style={styles.statusPill}>
                           <Text style={styles.statusPillText}>{app.status || 'Confirmed'}</Text>
@@ -932,32 +1618,11 @@ export const HomeScreen: React.FC = () => {
                     );
                   })
                 ) : (
-                  <>
-                    <View style={styles.mobileCardItem}>
-                      <View style={styles.appointmentIconCircle}>
-                        <MaterialIcons name="event" size={20} color={Colors.primaryColor} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.mobileCardTitle} numberOfLines={1}>Dr. Vivek Singh</Text>
-                        <Text style={styles.mobileCardSub}>Aug-26, 2026 • 7:50 PM</Text>
-                      </View>
-                      <View style={styles.statusPill}>
-                        <Text style={styles.statusPillText}>Confirmed</Text>
-                      </View>
-                    </View>
-                    <View style={styles.mobileCardItem}>
-                      <View style={styles.appointmentIconCircle}>
-                        <MaterialIcons name="event" size={20} color={Colors.primaryColor} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.mobileCardTitle} numberOfLines={1}>Dr. Vivek Sabarwal</Text>
-                        <Text style={styles.mobileCardSub}>Aug-26, 2026 • 10:21 AM</Text>
-                      </View>
-                      <View style={styles.statusPill}>
-                        <Text style={styles.statusPillText}>Confirmed</Text>
-                      </View>
-                    </View>
-                  </>
+                  <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 12, fontFamily: Typography.fontFamily.medium, color: Colors.secondaryFontColor }}>
+                      No appointments found for {activePatientInfo.name}
+                    </Text>
+                  </View>
                 )}
               </View>
             </View>
@@ -981,61 +1646,55 @@ export const HomeScreen: React.FC = () => {
                   latestFiles.map((file: any, idx: number) => {
                     const fileName = file.title || file.name || file.file_name || `Report #${idx + 1}`;
                     const fileDate = file.created_at ? String(file.created_at).split('T')[0] : 'Aug-20, 2026';
+                    const fileSource = file.file_url || file.file || file.url || file.document;
+                    const downloadUrl = fileSource ? (String(fileSource).startsWith('http') ? fileSource : getImageUrl(fileSource)) : null;
+
                     return (
-                      <TouchableOpacity
-                        key={`file-row-${file.id || idx}`}
-                        style={styles.mobileCardItem}
-                        activeOpacity={0.8}
-                        onPress={() => handleOpenFile(file)}
-                      >
-                        <View style={[styles.fileIconBadge, { backgroundColor: '#EFF6FF' }]}>
-                          <MaterialIcons name="folder" size={20} color="#2563EB" />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.mobileCardTitle} numberOfLines={1}>{fileName}</Text>
-                          <Text style={styles.mobileCardSub}>{fileDate}</Text>
-                        </View>
-                        <View style={styles.openFileBtn}>
-                          <MaterialIcons name="open-in-new" size={18} color={Colors.primaryColor} />
-                        </View>
-                      </TouchableOpacity>
+                      <View key={`file-row-${file.id || idx}`} style={styles.mobileCardItem}>
+                        <TouchableOpacity
+                          style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                          activeOpacity={0.8}
+                          onPress={() => navigation.navigate('PatientFile')}
+                        >
+                          <View style={[styles.fileIconBadge, { backgroundColor: '#EFF6FF' }]}>
+                            <MaterialIcons name="folder" size={20} color="#2563EB" />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.mobileCardTitle} numberOfLines={1}>{fileName}</Text>
+                            <Text style={styles.mobileCardSub}>{fileDate}</Text>
+                          </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.openFileBtn}
+                          activeOpacity={0.8}
+                          onPress={() => {
+                            if (downloadUrl) {
+                              downloadAndSaveFile(downloadUrl, fileName);
+                            } else {
+                              navigation.navigate('PatientFile');
+                            }
+                          }}
+                        >
+                          <MaterialIcons name="file-download" size={18} color={Colors.primaryColor} />
+                        </TouchableOpacity>
+                      </View>
                     );
                   })
                 ) : (
-                  <>
+                  <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 13, color: Colors.secondaryFontColor, fontFamily: Typography.fontFamily.medium, marginBottom: 8 }}>
+                      No patient files uploaded yet
+                    </Text>
                     <TouchableOpacity
-                      style={styles.mobileCardItem}
-                      activeOpacity={0.8}
+                      style={{ paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8, backgroundColor: '#EFF6FF' }}
                       onPress={() => navigation.navigate('PatientFile')}
                     >
-                      <View style={[styles.fileIconBadge, { backgroundColor: '#FEE2E2' }]}>
-                        <MaterialIcons name="picture-as-pdf" size={20} color="#DC2626" />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.mobileCardTitle} numberOfLines={1}>Riyaaa</Text>
-                        <Text style={styles.mobileCardSub}>Aug-20, 2026</Text>
-                      </View>
-                      <View style={styles.openFileBtn}>
-                        <MaterialIcons name="open-in-new" size={18} color={Colors.primaryColor} />
-                      </View>
+                      <Text style={{ fontSize: 12, color: Colors.primaryColor, fontFamily: Typography.fontFamily.bold }}>
+                        View / Upload Files
+                      </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.mobileCardItem}
-                      activeOpacity={0.8}
-                      onPress={() => navigation.navigate('PatientFile')}
-                    >
-                      <View style={[styles.fileIconBadge, { backgroundColor: '#FEE2E2' }]}>
-                        <MaterialIcons name="picture-as-pdf" size={20} color="#DC2626" />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.mobileCardTitle} numberOfLines={1}>BP_Test</Text>
-                        <Text style={styles.mobileCardSub}>Jul-14, 2026</Text>
-                      </View>
-                      <View style={styles.openFileBtn}>
-                        <MaterialIcons name="open-in-new" size={18} color={Colors.primaryColor} />
-                      </View>
-                    </TouchableOpacity>
-                  </>
+                  </View>
                 )}
               </View>
             </View>
@@ -1236,14 +1895,145 @@ export const HomeScreen: React.FC = () => {
         visible={showLocationModal}
         onClose={() => setShowLocationModal(false)}
         cities={citiesList}
-        selectedCityId={activeCity?.id}
-        onSelectCity={(city) => {
-          if (!city) {
-            setSelectedCity({ id: 'ALL', title: 'All Cities' });
-          } else {
-            setSelectedCity(city);
-          }
-        }}
+        selectedCityId={selectedCity === undefined ? undefined : (selectedCity?.id ?? 'ALL')}
+        currentCityName={deviceLocationCity || undefined}
+        onSelectCity={handleCitySelect}
+      />
+
+      {/* Update Vital Bottom Sheet Modal */}
+      <Modal
+        visible={showEditModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity
+            style={styles.backdropPressable}
+            activeOpacity={1}
+            onPress={() => setShowEditModal(false)}
+          />
+          <View style={styles.modalBox}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Update {editingVitalType}</Text>
+              <TouchableOpacity onPress={() => setShowEditModal(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <MaterialIcons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              bounces={false}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 40 }}
+            >
+              {/* Date Selection */}
+              <Text style={styles.fieldLabel}>Date</Text>
+              <TouchableOpacity
+                style={styles.pickerSelectorBtn}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Text style={styles.pickerSelectorText}>
+                  {DateTimeUtils.getDataFormat(selectedDate)}
+                </Text>
+                <MaterialIcons name="calendar-today" size={18} color="#64748B" />
+              </TouchableOpacity>
+
+              {/* Time Selection */}
+              <Text style={styles.fieldLabel}>Time</Text>
+              <TouchableOpacity
+                style={styles.pickerSelectorBtn}
+                onPress={() => setShowTimePicker(true)}
+              >
+                <Text style={styles.pickerSelectorText}>
+                  {DateTimeUtils.formatTimeToAmPm(selectedTime) || selectedTime}
+                </Text>
+                <MaterialIcons name="access-time" size={18} color="#64748B" />
+              </TouchableOpacity>
+
+              {/* Dynamic Vital Fields */}
+              {editingVitalType === 'Blood Pressure' ? (
+                <>
+                  <Text style={styles.fieldLabel}>Systolic (mmHg)</Text>
+                  <AppTextField
+                    placeholder="e.g. 120"
+                    keyboardType="number-pad"
+                    value={systolic}
+                    onChangeText={setSystolic}
+                  />
+                  <Text style={styles.fieldLabel}>Diastolic (mmHg)</Text>
+                  <AppTextField
+                    placeholder="e.g. 80"
+                    keyboardType="number-pad"
+                    value={diastolic}
+                    onChangeText={setDiastolic}
+                  />
+                </>
+              ) : editingVitalType === 'Sugar' ? (
+                <>
+                  <Text style={styles.fieldLabel}>Fasting (mg/dL)</Text>
+                  <AppTextField
+                    placeholder="e.g. 95"
+                    keyboardType="number-pad"
+                    value={value}
+                    onChangeText={setValue}
+                  />
+                  <Text style={styles.fieldLabel}>Random (mg/dL)</Text>
+                  <AppTextField
+                    placeholder="e.g. 140"
+                    keyboardType="number-pad"
+                    value={sugarRandom}
+                    onChangeText={setSugarRandom}
+                  />
+                </>
+              ) : (
+                <>
+                  <Text style={styles.fieldLabel}>{editingVitalType}</Text>
+                  <AppTextField
+                    placeholder={`Enter ${editingVitalType} reading`}
+                    keyboardType="decimal-pad"
+                    value={value}
+                    onChangeText={setValue}
+                  />
+                </>
+              )}
+
+              {/* Action Buttons */}
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowEditModal(false)}>
+                  <Text style={styles.cancelText}>Close</Text>
+                </TouchableOpacity>
+                <AppButton
+                  title="Update"
+                  loading={isUpdating}
+                  onPress={handleUpdateVitalSubmit}
+                  style={styles.saveBtn}
+                />
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Date & Time Picker Modals */}
+      <AppDatePickerModal
+        visible={showDatePicker}
+        onClose={() => setShowDatePicker(false)}
+        initialDate={selectedDate}
+        maxDate={new Date()}
+        onSelectDate={(dateStr) => setSelectedDate(dateStr)}
+        title="Select Date"
+      />
+
+      <AppTimePickerModal
+        visible={showTimePicker}
+        onClose={() => setShowTimePicker(false)}
+        initialTime={selectedTime}
+        onSelectTime={(timeStr) => setSelectedTime(timeStr)}
+        title="Select Time"
       />
     </View>
   );
@@ -1741,9 +2531,10 @@ const styles = StyleSheet.create({
   viewAllBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
     paddingVertical: 4,
     paddingHorizontal: 2,
+    flexShrink: 0,
   },
   viewAllText: {
     fontSize: 12,
@@ -2266,8 +3057,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 16,
     marginBottom: 10,
+    width: '100%',
   },
   vitalsSectionTitle: {
+    flex: 1,
+    marginRight: 8,
     fontSize: 15,
     fontFamily: Typography.fontFamily.bold,
     color: Colors.primaryFontColor,
@@ -2561,18 +3355,18 @@ const styles = StyleSheet.create({
   downloadIconBtn: {
     padding: 6,
   },
-  /* Vitals 2-Column Grid Cards Styles */
+  /* Vitals Responsive Cards Styles */
   vitals2ColGridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+    width: '100%',
+    flexDirection: 'column',
+    gap: 12,
     marginBottom: 16,
   },
   vitalsGridCard: {
-    width: '48.5%',
+    width: '100%',
     backgroundColor: Colors.white,
     borderRadius: 16,
-    padding: 12,
+    padding: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: Colors.shadow,
@@ -2608,55 +3402,140 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     marginTop: 1,
   },
+  vitalsSevenDaysNote: {
+    fontSize: 9,
+    fontFamily: Typography.fontFamily.medium,
+    color: '#EF4444',
+    marginTop: 2,
+  },
   vitalsMiniChartArea: {
     flexDirection: 'row',
     width: '100%',
-    height: 60,
-    marginBottom: 8,
-  },
-  vitalsYAxisColumn: {
-    width: 26,
-    justifyContent: 'space-between',
+    height: 105,
+    marginBottom: 10,
     alignItems: 'flex-start',
-    paddingVertical: 1,
   },
-  vitalsUnitText: {
-    fontSize: 8,
+  vitalsLeftYAxisContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 76,
+    marginRight: 0,
+  },
+  vitalsRotatedUnitBox: {
+    width: 14,
+    height: 76,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  vitalsRotatedUnitText: {
+    fontSize: 9,
+    fontFamily: Typography.fontFamily.bold,
+    color: '#475569',
+    transform: [{ rotate: '-90deg' }],
+    width: 76,
+    textAlign: 'center',
+  },
+  vitalsYAxisNumberColumn: {
+    height: 76,
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    minWidth: 24,
+  },
+  vitalsYAxisNumberText: {
+    fontSize: 9.5,
     fontFamily: Typography.fontFamily.bold,
     color: '#64748B',
   },
-  vitalsYLabel: {
+  vitalsSvgBox: {
+    flex: 1,
+    height: 105,
+    position: 'relative',
+  },
+  vitalsDotsOverlay: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    right: 0,
+    height: 76,
+  },
+  vitalsXAxisRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    marginTop: 4,
+    width: '100%',
+  },
+  vitalsXLabel: {
     fontSize: 8,
     fontFamily: Typography.fontFamily.medium,
     color: '#94A3B8',
-  },
-  vitalsSvgBox: {
-    flex: 1,
-    justifyContent: 'center',
+    textAlign: 'center',
   },
   vitalsTableHeaderBar: {
     flexDirection: 'row',
-    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: '#F8FAFC',
     borderRadius: 8,
-    paddingVertical: 5,
-    paddingHorizontal: 4,
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
     marginBottom: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    width: '100%',
   },
   vitalsTableHeadCell: {
-    fontSize: 8,
-    fontFamily: Typography.fontFamily.bold,
-    color: '#475569',
-    textAlign: 'center',
     flex: 1,
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.bold,
+    color: '#334155',
+    textAlign: 'center',
   },
   vitalsTableBody: {
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 20,
+    minHeight: 24,
+  },
+  vitalsTableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 9,
+    paddingHorizontal: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    width: '100%',
+  },
+  vitalsTableCellText: {
+    flex: 1,
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.primaryFontColor,
+    textAlign: 'center',
+  },
+  vitalsTableCellAction: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  actionIconBtnEdit: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: '#ECFDF5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionIconBtnDelete: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: '#FEF2F2',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   vitalsNoRecordsText: {
     fontSize: 10,
@@ -2667,6 +3546,64 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: Typography.fontFamily.bold,
     color: Colors.primaryColor,
+  },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  backdropPressable: { flex: 1 },
+  modalBox: { backgroundColor: Colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '85%' },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  modalTitle: { fontSize: Typography.fontSize.lg, fontFamily: Typography.fontFamily.bold, color: Colors.primaryFontColor },
+  fieldLabel: {
+    fontSize: 12,
+    fontFamily: Typography.fontFamily.bold,
+    color: '#475569',
+    marginBottom: 6,
+    marginTop: 8,
+  },
+  pickerSelectorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 6,
+  },
+  pickerSelectorText: {
+    fontSize: 14,
+    fontFamily: Typography.fontFamily.medium,
+    color: '#0F172A',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelText: {
+    fontSize: 14,
+    fontFamily: Typography.fontFamily.bold,
+    color: '#64748B',
+  },
+  saveBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
   },
 });
 

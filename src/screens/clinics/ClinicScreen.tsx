@@ -303,7 +303,9 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
                   <View style={styles.doctorInfo}>
                     <Text style={styles.doctorName}>{formattedName}</Text>
                     <View style={styles.specTag}>
-                      <Text style={styles.doctorSpec}>{doc.specialization || 'Consultant'}</Text>
+                      <Text style={styles.doctorSpec} numberOfLines={2}>
+                        {doc.specialization || 'Consultant'}
+                      </Text>
                     </View>
                     <Text style={styles.doctorExp}>{`Experience: ${doc.ex_year ?? doc.experience ?? 0} Years`}</Text>
                   </View>
@@ -488,7 +490,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  doctorInfo: { flex: 1, marginLeft: 12 },
+  doctorInfo: {
+    flex: 1,
+    marginLeft: 12,
+    marginRight: 12,
+  },
   doctorName: {
     fontSize: Typography.fontSize.sm,
     fontFamily: Typography.fontFamily.bold,
@@ -497,11 +503,12 @@ const styles = StyleSheet.create({
   specTag: {
     backgroundColor: '#EFF6FF',
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingVertical: 3,
+    borderRadius: 6,
     alignSelf: 'flex-start',
-    marginTop: 3,
-    marginBottom: 3,
+    marginTop: 4,
+    marginBottom: 4,
+    maxWidth: '100%',
   },
   doctorSpec: {
     fontSize: 10,

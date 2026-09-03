@@ -243,9 +243,17 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
   };
 
   const handleSubmitPayment = async (choice: PaymentMethodChoice) => {
+    if (!selectedType) {
+      showToast('Please select an appointment type');
+      return;
+    }
     const isEmergencyType = selectedType?.code === '3';
-    if (!selectedType || (!isEmergencyType && (!selectedDate || !selectedTimeStart))) {
-      showToast('Please complete appointment date & time selection');
+    if (!isEmergencyType && !selectedDate) {
+      showToast('Please select an appointment date');
+      return;
+    }
+    if (!isEmergencyType && !selectedTimeStart) {
+      showToast('Please select a time slot');
       return;
     }
 

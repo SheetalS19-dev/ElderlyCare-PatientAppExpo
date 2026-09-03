@@ -33,7 +33,7 @@ import {
 import { confirmOtp, sendOtp } from '../../services/firebaseAuthService';
 import { storageService } from '../../services/storageService';
 import { DateTimeUtils, showToast } from '../../utils';
-import { validatePhone } from '../../validation/authValidation';
+import { validateDob, validateEmail, validatePhone } from '../../validation/authValidation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -279,9 +279,16 @@ export const LoginScreen = ({ navigation, route }: Props) => {
 
     if (!firstName.trim()) errors.firstName = 'First name is required';
     if (!lastName.trim()) errors.lastName = 'Last name is required';
-    if (!phone.trim()) errors.phone = 'Phone number is required';
-    if (!email.trim()) errors.email = 'Email address is required';
-    if (!dob.trim()) errors.dob = 'Date of birth is required';
+
+    const phoneRes = validatePhone(phone, true);
+    if (!phoneRes.isValid) errors.phone = phoneRes.error || 'Invalid phone number';
+
+    const emailRes = validateEmail(email, true);
+    if (!emailRes.isValid) errors.email = emailRes.error || 'Invalid email address';
+
+    const dobRes = validateDob(dob, true);
+    if (!dobRes.isValid) errors.dob = dobRes.error || 'Invalid date of birth';
+
     if (!password) {
       errors.password = 'Password is required (min 6 chars)';
     } else if (password.length < 6) {
@@ -332,8 +339,9 @@ export const LoginScreen = ({ navigation, route }: Props) => {
   };
 
   const handleSendResetLink = async () => {
-    if (!forgotEmail.trim()) {
-      setForgotEmailError('Please enter your email address');
+    const emailRes = validateEmail(forgotEmail, true);
+    if (!emailRes.isValid) {
+      setForgotEmailError(emailRes.error || 'Please enter a valid email address');
       return;
     }
     setForgotEmailError(undefined);

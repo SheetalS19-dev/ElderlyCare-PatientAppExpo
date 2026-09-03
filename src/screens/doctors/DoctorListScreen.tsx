@@ -1,35 +1,37 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
   FlatList,
   ScrollView,
-  TouchableOpacity,
   StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
-import type { RootStackParamList } from '../../navigation/types';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  AppHeader,
-  SearchBox,
   DoctorCard,
-  LoadingIndicator,
-  ErrorState,
   EmptyState,
+  ErrorState,
+  LoadingIndicator,
+  SearchBox,
+  AppHeader,
 } from '../../components';
 import { Colors, Typography } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import { useDebounce } from '../../hooks';
+import type { RootStackParamList } from '../../navigation/types';
 import {
-  useGetDoctorsQuery,
   useGetDepartmentsQuery,
+  useGetDoctorsQuery,
 } from '../../redux/apis/doctorApi';
-import type { DoctorModel, DepartmentModel } from '../../types';
+import type { DepartmentModel, DoctorModel } from '../../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DoctorList'>;
 
 export const DoctorListScreen = ({ navigation, route }: Props) => {
+  const insets = useSafeAreaInsets();
   const { isAuthenticated } = useAuth();
   const initialDeptId = route.params?.selectedDeptId || route.params?.categoryId;
   const initialDeptTitle = route.params?.selectedDeptTitle;
@@ -244,7 +246,7 @@ export const DoctorListScreen = ({ navigation, route }: Props) => {
           keyExtractor={(item: DoctorModel, index: number) =>
             `doc-${item.user_id ?? item.id ?? index}`
           }
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + 20, 32) }]}
           refreshing={isFetching}
           onRefresh={refetch}
           showsVerticalScrollIndicator={false}

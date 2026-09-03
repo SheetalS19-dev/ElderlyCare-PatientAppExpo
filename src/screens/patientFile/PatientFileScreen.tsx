@@ -25,7 +25,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import { useGetFamilyMembersQuery } from '../../redux/apis/bookingApi';
 import { useGetPatientFilesQuery } from '../../redux/apis/patientFilesApi';
 import type { FamilyMemberModel, PatientFileModel } from '../../types';
-import { DateTimeUtils, getImageUrl, showToast } from '../../utils';
+import { DateTimeUtils, downloadAndSaveFile, getImageUrl, showToast } from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PatientFile'>;
 
@@ -166,6 +166,25 @@ export const PatientFileScreen = ({ navigation }: Props) => {
 
     if (fileSource) {
       const url = fileSource.startsWith('http') ? fileSource : getImageUrl(fileSource);
+      const title = item.title || item.file_name || item.name || 'document';
+      downloadAndSaveFile(url, title);
+    } else {
+      showToast('File attachment not found');
+    }
+  };
+
+  const handleOpenFile = (item: any) => {
+    const fileSource =
+      item.file_url ||
+      item.file ||
+      item.url ||
+      item.file_name ||
+      item.document ||
+      item.report ||
+      item.image;
+
+    if (fileSource) {
+      const url = fileSource.startsWith('http') ? fileSource : getImageUrl(fileSource);
       Linking.openURL(url).catch(() => showToast('Could not open file URL'));
     } else {
       showToast('File attachment not found');
@@ -278,14 +297,23 @@ export const PatientFileScreen = ({ navigation }: Props) => {
                     </Text>
                   </View>
 
-                  {/* Open / Download Action Button */}
-                  <TouchableOpacity
-                    style={styles.fileActionBtn}
-                    onPress={() => handleDownload(item)}
-                    activeOpacity={0.8}
-                  >
-                    <MaterialIcons name="open-in-new" size={20} color="#FFFFFF" />
-                  </TouchableOpacity>
+                  {/* Open / Download Action Buttons */}
+                  <View style={styles.actionGroup}>
+                    <TouchableOpacity
+                      style={styles.fileActionBtn}
+                      onPress={() => handleDownload(item)}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialIcons name="file-download" size={18} color="#FFFFFF" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.fileActionBtn, styles.openActionBtn]}
+                      onPress={() => handleOpenFile(item)}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialIcons name="open-in-new" size={18} color="#2563EB" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </AppCard>
             );
@@ -382,13 +410,23 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamily.regular,
     color: '#94A3B8',
   },
+  actionGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 8,
+  },
   fileActionBtn: {
-    width: 42,
-    height: 42,
+    width: 36,
+    height: 36,
     borderRadius: 8,
-    backgroundColor: '#F59E0B',
+    backgroundColor: Colors.primaryColor,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 10,
+  },
+  openActionBtn: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
   },
 });

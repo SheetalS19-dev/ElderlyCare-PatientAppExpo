@@ -15,7 +15,7 @@ export type RootStackParamList = {
   Notification: undefined;
   NotificationDetails: { notificationId: string | number };
   Vitals: undefined;
-  VitalDetails: { vitalId?: string | number; vitalName?: string };
+  VitalDetails: { vitalId?: string | number; vitalName?: string; familyMemberId?: string };
   PrescriptionList: undefined;
   PatientFile: undefined;
   FamilyMemberList: undefined;
