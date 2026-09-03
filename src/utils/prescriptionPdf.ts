@@ -5,161 +5,161 @@ import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 
 interface PrescriptionItem {
-    id: number;
-    prescription_id: number;
-    medicine_name: string;
-    dosage: string;
-    duration: string;
-    time: string;
-    dose_interval: string;
-    notes: string;
+  id: number;
+  prescription_id: number;
+  medicine_name: string;
+  dosage: string;
+  duration: string;
+  time: string;
+  dose_interval: string;
+  notes: string;
 }
 
 export interface PrescriptionData {
-    id: number;
-    appointment_id: number;
-    clinic_id: number;
-    patient_id: number;
-    date: string;
+  id: number;
+  appointment_id: number;
+  clinic_id: number;
+  patient_id: number;
+  date: string;
 
-    test: string;
-    advice: string;
-    problem_desc: string;
+  test: string;
+  advice: string;
+  problem_desc: string;
 
-    food_allergies: string;
-    tendency_bleed: string;
-    heart_disease: string;
-    blood_pressure: string;
-    diabetic: string;
-    surgery: string;
-    accident: string;
-    others: string;
-    medical_history: string;
-    current_medication: string;
-    female_pregnancy: string;
-    breast_feeding: string;
+  food_allergies: string;
+  tendency_bleed: string;
+  heart_disease: string;
+  blood_pressure: string;
+  diabetic: string;
+  surgery: string;
+  accident: string;
+  others: string;
+  medical_history: string;
+  current_medication: string;
+  female_pregnancy: string;
+  breast_feeding: string;
 
-    pulse_rate: string;
-    temperature: string;
-    next_visit: string;
+  pulse_rate: string;
+  temperature: string;
+  next_visit: string;
 
-    pdf_file: string | null;
-    json_data: string | null;
+  pdf_file: string | null;
+  json_data: string | null;
 
-    created_at: string;
-    updated_at: string;
+  created_at: string;
+  updated_at: string;
 
-    items: PrescriptionItem[];
+  items: PrescriptionItem[];
 }
 
 export interface PrescriptionPdfInfo {
-    doctorName?: string;
-    patientName?: string;
-    patientId?: string | number;
+  doctorName?: string;
+  patientName?: string;
+  patientId?: string | number;
 
-    clinicName?: string;
-    clinicAddress?: string;
-    clinicPhone1?: string;
-    clinicPhone2?: string;
-    clinicEmail?: string;
-    clinicImage?: string;
+  clinicName?: string;
+  clinicAddress?: string;
+  clinicPhone1?: string;
+  clinicPhone2?: string;
+  clinicEmail?: string;
+  clinicImage?: string;
 
-    generatedAt?: string;
+  generatedAt?: string;
 }
 
 const API_BASE_URL = ApiEndpoints.webApiUrl;
 
 const escapeHtml = (value: unknown) => {
-    return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 };
 
 const displayValue = (value: unknown) => {
-    const text = String(value ?? '').trim();
-    return text || '--';
+  const text = String(value ?? '').trim();
+  return text || '--';
 };
 
 const formatDate = (value?: string) => {
-    if (!value) return '--';
+  if (!value) return '--';
 
-    const date = new Date(value);
+  const date = new Date(value);
 
-    if (Number.isNaN(date.getTime())) {
-        return value;
-    }
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
 
-    return date.toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-    });
+  return date.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 };
 
 const formatDateTime = (value?: string) => {
-    if (!value) return '--';
+  if (!value) return '--';
 
-    const date = new Date(value);
+  const date = new Date(value);
 
-    if (Number.isNaN(date.getTime())) {
-        return value;
-    }
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
 
-    return (
-        date.toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-        }) +
-        ', ' +
-        date.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-        })
-    );
+  return (
+    date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }) +
+    ', ' +
+    date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  );
 };
 
 const getClinicImageUrl = (image?: string | null) => {
-    if (!image) return '';
+  if (!image) return '';
 
-    if (
-        image.startsWith('http://') ||
-        image.startsWith('https://')
-    ) {
-        return image;
-    }
+  if (
+    image.startsWith('http://') ||
+    image.startsWith('https://')
+  ) {
+    return image;
+  }
 
-    const cleanPath = image.replace(/^\//, '');
+  const cleanPath = image.replace(/^\//, '');
 
-    if (cleanPath.startsWith('api/public/storage/')) {
-        return `${ApiEndpoints.webApiUrl}/${cleanPath}`;
-    }
+  if (cleanPath.startsWith('api/public/storage/')) {
+    return `${ApiEndpoints.webApiUrl}/${cleanPath}`;
+  }
 
-    if (cleanPath.startsWith('public/storage/')) {
-        return `${ApiEndpoints.webApiUrl}/api/${cleanPath}`;
-    }
+  if (cleanPath.startsWith('public/storage/')) {
+    return `${ApiEndpoints.webApiUrl}/api/${cleanPath}`;
+  }
 
-    if (cleanPath.startsWith('storage/')) {
-        return `${ApiEndpoints.webApiUrl}/api/public/${cleanPath}`;
-    }
+  if (cleanPath.startsWith('storage/')) {
+    return `${ApiEndpoints.webApiUrl}/api/public/${cleanPath}`;
+  }
 
-    return `${ApiEndpoints.imageUrl}/${cleanPath}`;
+  return `${ApiEndpoints.imageUrl}/${cleanPath}`;
 };
 
 export async function generatePrescriptionPdf(
-    prescription: PrescriptionData,
-    info: PrescriptionPdfInfo = {},
+  prescription: PrescriptionData,
+  info: PrescriptionPdfInfo = {},
 ) {
-    const items = prescription.items ?? [];
+  const items = prescription.items ?? [];
 
-    const clinicImage = getClinicImageUrl(info.clinicImage);
+  const clinicImage = getClinicImageUrl(info.clinicImage);
 
-    const medicineRows = items
-        .map(
-            item => `
+  const medicineRows = items
+    .map(
+      item => `
         <tr>
           <td class="medicine-name">
             ${escapeHtml(item.medicine_name)}
@@ -178,10 +178,10 @@ export async function generatePrescriptionPdf(
           </td>
         </tr>
       `,
-        )
-        .join('');
+    )
+    .join('');
 
-    const html = `
+  const html = `
 <!DOCTYPE html>
 
 <html>
@@ -435,46 +435,46 @@ body {
     <div class="clinic-section">
 
       ${clinicImage
-            ? `
+      ? `
             <img
               src="${escapeHtml(clinicImage)}"
               class="clinic-logo"
               onerror="this.onerror=null;this.style.display='none';"
             />
           `
-            : ''
-        }
+      : ''
+    }
 
       <div class="clinic-name">
         ${escapeHtml(
-            displayValue(info.clinicName),
-        )}
+      displayValue(info.clinicName),
+    )}
       </div>
 
       <div class="clinic-info">
 
         ${escapeHtml(
-            displayValue(info.clinicAddress),
-        )}
+      displayValue(info.clinicAddress),
+    )}
 
         <br />
 
         Phone:
         ${escapeHtml(
-            displayValue(info.clinicPhone1),
-        )}
+      displayValue(info.clinicPhone1),
+    )}
 
         ${info.clinicPhone2
-            ? `, ${escapeHtml(info.clinicPhone2)}`
-            : ''
-        }
+      ? `, ${escapeHtml(info.clinicPhone2)}`
+      : ''
+    }
 
         <br />
 
         Email:
         ${escapeHtml(
-            displayValue(info.clinicEmail),
-        )}
+      displayValue(info.clinicEmail),
+    )}
 
       </div>
 
@@ -502,15 +502,15 @@ body {
       <div class="info-row">
         <span class="label">Patient ID:</span>
         ${escapeHtml(
-            displayValue(info.patientId),
-        )}
+      displayValue(info.patientId),
+    )}
       </div>
 
       <div class="info-row">
         <span class="label">Name:</span>
         ${escapeHtml(
-            displayValue(info.patientName),
-        )}
+      displayValue(info.patientName),
+    )}
       </div>
 
       <div class="info-row">
@@ -531,22 +531,22 @@ body {
       <div class="info-row">
         <span class="label">Pulse Rate:</span>
         ${escapeHtml(
-            displayValue(prescription.pulse_rate),
-        )}
+      displayValue(prescription.pulse_rate),
+    )}
       </div>
 
       <div class="info-row">
         <span class="label">Temperature:</span>
         ${escapeHtml(
-            displayValue(prescription.temperature),
-        )}
+      displayValue(prescription.temperature),
+    )}
       </div>
 
       <div class="info-row">
         <span class="label">Blood Pressure:</span>
         ${escapeHtml(
-            displayValue(prescription.blood_pressure),
-        )}
+      displayValue(prescription.blood_pressure),
+    )}
       </div>
 
     </div>
@@ -579,14 +579,14 @@ body {
     <tbody>
 
       ${medicineRows ||
-        `
+    `
           <tr>
             <td colspan="4">
               No medicines prescribed
             </td>
           </tr>
         `
-        }
+    }
 
     </tbody>
 
@@ -605,8 +605,8 @@ body {
 
     <div class="section-content">
       ${escapeHtml(
-            displayValue(prescription.problem_desc),
-        )}
+      displayValue(prescription.problem_desc),
+    )}
     </div>
 
   </div>
@@ -624,8 +624,8 @@ body {
 
     <div class="section-content">
       ${escapeHtml(
-            displayValue(prescription.test),
-        )}
+      displayValue(prescription.test),
+    )}
     </div>
 
   </div>
@@ -643,8 +643,8 @@ body {
 
     <div class="section-content">
       ${escapeHtml(
-            displayValue(prescription.advice),
-        )}
+      displayValue(prescription.advice),
+    )}
     </div>
 
   </div>
@@ -667,78 +667,78 @@ body {
     <div class="medical-row">
       Food Allergies:-
       ${escapeHtml(
-            displayValue(prescription.food_allergies),
-        )}
+      displayValue(prescription.food_allergies),
+    )}
     </div>
 
     <div class="medical-row">
       Tendency to Bleed:-
       ${escapeHtml(
-            displayValue(prescription.tendency_bleed),
-        )}
+      displayValue(prescription.tendency_bleed),
+    )}
     </div>
 
     <div class="medical-row">
       Heart Disease:-
       ${escapeHtml(
-            displayValue(prescription.heart_disease),
-        )}
+      displayValue(prescription.heart_disease),
+    )}
     </div>
 
     <div class="medical-row">
       Diabetic:-
       ${escapeHtml(
-            displayValue(prescription.diabetic),
-        )}
+      displayValue(prescription.diabetic),
+    )}
     </div>
 
     <div class="medical-row">
       Surgery:-
       ${escapeHtml(
-            displayValue(prescription.surgery),
-        )}
+      displayValue(prescription.surgery),
+    )}
     </div>
 
     <div class="medical-row">
       Accident:-
       ${escapeHtml(
-            displayValue(prescription.accident),
-        )}
+      displayValue(prescription.accident),
+    )}
     </div>
 
     <div class="medical-row">
       Other:-
       ${escapeHtml(
-            displayValue(prescription.others),
-        )}
+      displayValue(prescription.others),
+    )}
     </div>
 
     <div class="medical-row">
       Medical History:-
       ${escapeHtml(
-            displayValue(prescription.medical_history),
-        )}
+      displayValue(prescription.medical_history),
+    )}
     </div>
 
     <div class="medical-row">
       Current Medication:-
       ${escapeHtml(
-            displayValue(prescription.current_medication),
-        )}
+      displayValue(prescription.current_medication),
+    )}
     </div>
 
     <div class="medical-row">
       Female Pregnancy:-
       ${escapeHtml(
-            displayValue(prescription.female_pregnancy),
-        )}
+      displayValue(prescription.female_pregnancy),
+    )}
     </div>
 
     <div class="medical-row">
       Breast Feeding:-
       ${escapeHtml(
-            displayValue(prescription.breast_feeding),
-        )}
+      displayValue(prescription.breast_feeding),
+    )}
     </div>
 
   </div>
@@ -752,8 +752,8 @@ body {
 
     Generated on
     ${formatDateTime(
-            info.generatedAt || prescription.created_at,
-        )}
+      info.generatedAt || prescription.created_at,
+    )}
 
   </div>
 
@@ -764,95 +764,95 @@ body {
 </html>
   `;
 
-    const { uri } = await Print.printToFileAsync({
-        html,
+  const { uri } = await Print.printToFileAsync({
+    html,
 
-        margins: {
-            top: 15,
-            bottom: 20,
-            left: 15,
-            right: 15,
-        },
-    });
+    margins: {
+      top: 15,
+      bottom: 20,
+      left: 15,
+      right: 15,
+    },
+  });
 
-    return uri;
+  return uri;
 }
 
 
 export async function viewPrescriptionPdf(
-    prescription: PrescriptionData,
-    info: PrescriptionPdfInfo = {},
+  prescription: PrescriptionData,
+  info: PrescriptionPdfInfo = {},
 ) {
-    const uri = await generatePrescriptionPdf(prescription, info);
-    await Print.printAsync({ uri });
-    return uri;
+  const uri = await generatePrescriptionPdf(prescription, info);
+  await Print.printAsync({ uri });
+  return uri;
 }
 
 export async function downloadPrescriptionPdf(
-    prescription: PrescriptionData,
-    info: PrescriptionPdfInfo = {},
+  prescription: PrescriptionData,
+  info: PrescriptionPdfInfo = {},
 ) {
-    const uri = await generatePrescriptionPdf(prescription, info);
+  const uri = await generatePrescriptionPdf(prescription, info);
 
-    if (Platform.OS === 'android') {
-        try {
-            const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-            if (permissions.granted) {
-                const base64 = await FileSystem.readAsStringAsync(uri, {
-                    encoding: FileSystem.EncodingType.Base64,
-                });
-                const fileName = `Prescription_${prescription.id}_${Date.now()}.pdf`;
-                const newFileUri = await FileSystem.StorageAccessFramework.createFileAsync(
-                    permissions.directoryUri,
-                    fileName,
-                    'application/pdf',
-                );
-                await FileSystem.writeAsStringAsync(newFileUri, base64, {
-                    encoding: FileSystem.EncodingType.Base64,
-                });
-                return { success: true, uri: newFileUri, fileName };
-            }
-        } catch (err) {
-            console.warn('StorageAccessFramework download error, falling back to share dialog:', err);
-        }
-    }
-
-    // Fallback for iOS or if directory selection is skipped
-    const isAvailable = await Sharing.isAvailableAsync();
-    if (isAvailable) {
-        await Sharing.shareAsync(uri, {
-            mimeType: 'application/pdf',
-            dialogTitle: `Save Prescription #${prescription.id}`,
-            UTI: 'com.adobe.pdf',
+  if (Platform.OS === 'android') {
+    try {
+      const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+      if (permissions.granted) {
+        const base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
         });
+        const fileName = `Prescription_${prescription.id}_${Date.now()}.pdf`;
+        const newFileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+          permissions.directoryUri,
+          fileName,
+          'application/pdf',
+        );
+        await FileSystem.writeAsStringAsync(newFileUri, base64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        return { success: true, uri: newFileUri, fileName };
+      }
+    } catch (err) {
+      console.warn('StorageAccessFramework download error, falling back to share dialog:', err);
     }
+  }
 
-    return { success: true, uri, fileName: `Prescription_${prescription.id}.pdf` };
+  // Fallback for iOS or if directory selection is skipped
+  const isAvailable = await Sharing.isAvailableAsync();
+  if (isAvailable) {
+    await Sharing.shareAsync(uri, {
+      mimeType: 'application/pdf',
+      dialogTitle: `Save Prescription #${prescription.id}`,
+      UTI: 'com.adobe.pdf',
+    });
+  }
+
+  return { success: true, uri, fileName: `Prescription_${prescription.id}.pdf` };
 }
 
 export async function sharePrescriptionPdf(
-    prescription: PrescriptionData,
-    info: PrescriptionPdfInfo = {},
+  prescription: PrescriptionData,
+  info: PrescriptionPdfInfo = {},
 ) {
-    const uri = await generatePrescriptionPdf(
-        prescription,
-        info,
+  const uri = await generatePrescriptionPdf(
+    prescription,
+    info,
+  );
+
+  const available =
+    await Sharing.isAvailableAsync();
+
+  if (!available) {
+    throw new Error(
+      'PDF sharing is not available on this device.',
     );
+  }
 
-    const available =
-        await Sharing.isAvailableAsync();
+  await Sharing.shareAsync(uri, {
+    mimeType: 'application/pdf',
+    dialogTitle: `Prescription #${prescription.id}`,
+    UTI: 'com.adobe.pdf',
+  });
 
-    if (!available) {
-        throw new Error(
-            'PDF sharing is not available on this device.',
-        );
-    }
-
-    await Sharing.shareAsync(uri, {
-        mimeType: 'application/pdf',
-        dialogTitle: `Prescription #${prescription.id}`,
-        UTI: 'com.adobe.pdf',
-    });
-
-    return uri;
+  return uri;
 }
