@@ -61,11 +61,33 @@ export const blogApi = baseApi.injectEndpoints({
       providesTags: (result: any, error: any, id: any) => [{ type: 'Blog', id }],
     }),
 
+    getBlogComments: builder.query({
+      query: (blogId: string | number) => `${ApiEndpoints.getBlogCommentsUrl}/${blogId}`,
+      transformResponse: (res: any) => {
+        if (Array.isArray(res)) return res;
+        if (Array.isArray(res?.data)) return res.data;
+        return [];
+      },
+      providesTags: (result: any, error: any, blogId: any) => [{ type: 'BlogComment', id: blogId }],
+    }),
+
     getFaq: builder.query({
       query: () => ({
-        url: 'https://new.elderlycare.life/page/faq',
+        url: ApiEndpoints.getFaqUrl,
       }),
       transformResponse: (res: any) => res?.data ?? res,
+    }),
+
+    saveBlogComment: builder.mutation({
+      query: (body: { blog_id: string | number; name: string; email: string; comment: string }) => ({
+        url: ApiEndpoints.saveBlogCommentUrl,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: (result: any, error: any, { blog_id }: any) => [
+        { type: 'Blog', id: blog_id },
+        { type: 'BlogComment', id: blog_id },
+      ],
     }),
   }),
 });
@@ -76,7 +98,9 @@ export const {
   useGetBlogTagsQuery,
   useSearchBlogsQuery,
   useGetBlogDetailQuery,
+  useGetBlogCommentsQuery,
   useGetFaqQuery,
+  useSaveBlogCommentMutation,
 } = blogApi as any;
 
 export type { BlogModel, BlogCategoryModel };

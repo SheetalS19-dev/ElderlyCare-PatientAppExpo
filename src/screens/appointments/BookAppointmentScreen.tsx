@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppButton, AppCard, AppHeader, AppTextField, ErrorState, LoadingIndicator, StarRating } from '../../components';
+import { AppButton, AppCard, AppHeader, ErrorState, LoadingIndicator, StarRating } from '../../components';
 import { AppConstants, Colors, Typography } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
@@ -26,7 +26,7 @@ import {
 } from '../../redux/apis/bookingApi';
 import { useGetDoctorByIdQuery, useGetDoctorReviewsQuery, useGetDoctorsByDeptAndCityQuery, useGetDoctorsQuery } from '../../redux/apis/doctorApi';
 import { useGetUserProfileQuery } from '../../redux/apis/userApi';
-import { openRazorpayCheckout } from '../../services/razorpayService';
+import { useAddWalletMoneyMutation } from '../../redux/apis/walletApi';
 import { storageService } from '../../services/storageService';
 import type { CouponModel, DoctorModel, DoctorReviewModel, FamilyMemberModel, UserModel } from '../../types';
 import { CalculationUtils, DateTimeUtils, formatDoctorName, getImageUrl, showToast } from '../../utils';
@@ -47,7 +47,7 @@ interface AppointmentTypeOption {
 export const BookAppointmentScreen = ({ navigation, route }: Props) => {
   const { doctId } = route.params;
   const insets = useSafeAreaInsets();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, updateUser } = useAuth();
 
   React.useEffect(() => {
     if (!isAuthenticated) {
@@ -57,7 +57,7 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
 
   const uid = String(user?.id ?? (user as any)?.user_id ?? '');
 
-  const { data: userProfileData } = useGetUserProfileQuery(uid, {
+  const { data: userProfileData, refetch: refetchUserProfile } = useGetUserProfileQuery(uid, {
     skip: !uid,
   });
 
@@ -71,6 +71,7 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
   const [validateCoupon, { isLoading: isValidatingCoupon }] = useValidateCouponMutation();
   const [addAppointment, { isLoading: isBooking }] = useAddAppointmentMutation();
   const [createRzOrder, { isLoading: isCreatingOrder }] = useCreateRzOrderMutation();
+  const [addWalletMoney] = useAddWalletMoneyMutation();
 
   const doctor: DoctorModel | null = useMemo(() => {
     if (!rawDoctorData) return null;
@@ -169,7 +170,13 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
   }, [selectedType]);
 
   const taxPercent = useMemo(() => {
-    return Number((gateway as any)?.tax_percent ?? 0);
+    const rawVal =
+      (gateway as any)?.tax_percent ??
+      (gateway as any)?.tax ??
+      (gateway as any)?.tax_amount;
+    const num = Number(rawVal);
+    if (!isNaN(num) && num > 0) return num;
+    return 12;
   }, [gateway]);
 
   const taxAmount = useMemo(() => {
@@ -208,14 +215,8 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
       if (full) return full;
       if ((selectedMember as any).name) return String((selectedMember as any).name).trim();
     }
-    if (user?.f_name || user?.l_name) {
-      const first = (user.f_name ?? '').trim();
-      const last = (user.l_name ?? '').trim();
-      const full = `${first} ${last}`.trim();
-      if (full) return full;
-    }
-    return (user as any)?.name || 'Patient';
-  }, [selectedMember, user]);
+    return '';
+  }, [selectedMember]);
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
@@ -257,17 +258,14 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
       return;
     }
 
+    if (!selectedMember) {
+      showToast('Please select a patient');
+      setShowFamilySheet(true);
+      return;
+    }
+
     const userId = String(user?.id ?? (user as any)?.user_id ?? '');
-
-    const isSelfMember =
-      !selectedMember ||
-      (selectedMember as any)?.is_self ||
-      selectedMember?.relationship === 'Self' ||
-      String(selectedMember?.id) === userId;
-
-    const familyMemberId = isSelfMember
-      ? userId
-      : String(selectedMember?.id ?? userId);
+    const familyMemberId = String(selectedMember.id ?? userId);
 
     const targetDoctId = String(
       (doctor as any)?.user_id ??
@@ -342,6 +340,26 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
         payload.coupon_value = String(appliedCoupon.discount || 0);
       }
 
+      if (choice === 'wallet') {
+        const patientNote = patientDisplayName ? ` for ${patientDisplayName}` : '';
+        const walletDebitPayload = {
+          user_id: userId,
+          amount: String(total),
+          payment_transaction_id: `wallet_${Date.now()}`,
+          payment_method: 'Wallet',
+          transaction_type: 'Debited',
+          type: 'Debited',
+          description: `Appointment booking${patientNote} (${selectedType.name})`,
+          notes: `Appointment booking${patientNote} (${selectedType.name})`,
+          is_wallet_txn: '1',
+        };
+        try {
+          await addWalletMoney(walletDebitPayload).unwrap();
+        } catch (walletErr: any) {
+          console.warn('Wallet debit call:', walletErr);
+        }
+      }
+
       try {
         await addAppointment(payload).unwrap();
       } catch (firstErr: any) {
@@ -356,7 +374,21 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
 
       setShowPaymentSheet(false);
       showToast('Appointment booked successfully!');
-      navigation.navigate('MyBookings');
+
+      try {
+        const freshProfile = await refetchUserProfile();
+        if (freshProfile?.data) {
+          const freshUser = (freshProfile.data as any)?.data ?? freshProfile.data;
+          await updateUser({ ...(user || {}), ...freshUser });
+        }
+      } catch (profileErr) {
+        console.warn('Could not refresh user profile after booking:', profileErr);
+      }
+
+      navigation.reset({
+        index: 1,
+        routes: [{ name: 'Main' }, { name: 'MyBookings' }],
+      });
     } catch (e: any) {
       showToast(e?.data?.message || e?.message || e?.error || 'Failed to book appointment');
     }
@@ -382,7 +414,10 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
 
   const fullName = formatDoctorName(doctor.f_name, doctor.l_name);
   const isEmergencyType = selectedType?.code === '3';
-  const canReview = !!selectedType && (isEmergencyType || (!!selectedDate && !!selectedTimeStart));
+  const canReview =
+    !!selectedType &&
+    !!selectedMember &&
+    (isEmergencyType || (!!selectedDate && !!selectedTimeStart));
 
   return (
     <View style={styles.container}>
@@ -399,309 +434,321 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-        {/* Doctor Header Card matching Flutter */}
-        <AppCard style={styles.doctorCard}>
-          <View style={styles.doctorHeaderRow}>
-            {/* Avatar with Online Status Dot */}
-            <View style={styles.avatarWrapper}>
-              <Image
-                source={
-                  doctor.image
-                    ? { uri: getImageUrl(doctor.image) }
-                    : require('../../../assets/icons/user.png')
-                }
-                style={styles.doctorAvatar}
-              />
-              <View style={styles.onlineDotOuter}>
-                <View style={styles.onlineDotInner} />
-              </View>
-            </View>
-
-            {/* Doctor Info */}
-            <View style={styles.doctorMetaColumn}>
-              <Text style={styles.doctorNameText}>{fullName}</Text>
-              {!!doctor.specialization && (
-                <Text style={styles.doctorSpecializationText}>{doctor.specialization}</Text>
-              )}
-
-              <View style={styles.doctorRatingRow}>
-                <StarRating rating={Number(doctor.average_rating ?? 5)} starSize={14} />
-                <Text style={styles.doctorRatingCountText}>
-                  {Number(doctor.average_rating ?? 0).toFixed(1)} ({doctor.number_of_reviews ?? 0} Review)
-                </Text>
+          {/* Doctor Header Card matching Flutter */}
+          <AppCard style={styles.doctorCard}>
+            <View style={styles.doctorHeaderRow}>
+              {/* Avatar with Online Status Dot */}
+              <View style={styles.avatarWrapper}>
+                <Image
+                  source={
+                    doctor.image
+                      ? { uri: getImageUrl(doctor.image) }
+                      : require('../../../assets/icons/user.png')
+                  }
+                  style={styles.doctorAvatar}
+                />
+                <View style={styles.onlineDotOuter}>
+                  <View style={styles.onlineDotInner} />
+                </View>
               </View>
 
-              {doctor.experience != null && (
-                <View style={styles.doctorDetailRow}>
-                  <MaterialIcons name="work-outline" size={14} color={Colors.primaryColor} />
-                  <Text style={styles.doctorDetailText}>
-                    Experience {doctor.experience || doctor.ex_year || 0} Year
+              {/* Doctor Info */}
+              <View style={styles.doctorMetaColumn}>
+                <Text style={styles.doctorNameText}>{fullName}</Text>
+                {!!doctor.specialization && (
+                  <Text style={styles.doctorSpecializationText}>{doctor.specialization}</Text>
+                )}
+
+                <View style={styles.doctorRatingRow}>
+                  <StarRating rating={Number(doctor.average_rating ?? 5)} starSize={14} />
+                  <Text style={styles.doctorRatingCountText}>
+                    {Number(doctor.average_rating ?? 0).toFixed(1)} ({doctor.number_of_reviews ?? 0} Review)
                   </Text>
                 </View>
-              )}
 
-              {doctor.total_appointment_done != null && (
-                <View style={styles.doctorDetailRow}>
-                  <MaterialIcons name="check-circle" size={14} color="#16A34A" />
-                  <Text style={styles.doctorDetailText}>
-                    {doctor.total_appointment_done} Appointments Done
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </AppCard>
+                {doctor.experience != null && (
+                  <View style={styles.doctorDetailRow}>
+                    <MaterialIcons name="work-outline" size={14} color={Colors.primaryColor} />
+                    <Text style={styles.doctorDetailText}>
+                      Experience {doctor.experience || doctor.ex_year || 0} Year
+                    </Text>
+                  </View>
+                )}
 
-        {/* Clinic Location Info */}
-        {!!doctor.clinic_title && (
-          <AppCard style={{ marginTop: 10 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <MaterialIcons name="location-on" size={18} color={Colors.primaryColor} />
-              <Text style={styles.clinicTitle}>{doctor.clinic_title}</Text>
+                {doctor.total_appointment_done != null && (
+                  <View style={styles.doctorDetailRow}>
+                    <MaterialIcons name="check-circle" size={14} color="#16A34A" />
+                    <Text style={styles.doctorDetailText}>
+                      {doctor.total_appointment_done} Appointments Done
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
-            {!!doctor.clinics_address && (
-              <Text style={styles.clinicAddress}>{doctor.clinics_address}</Text>
-            )}
           </AppCard>
-        )}
 
-        {/* Consultation Fee / Appointment Type Cards */}
-        <Text style={styles.sectionTitle}>Consultation Type</Text>
-        <View style={styles.typeCardsRow}>
-          {typeOptions.map((opt) => {
-            const active = selectedType?.code === opt.code;
-            const assetSource =
-              opt.code === '1'
-                ? require('../../../assets/icons/medical-appointment.png')
-                : opt.code === '2'
-                  ? require('../../../assets/icons/Play.png')
-                  : require('../../../assets/icons/ambulance.png');
-
-            return (
-              <TouchableOpacity
-                key={opt.code}
-                style={[styles.typeCard, active && styles.typeCardActive]}
-                onPress={() => {
-                  setSelectedType(opt);
-                  setSelectedDate(null);
-                  setSelectedTimeStart(null);
-                }}
-                activeOpacity={0.8}
-              >
-                <View style={styles.typeIconContainer}>
-                  <Image
-                    source={assetSource}
-                    style={[
-                      styles.typeCardAssetImg,
-                    ]}
-                    resizeMode="contain"
-                  />
-                </View>
-                <Text style={[styles.typeCardTitle, active && styles.typeCardTextActive]}>
-                  {opt.label}
-                </Text>
-                <Text style={[styles.typeCardFee, active && styles.typeCardTextActive]}>
-                  Fee {AppConstants.appCurrency}{opt.fee || 0}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Date & Time Selector Cards */}
-        {selectedType && selectedType.code !== '3' && (
-          <View style={styles.dateTimeContainer}>
-            <View style={styles.dateTimeRow}>
-              {/* Date Card */}
-              <View style={styles.dateTimeColumn}>
-                <Text style={styles.inputSubLabel}>Date</Text>
-                <TouchableOpacity
-                  style={styles.dateTimeTile}
-                  onPress={() => setShowDateTimeSheet(true)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.dateTimeValueText} numberOfLines={1}>
-                    {selectedDate ? DateTimeUtils.getDataFormat(selectedDate) : '--'}
-                  </Text>
-                  <View style={styles.tileIconBox}>
-                    <MaterialIcons name="calendar-today" size={16} color="#FFFFFF" />
-                  </View>
-                </TouchableOpacity>
+          {/* Clinic Location Info */}
+          {!!doctor.clinic_title && (
+            <AppCard style={{ marginTop: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <MaterialIcons name="location-on" size={18} color={Colors.primaryColor} />
+                <Text style={styles.clinicTitle}>{doctor.clinic_title}</Text>
               </View>
-
-              {/* Time Card */}
-              <View style={styles.dateTimeColumn}>
-                <Text style={styles.inputSubLabel}>Time</Text>
-                <TouchableOpacity
-                  style={styles.dateTimeTile}
-                  onPress={() => setShowDateTimeSheet(true)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.dateTimeValueText} numberOfLines={1}>
-                    {selectedTimeStart
-                      ? DateTimeUtils.formatTimeToAmPm(selectedTimeStart)
-                      : '--'}
-                  </Text>
-                  <View style={styles.tileIconBox}>
-                    <MaterialIcons name="access-time" size={16} color="#FFFFFF" />
-                  </View>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Patient Selection Card */}
-        <Text style={styles.sectionTitle}>Patient Details</Text>
-        <TouchableOpacity
-          style={styles.patientCard}
-          onPress={() => setShowFamilySheet(true)}
-          activeOpacity={0.8}
-        >
-          <View style={styles.patientAvatarBox}>
-            <MaterialIcons name="person" size={24} color={Colors.primaryColor} />
-          </View>
-          <View style={styles.patientInfoBox}>
-            <Text style={styles.patientNameText} numberOfLines={1}>
-              {patientDisplayName}
-            </Text>
-            <Text style={styles.patientPhoneText}>
-              {selectedMember?.phone || user?.phone || 'Tap to choose or add patient'}
-            </Text>
-          </View>
-          <MaterialIcons name="edit" size={20} color={Colors.primaryColor} />
-        </TouchableOpacity>
-
-        {/* Coupon Code Section */}
-        <Text style={styles.sectionTitle}>Coupon Code</Text>
-        <View style={styles.couponContainer}>
-          <View style={styles.couponRow}>
-            <TextInput
-              style={[
-                styles.couponTextInput,
-                couponError ? styles.couponInputError : null,
-              ]}
-              placeholder="Enter Coupon Code"
-              placeholderTextColor="#94A3B8"
-              value={couponCode}
-              onChangeText={(text) => {
-                setCouponCode(text);
-                if (couponError) setCouponError(undefined);
-              }}
-              autoCapitalize="characters"
-              editable={!appliedCoupon}
-            />
-            <TouchableOpacity
-              style={[
-                styles.couponActionBtn,
-                appliedCoupon ? styles.couponRemoveBtn : styles.couponApplyBtn,
-                isValidatingCoupon && { opacity: 0.7 },
-              ]}
-              onPress={appliedCoupon ? handleRemoveCoupon : handleApplyCoupon}
-              disabled={isValidatingCoupon}
-              activeOpacity={0.85}
-            >
-              {isValidatingCoupon ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.couponActionBtnText}>
-                  {appliedCoupon ? 'Remove' : 'Apply'}
-                </Text>
+              {!!doctor.clinics_address && (
+                <Text style={styles.clinicAddress}>{doctor.clinics_address}</Text>
               )}
-            </TouchableOpacity>
-          </View>
-          {couponError && <Text style={styles.couponErrorText}>{couponError}</Text>}
-          {appliedCoupon && (
-            <View style={styles.couponSuccessBadge}>
-              <MaterialIcons name="check-circle" size={14} color="#16A34A" />
-              <Text style={styles.couponSuccessText}>
-                Coupon "{appliedCoupon.code || couponCode}" applied
-              </Text>
-            </View>
+            </AppCard>
           )}
-        </View>
 
-        {/* Patient Reviews Card */}
-        {reviews.length > 0 && (
-          <View style={styles.reviewSection}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }}>
-              {reviews.map((rev: any, idx: number) => (
-                <View key={`rev-${rev.id ?? idx}`} style={styles.patientReviewCard}>
-                  <View style={styles.reviewUserHeader}>
-                    <View style={styles.reviewerAvatarCircle}>
-                      <MaterialIcons name="person" size={20} color={Colors.white} />
-                    </View>
-                    <View style={styles.reviewerMeta}>
-                      <Text style={styles.reviewerName}>{rev.user_name || 'Patient'}</Text>
-                      <StarRating rating={Number(rev.points ?? 5)} starSize={12} />
-                    </View>
+          {/* Consultation Fee / Appointment Type Cards */}
+          <Text style={styles.sectionTitle}>Consultation Type</Text>
+          <View style={styles.typeCardsRow}>
+            {typeOptions.map((opt) => {
+              const active = selectedType?.code === opt.code;
+              const assetSource =
+                opt.code === '1'
+                  ? require('../../../assets/icons/medical-appointment.png')
+                  : opt.code === '2'
+                    ? require('../../../assets/icons/Play.png')
+                    : require('../../../assets/icons/ambulance.png');
+
+              return (
+                <TouchableOpacity
+                  key={opt.code}
+                  style={[styles.typeCard, active && styles.typeCardActive]}
+                  onPress={() => {
+                    setSelectedType(opt);
+                    setSelectedDate(null);
+                    setSelectedTimeStart(null);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.typeIconContainer}>
+                    <Image
+                      source={assetSource}
+                      style={[
+                        styles.typeCardAssetImg,
+                      ]}
+                      resizeMode="contain"
+                    />
                   </View>
-                  {!!rev.description && (
-                    <Text style={styles.reviewCommentText} numberOfLines={3}>
-                      "{rev.description}"
-                    </Text>
-                  )}
-                </View>
-              ))}
-            </ScrollView>
+                  <Text style={[styles.typeCardTitle, active && styles.typeCardTextActive]}>
+                    {opt.label}
+                  </Text>
+                  <Text style={[styles.typeCardFee, active && styles.typeCardTextActive]}>
+                    Fee {AppConstants.appCurrency}{opt.fee || 0}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        )}
 
-        {/* Suggested Doctors Section */}
-        {suggestedDoctors.length > 0 && (
-          <View style={styles.suggestedSection}>
-            <Text style={styles.suggestedTitle}>Suggested Doctors</Text>
-
-            <View style={styles.suggestedGrid}>
-              {displayedSuggestedDoctors.map((doc: DoctorModel) => {
-                const docRating = Number(doc.average_rating ?? 0);
-                const docReviewsCount = Number(doc.number_of_reviews ?? 0);
-                return (
+          {/* Date & Time Selector Cards */}
+          {selectedType && selectedType.code !== '3' && (
+            <View style={styles.dateTimeContainer}>
+              <View style={styles.dateTimeRow}>
+                {/* Date Card */}
+                <View style={styles.dateTimeColumn}>
+                  <Text style={styles.inputSubLabel}>Date</Text>
                   <TouchableOpacity
-                    key={`sug-${doc.id ?? doc.user_id}`}
-                    style={styles.suggestedGridCard}
-                    activeOpacity={0.8}
-                    onPress={() => navigation.push('BookAppointment', { doctId: String(doc.user_id || doc.id) })}
+                    style={styles.dateTimeTile}
+                    onPress={() => setShowDateTimeSheet(true)}
+                    activeOpacity={0.7}
                   >
-                    <View style={styles.suggestedAvatarWrapper}>
-                      <Image
-                        source={doc.image ? { uri: getImageUrl(doc.image) } : require('../../../assets/icons/user.png')}
-                        style={styles.suggestedAvatarImg}
-                      />
-                    </View>
-                    <Text style={styles.suggestedCardName} numberOfLines={1}>
-                      {formatDoctorName(doc.f_name, doc.l_name)}
+                    <Text style={styles.dateTimeValueText} numberOfLines={1}>
+                      {selectedDate ? DateTimeUtils.getDataFormat(selectedDate) : '--'}
                     </Text>
-                    <Text style={styles.suggestedCardDept} numberOfLines={2}>
-                      {doc.specialization || (doc as any).dept_title || 'Specialist'}
-                    </Text>
-                    <View style={styles.suggestedRatingRow}>
-                      <StarRating rating={docRating} starSize={11} />
-                      <Text style={styles.suggestedRatingText}>
-                        {docRating.toFixed(1)} ({docReviewsCount} reviews)
-                      </Text>
+                    <View style={styles.tileIconBox}>
+                      <MaterialIcons name="calendar-today" size={16} color="#FFFFFF" />
                     </View>
                   </TouchableOpacity>
-                );
-              })}
-            </View>
+                </View>
 
-            {suggestedDoctors.length > 2 && (
-              <TouchableOpacity
-                style={styles.viewMoreToggleBtn}
-                onPress={() => setIsSuggestedExpanded(!isSuggestedExpanded)}
-                activeOpacity={0.7}
+                {/* Time Card */}
+                <View style={styles.dateTimeColumn}>
+                  <Text style={styles.inputSubLabel}>Time</Text>
+                  <TouchableOpacity
+                    style={styles.dateTimeTile}
+                    onPress={() => setShowDateTimeSheet(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.dateTimeValueText} numberOfLines={1}>
+                      {selectedTimeStart
+                        ? DateTimeUtils.formatTimeToAmPm(selectedTimeStart)
+                        : '--'}
+                    </Text>
+                    <View style={styles.tileIconBox}>
+                      <MaterialIcons name="access-time" size={16} color="#FFFFFF" />
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Patient Selection Card */}
+          <Text style={styles.sectionTitle}>Patient Details</Text>
+          <TouchableOpacity
+            style={styles.patientCard}
+            onPress={() => setShowFamilySheet(true)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.patientAvatarBox}>
+              <MaterialIcons
+                name={selectedMember ? 'person' : 'person-add'}
+                size={24}
+                color={selectedMember ? Colors.primaryColor : Colors.secondaryFontColor}
+              />
+            </View>
+            <View style={styles.patientInfoBox}>
+              <Text
+                style={[
+                  styles.patientNameText,
+                  !selectedMember && { color: Colors.secondaryFontColor, fontFamily: Typography.fontFamily.medium },
+                ]}
+                numberOfLines={1}
               >
-                <Text style={styles.viewMoreToggleText}>
-                  {isSuggestedExpanded ? 'View Less <' : 'View More >'}
-                </Text>
+                {selectedMember ? patientDisplayName : 'Select Patient'}
+              </Text>
+              <Text style={styles.patientPhoneText}>
+                {selectedMember?.phone
+                  ? `${selectedMember.isd_code ? `${selectedMember.isd_code} ` : ''}${selectedMember.phone}`
+                  : 'Tap to choose or add patient'}
+              </Text>
+            </View>
+            <MaterialIcons name="edit" size={20} color={Colors.primaryColor} />
+          </TouchableOpacity>
+
+          {/* Coupon Code Section */}
+          <Text style={styles.sectionTitle}>Coupon Code</Text>
+          <View style={styles.couponContainer}>
+            <View style={styles.couponRow}>
+              <TextInput
+                style={[
+                  styles.couponTextInput,
+                  couponError ? styles.couponInputError : null,
+                ]}
+                placeholder="Enter Coupon Code"
+                placeholderTextColor="#94A3B8"
+                value={couponCode}
+                onChangeText={(text) => {
+                  setCouponCode(text);
+                  if (couponError) setCouponError(undefined);
+                }}
+                autoCapitalize="characters"
+                editable={!appliedCoupon}
+              />
+              <TouchableOpacity
+                style={[
+                  styles.couponActionBtn,
+                  appliedCoupon ? styles.couponRemoveBtn : styles.couponApplyBtn,
+                  isValidatingCoupon && { opacity: 0.7 },
+                ]}
+                onPress={appliedCoupon ? handleRemoveCoupon : handleApplyCoupon}
+                disabled={isValidatingCoupon}
+                activeOpacity={0.85}
+              >
+                {isValidatingCoupon ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.couponActionBtnText}>
+                    {appliedCoupon ? 'Remove' : 'Apply'}
+                  </Text>
+                )}
               </TouchableOpacity>
+            </View>
+            {couponError && <Text style={styles.couponErrorText}>{couponError}</Text>}
+            {appliedCoupon && (
+              <View style={styles.couponSuccessBadge}>
+                <MaterialIcons name="check-circle" size={14} color="#16A34A" />
+                <Text style={styles.couponSuccessText}>
+                  Coupon "{appliedCoupon.code || couponCode}" applied
+                </Text>
+              </View>
             )}
           </View>
-        )}
 
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
+          {/* Patient Reviews Card */}
+          {reviews.length > 0 && (
+            <View style={styles.reviewSection}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }}>
+                {reviews.map((rev: any, idx: number) => (
+                  <View key={`rev-${rev.id ?? idx}`} style={styles.patientReviewCard}>
+                    <View style={styles.reviewUserHeader}>
+                      <View style={styles.reviewerAvatarCircle}>
+                        <MaterialIcons name="person" size={20} color={Colors.white} />
+                      </View>
+                      <View style={styles.reviewerMeta}>
+                        <Text style={styles.reviewerName}>{rev.user_name || 'Patient'}</Text>
+                        <StarRating rating={Number(rev.points ?? 5)} starSize={12} />
+                      </View>
+                    </View>
+                    {!!rev.description && (
+                      <Text style={styles.reviewCommentText} numberOfLines={3}>
+                        "{rev.description}"
+                      </Text>
+                    )}
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Suggested Doctors Section */}
+          {suggestedDoctors.length > 0 && (
+            <View style={styles.suggestedSection}>
+              <Text style={styles.suggestedTitle}>Suggested Doctors</Text>
+
+              <View style={styles.suggestedGrid}>
+                {displayedSuggestedDoctors.map((doc: DoctorModel) => {
+                  const docRating = Number(doc.average_rating ?? 0);
+                  const docReviewsCount = Number(doc.number_of_reviews ?? 0);
+                  return (
+                    <TouchableOpacity
+                      key={`sug-${doc.id ?? doc.user_id}`}
+                      style={styles.suggestedGridCard}
+                      activeOpacity={0.8}
+                      onPress={() => navigation.push('BookAppointment', { doctId: String(doc.user_id || doc.id) })}
+                    >
+                      <View style={styles.suggestedAvatarWrapper}>
+                        <Image
+                          source={doc.image ? { uri: getImageUrl(doc.image) } : require('../../../assets/icons/user.png')}
+                          style={styles.suggestedAvatarImg}
+                        />
+                      </View>
+                      <Text style={styles.suggestedCardName} numberOfLines={1}>
+                        {formatDoctorName(doc.f_name, doc.l_name)}
+                      </Text>
+                      <Text style={styles.suggestedCardDept} numberOfLines={2}>
+                        {doc.specialization || (doc as any).dept_title || 'Specialist'}
+                      </Text>
+                      <View style={styles.suggestedRatingRow}>
+                        <StarRating rating={docRating} starSize={11} />
+                        <Text style={styles.suggestedRatingText}>
+                          {docRating.toFixed(1)} ({docReviewsCount} reviews)
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {suggestedDoctors.length > 2 && (
+                <TouchableOpacity
+                  style={styles.viewMoreToggleBtn}
+                  onPress={() => setIsSuggestedExpanded(!isSuggestedExpanded)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.viewMoreToggleText}>
+                    {isSuggestedExpanded ? 'View Less <' : 'View More >'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          <View style={styles.bottomSpacer} />
+        </ScrollView>
       </KeyboardAvoidingView>
 
       <View style={[styles.reviewBar, { paddingBottom: Math.max(insets.bottom + 12, 16) }]}>
@@ -725,6 +772,8 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
           doctId={String(doctId)}
           appointmentType={selectedType.code}
           appointmentTypeName={selectedType.name}
+          selectedDate={selectedDate || undefined}
+          selectedTimeSlot={selectedTimeStart || undefined}
           onConfirm={(date, timeStart) => {
             setSelectedDate(date);
             setSelectedTimeStart(timeStart);
@@ -986,34 +1035,40 @@ const styles = StyleSheet.create({
   },
   couponContainer: {
     marginTop: 6,
+    width: '100%',
   },
   couponRow: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
   couponTextInput: {
     flex: 1,
+    minHeight: 48,
     height: 48,
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     paddingHorizontal: 14,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
     fontSize: 14,
-    fontFamily: Typography.fontFamily.regular,
+    fontFamily: Typography.fontFamily.medium,
     color: '#1E293B',
+    textAlignVertical: 'center',
   },
   couponInputError: {
     borderColor: '#EF4444',
   },
   couponActionBtn: {
     height: 48,
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
     minWidth: 84,
+    flexShrink: 0,
   },
   couponApplyBtn: {
     backgroundColor: Colors.primaryColor,

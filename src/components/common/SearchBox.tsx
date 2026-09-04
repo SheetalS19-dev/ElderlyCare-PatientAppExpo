@@ -1,6 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React from 'react';
 import {
+  Platform,
   StyleProp,
   StyleSheet,
   TextInput,
@@ -79,7 +80,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: 14,
     paddingHorizontal: 12,
-    height: 46,
+    minHeight: 48,
+    height: 48,
+    width: '100%',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: Colors.shadow,
@@ -98,8 +101,8 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     fontFamily: Typography.fontFamily.regular,
     color: Colors.primaryFontColor,
-    paddingVertical: 0,
-    height: '100%',
+    paddingVertical: Platform.OS === 'ios' ? 10 : 4,
+    textAlignVertical: 'center',
   },
   clearButton: {
     padding: 2,

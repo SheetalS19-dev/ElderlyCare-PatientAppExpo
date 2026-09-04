@@ -307,7 +307,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: 14,
     paddingHorizontal: 12,
-    height: 44,
+    minHeight: 48,
+    height: 48,
     width: '100%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -321,6 +322,8 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     fontFamily: Typography.fontFamily.medium,
     color: Colors.primaryFontColor,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+    textAlignVertical: 'center',
   },
   sectionHeaderRow: {
     marginBottom: 12,

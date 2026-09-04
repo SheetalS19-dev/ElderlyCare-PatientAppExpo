@@ -12,6 +12,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -22,6 +23,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingIndicator,
+  RazorpayWebModal,
 } from '../../components';
 import { AppConstants, Colors, Typography } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
@@ -81,6 +83,15 @@ export const WalletScreen = () => {
   const [amountError, setAmountError] = useState<string | undefined>();
   const [processing, setProcessing] = useState(false);
 
+  const [showRazorpayWebModal, setShowRazorpayWebModal] = useState(false);
+  const [pendingPaymentInfo, setPendingPaymentInfo] = useState<{
+    numericAmount: number;
+    description: string;
+    methodParam: string;
+    orderId?: string;
+  } | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState('');
   const PAGE_SIZE = 10;
   const [displayedLimit, setDisplayedLimit] = useState(PAGE_SIZE);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -94,9 +105,43 @@ export const WalletScreen = () => {
     return [];
   }, [transactions]);
 
+  const walletTxnList: TxnModel[] = useMemo(() => {
+    return txnList.filter((item: any) => {
+      return (
+        Number(item.is_wallet_txn) === 1 ||
+        String(item.is_wallet_txn) === '1'
+      );
+    });
+  }, [txnList]);
+
+  const filteredTxnList: TxnModel[] = useMemo(() => {
+    if (!searchQuery.trim()) return walletTxnList;
+
+    const query = searchQuery.trim().toLowerCase();
+    return walletTxnList.filter((item: any) => {
+      const txnId = String(item.id ?? '');
+      const payId = String(item.payment_transaction_id || item.transaction_id || '').toLowerCase();
+      const amount = String(item.amount ?? '');
+      const type = String(item.transaction_type || item.type || '').toLowerCase();
+      const method = String(item.payment_method || item.payment_mode || item.method || '').toLowerCase();
+      const patient = `${item.patient_f_name ?? ''} ${item.patient_l_name ?? ''} ${item.user_f_name ?? ''} ${item.user_l_name ?? ''}`.toLowerCase();
+      const notes = String(item.notes || item.description || '').toLowerCase();
+
+      return (
+        txnId.includes(query) ||
+        payId.includes(query) ||
+        amount.includes(query) ||
+        type.includes(query) ||
+        method.includes(query) ||
+        patient.includes(query) ||
+        notes.includes(query)
+      );
+    });
+  }, [walletTxnList, searchQuery]);
+
   const paginatedTxnList = useMemo(() => {
-    return txnList.slice(0, displayedLimit);
-  }, [txnList, displayedLimit]);
+    return filteredTxnList.slice(0, displayedLimit);
+  }, [filteredTxnList, displayedLimit]);
 
   const totalCredited = useMemo(() => {
     return txnList.reduce((acc, item: any) => {
@@ -109,14 +154,22 @@ export const WalletScreen = () => {
   }, [txnList]);
 
   const totalSpent = useMemo(() => {
-    return txnList.reduce((acc, item: any) => {
+    // Calculate actual Wallet Spent matching Web dashboard (Total Credited - Current Balance, or only is_wallet_txn debits)
+    const walletOnlyDebits = txnList.reduce((acc, item: any) => {
       const type = (item.transaction_type || item.type || '').toLowerCase();
-      if (type === 'debited' || type === 'debit') {
+      const isDebited = type === 'debited' || type === 'debit';
+      const isWalletTxn =
+        Number(item.is_wallet_txn) === 1 ||
+        (item.payment_method || '').trim().toLowerCase() === 'wallet';
+      if (isDebited && isWalletTxn) {
         return acc + (Number(item.amount) || 0);
       }
       return acc;
     }, 0);
-  }, [txnList]);
+
+    if (walletOnlyDebits > 0) return walletOnlyDebits;
+    return Math.max(0, totalCredited - walletBalance);
+  }, [txnList, totalCredited, walletBalance]);
 
   const handleLoadMore = () => {
     if (loadingMore || isFetching || displayedLimit >= txnList.length) return;
@@ -207,6 +260,42 @@ export const WalletScreen = () => {
     }
   };
 
+  const handleRazorpaySuccess = async (paymentTxnId: string) => {
+    setShowRazorpayWebModal(false);
+    if (!pendingPaymentInfo) return;
+
+    setProcessing(true);
+    try {
+      const addMoneyPayload = {
+        user_id: uid,
+        amount: String(pendingPaymentInfo.numericAmount),
+        payment_transaction_id: paymentTxnId,
+        payment_method: pendingPaymentInfo.methodParam,
+        transaction_type: 'Credited',
+        type: 'Credited',
+        description: 'Wallet Transaction',
+        notes: 'Wallet Transaction',
+        is_wallet_txn: '1',
+      };
+
+      await addWalletMoney(addMoneyPayload).unwrap();
+      showToast('Amount credited to wallet successfully!');
+
+      const profileRes = await refetchProfile();
+      if (profileRes?.data) {
+        const freshData = (profileRes.data as any)?.data ?? profileRes.data;
+        await updateUser({ ...(user || {}), ...freshData });
+      }
+      refetch();
+    } catch (e: any) {
+      showToast(e?.data?.message || e?.message || 'Failed to credit money to wallet.');
+    } finally {
+      setProcessing(false);
+      setPendingPaymentInfo(null);
+      setAmount('');
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <View style={styles.container}>
@@ -280,10 +369,32 @@ export const WalletScreen = () => {
                 </View>
               </View>
 
+              {/* Transaction Search Bar */}
+              <View style={styles.searchBarWrapper}>
+                <MaterialIcons name="search" size={20} color={Colors.secondaryFontColor} style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search transactions..."
+                  placeholderTextColor={Colors.secondaryFontColor}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => setSearchQuery('')}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <MaterialIcons name="close" size={18} color={Colors.secondaryFontColor} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
               {/* Transactions Section Title */}
               <View style={styles.sectionTitleRow}>
                 <Text style={styles.sectionTitle}>
-                  Transaction History ({paginatedTxnList.length} of {txnList.length})
+                  Transaction History ({paginatedTxnList.length} of {filteredTxnList.length})
                 </Text>
               </View>
             </>
@@ -301,6 +412,8 @@ export const WalletScreen = () => {
               <LoadingIndicator />
             ) : isError ? (
               <ErrorState message="Could not load transaction history" onRetry={refetch} />
+            ) : searchQuery.trim().length > 0 ? (
+              <EmptyState message={`No transactions found matching "${searchQuery}"`} />
             ) : (
               <EmptyState message="No transactions recorded in your wallet yet." />
             )
@@ -431,29 +544,92 @@ export const WalletScreen = () => {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      {/* Razorpay WebView Payment Modal */}
+      <RazorpayWebModal
+        visible={showRazorpayWebModal}
+        onClose={() => {
+          setShowRazorpayWebModal(false);
+          setPendingPaymentInfo(null);
+        }}
+        onSuccess={handleRazorpaySuccess}
+        onFailure={(errorMsg) => {
+          setShowRazorpayWebModal(false);
+          setPendingPaymentInfo(null);
+          showToast(errorMsg || 'Payment failed');
+        }}
+        keyId={
+          (gateway as any)?.razorpay_key ||
+          (gateway as any)?.key_id ||
+          (gateway as any)?.key ||
+          (gateway as any)?.razorpay_key_id ||
+          'rzp_test_R6kmrnO91ID9yH'
+        }
+        amount={pendingPaymentInfo?.numericAmount || 0}
+        description={pendingPaymentInfo?.description || 'Wallet Top-up'}
+        prefillEmail={(user as any)?.email || ''}
+        prefillPhone={(user as any)?.phone || (user as any)?.mobile || ''}
+        prefillName={`${(user as any)?.first_name ?? (user as any)?.f_name ?? ''} ${(user as any)?.last_name ?? (user as any)?.l_name ?? ''}`.trim() || 'Patient'}
+      />
     </View>
   );
 };
 
 const TxnRow = memo(({ txn }: { txn: TxnModel | any }) => {
+  const [expanded, setExpanded] = useState(false);
+
   const rawType = (txn.transaction_type || txn.type || 'Credited').trim();
   const isCredit = rawType.toLowerCase() === 'credited' || rawType.toLowerCase() === 'credit';
   const color = isCredit ? '#10B981' : '#EF4444';
   const bg = isCredit ? '#ECFDF5' : '#FEF2F2';
   const border = isCredit ? '#A7F3D0' : '#FCA5A5';
 
-  const txnId = txn.id ? `TXN: #${txn.id}` : '';
-  const payId = txn.payment_transaction_id || txn.transaction_id;
-  const payIdText = payId ? `PAY: ${payId}` : '';
+  const txnIdStr = txn.id ? `#${txn.id}` : '--';
+  const payId = txn.payment_transaction_id || txn.transaction_id || '';
+  const appointmentId = txn.appointment_id ? `#${txn.appointment_id}` : null;
 
-  const paymentMode = (txn.payment_method || '').trim() || (isCredit ? 'Net Banking' : 'Wallet');
-  const patientName = `${txn.patient_f_name ?? ''} ${txn.patient_l_name ?? ''}`.trim();
-  const notesText = txn.notes || txn.description || 'Wallet Transaction';
+  let rawPaymentMode = (
+    txn.payment_method ||
+    txn.payment_mode ||
+    txn.method ||
+    ''
+  ).trim();
+
+  let paymentMode = rawPaymentMode;
+  if (!paymentMode || paymentMode.toLowerCase() === 'other') {
+    paymentMode = isCredit ? 'Net Banking' : 'Wallet';
+  } else {
+    const lower = paymentMode.toLowerCase();
+    if (lower === 'netbanking' || lower === 'net banking') paymentMode = 'Net Banking';
+    else if (lower === 'upi' || lower === 'gpay' || lower === 'phonepe') paymentMode = 'UPI';
+    else if (lower === 'card') paymentMode = 'Card';
+    else if (lower === 'wallet') paymentMode = 'Wallet';
+    else if (lower === 'hospital' || lower === 'cash') paymentMode = 'Pay At Hospital';
+  }
+
+  const notesText =
+    txn.notes || txn.description || (isCredit ? 'Wallet Top-up' : 'Appointment Payment');
+
+  let parsedPatientName = `${txn.patient_f_name ?? ''} ${txn.patient_l_name ?? ''}`.trim();
+  const matchFor = notesText.match(/booking for ([^(]+)/i);
+  if (matchFor && matchFor[1]) {
+    parsedPatientName = matchFor[1].trim();
+  }
+
+  const patientName =
+    parsedPatientName ||
+    `${txn.user_f_name ?? ''} ${txn.user_l_name ?? ''}`.trim();
+
+  const hasPatientInNotes = /booking for/i.test(notesText);
   const numAmount = Number(txn.amount ?? 0);
+  const formattedDate = DateTimeUtils.getDataFormatWithTime(txn.created_at);
 
   return (
-    <View style={styles.txnCard}>
-      {/* Top Row: Type Pill Badge & Payment Method Mode (Left) + Amount (Right) */}
+    <TouchableOpacity
+      style={styles.txnCard}
+      activeOpacity={0.9}
+      onPress={() => setExpanded((prev) => !prev)}
+    >
+      {/* Top Row: Type Badge + Payment Mode + Amount + Expand Chevron */}
       <View style={styles.txnTopRow}>
         <View style={styles.txnLeftGroup}>
           <View style={[styles.statusBadgePill, { backgroundColor: bg, borderColor: border }]}>
@@ -466,28 +642,89 @@ const TxnRow = memo(({ txn }: { txn: TxnModel | any }) => {
           </View>
         </View>
 
-        <Text style={[styles.txnAmountText, { color }]}>
-          {isCredit ? '+ ₹' : '- ₹'}{numAmount.toLocaleString('en-IN')}
-        </Text>
+        <View style={styles.txnRightGroup}>
+          <Text style={[styles.txnAmountText, { color }]}>
+            {isCredit ? '+ ₹' : '- ₹'}{numAmount.toLocaleString('en-IN')}
+          </Text>
+          <MaterialIcons
+            name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+            size={20}
+            color={Colors.secondaryFontColor}
+          />
+        </View>
       </View>
 
-      {/* Middle Row: Ref IDs & Date */}
+      {/* Middle Row: Ref IDs (TXN & PAY on separate stacked lines) + Date */}
       <View style={styles.txnMetaRow}>
-        <Text style={styles.txnIdText} numberOfLines={1}>
-          {txnId} {payIdText ? `• ${payIdText}` : ''}
-        </Text>
-        <Text style={styles.txnDateText}>
-          {DateTimeUtils.getDataFormatWithTime(txn.created_at)}
-        </Text>
+        <View style={styles.txnIdColumn}>
+          <Text style={styles.txnIdLabel}>
+            TXN: <Text style={styles.txnIdValue}>{txnIdStr}</Text>
+          </Text>
+          {!!payId && (
+            <Text style={styles.payIdLabel}>
+              PAY: <Text style={styles.payIdValue}>{payId}</Text>
+            </Text>
+          )}
+        </View>
+
+        <Text style={styles.txnDateText}>{formattedDate}</Text>
       </View>
 
       {/* Bottom Row: Patient & Description */}
       <View style={styles.txnBottomRow}>
-        <Text style={styles.notesText} numberOfLines={1}>
-          {notesText} {patientName ? `(Patient: ${patientName})` : ''}
+        <Text style={styles.notesText} numberOfLines={expanded ? undefined : 2}>
+          {notesText} {!hasPatientInNotes && patientName ? `(Patient: ${patientName})` : ''}
         </Text>
       </View>
-    </View>
+
+      {/* Expanded Detailed Breakdown */}
+      {expanded && (
+        <View style={styles.expandedDetailsBox}>
+          <View style={styles.expandedDivider} />
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Transaction ID</Text>
+            <Text style={styles.detailValue}>{txnIdStr}</Text>
+          </View>
+
+          {!!payId && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Payment Ref ID</Text>
+              <Text style={styles.detailValue}>{payId}</Text>
+            </View>
+          )}
+
+          {!!appointmentId && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Appointment ID</Text>
+              <Text style={styles.detailValue}>{appointmentId}</Text>
+            </View>
+          )}
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Payment Mode</Text>
+            <Text style={styles.detailValue}>{paymentMode}</Text>
+          </View>
+
+          {!!patientName && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Patient Name</Text>
+              <Text style={styles.detailValue}>{patientName}</Text>
+            </View>
+          )}
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Date & Time</Text>
+            <Text style={styles.detailValue}>{formattedDate}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Description</Text>
+            <Text style={[styles.detailValue, { flex: 1 }]}>{notesText}</Text>
+          </View>
+        </View>
+      )}
+    </TouchableOpacity>
   );
 });
 
@@ -502,6 +739,61 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+  },
+  filterTabsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  filterTabPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  filterTabPillActive: {
+    backgroundColor: Colors.primaryColor,
+    borderColor: Colors.primaryColor,
+  },
+  filterTabText: {
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.secondaryFontColor,
+  },
+  filterTabTextActive: {
+    color: Colors.white,
+  },
+  searchBarWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 12,
+    height: 44,
+    marginBottom: 14,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.primaryFontColor,
+    paddingVertical: 0,
   },
   balanceCard: {
     borderRadius: 20,
@@ -680,25 +972,77 @@ const styles = StyleSheet.create({
   txnMetaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginVertical: 4,
+    alignItems: 'flex-start',
+    marginVertical: 6,
+  },
+  txnIdColumn: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  txnIdLabel: {
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.primaryFontColor,
+  },
+  txnIdValue: {
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.primaryFontColor,
+  },
+  payIdLabel: {
+    fontSize: 10,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.secondaryFontColor,
+    marginTop: 2,
+  },
+  payIdValue: {
+    fontSize: 10,
+    fontFamily: Typography.fontFamily.regular,
+    color: '#475569',
   },
   txnDateText: {
     fontSize: 11,
     fontFamily: Typography.fontFamily.medium,
     color: Colors.secondaryFontColor,
   },
-  txnIdText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
-    color: Colors.primaryFontColor,
-    flex: 1,
-  },
   txnBottomRow: {
     marginTop: 6,
     paddingTop: 6,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
+  },
+  txnRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  expandedDetailsBox: {
+    marginTop: 8,
+    paddingTop: 8,
+  },
+  expandedDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginBottom: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 6,
+  },
+  detailLabel: {
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.secondaryFontColor,
+    width: 110,
+  },
+  detailValue: {
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.primaryFontColor,
+    flex: 1,
+    textAlign: 'right',
   },
   notesText: {
     fontSize: 11,

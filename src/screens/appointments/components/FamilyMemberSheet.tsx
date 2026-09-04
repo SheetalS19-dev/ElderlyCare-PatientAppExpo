@@ -1,3 +1,4 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,8 +14,9 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { AppConstants, Colors, Typography } from '../../../constants';
+import { AppDatePickerModal } from '../../../components/common/AppDatePickerModal';
+import { CountryCodePicker } from '../../../components/common/CountryCodePicker';
+import { Colors, Typography } from '../../../constants';
 import { useAuth } from '../../../context/AuthContext';
 import {
   useAddFamilyMemberMutation,
@@ -23,8 +25,6 @@ import {
 import type { FamilyMemberModel } from '../../../types';
 import { DateTimeUtils, showToast } from '../../../utils';
 import { validateName } from '../../../validation/profileValidation';
-import { AppDatePickerModal } from '../../../components/common/AppDatePickerModal';
-import { CountryCodePicker } from '../../../components/common/CountryCodePicker';
 
 export interface FamilyMemberSheetProps {
   visible: boolean;
@@ -77,47 +77,14 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
       sourceList = (rawData as any).response;
     }
 
-    let list: FamilyMemberModel[] = [...sourceList];
-
-    // Include self if user is logged in
-    if (user && (user.f_name || user.id)) {
-      const selfIndex = list.findIndex(
-        (m) =>
-          String(m.id) === String(user.id) ||
-          m.relationship === 'Self' ||
-          (m as any).is_self === true ||
-          (m.f_name === user.f_name && m.phone === user.phone)
-      );
-      const selfItem: FamilyMemberModel = {
-        id: user.id,
-        user_id: user.id,
-        f_name: user.f_name,
-        l_name: user.l_name,
-        phone: user.phone,
-        gender: user.gender || 'Male',
-        isd_code: user.isd_code || '+91',
-        dob: user.dob || '',
-        relationship: 'Self',
-        is_self: true,
-      } as any;
-
-      if (selfIndex >= 0) {
-        list = list.map((item, idx) =>
-          idx === selfIndex
-            ? {
-                ...selfItem,
-                ...item,
-                dob: item.dob || user.dob || '',
-                relationship: item.relationship || 'Self',
-                is_self: true,
-              }
-            : item
-        );
-      } else {
-        list = [selfItem, ...list];
-      }
-    }
-    return list;
+    return sourceList.filter((m) => {
+      const isSelf =
+        (m as any).is_self === true ||
+        (m.relationship || '').toLowerCase() === 'self' ||
+        String(m.id) === String(user?.id) ||
+        (m.f_name === user?.f_name && m.phone === user?.phone);
+      return !isSelf;
+    });
   }, [rawData, user]);
 
   const resetForm = () => {

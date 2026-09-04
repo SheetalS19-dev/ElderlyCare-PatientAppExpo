@@ -72,6 +72,7 @@ export const ApiEndpoints = {
 
   // WebPage
   getWebApiUrl: `${BASE_API_URL}/get_web_page/page`,
+  getFaqUrl: `${WEB_API_URL}/page/faq`,
 
   // Testimonial
   getTestimonialApiUrl: `${BASE_API_URL}/get_testimonial`,
@@ -130,6 +131,8 @@ export const ApiEndpoints = {
   getBlogCategoriesUrl: `${BASE_API_URL}/get_blog_categories`,
   getBlogTagsUrl: `${BASE_API_URL}/tags`,
   getBlogDetailUrl: `${BASE_API_URL}/get_blog`,
+  getBlogCommentsUrl: `${BASE_API_URL}/blog_comments`,
+  saveBlogCommentUrl: `${BASE_API_URL}/save_blog_comment`,
   getDoctorsByDeptAndCityUrl: `${BASE_API_URL}/get_doctor`,
   getPatientFilesUrl: `${BASE_API_URL}/get_patient_file`,
   getPrescriptionsUrl: `${BASE_API_URL}/get_prescription`,

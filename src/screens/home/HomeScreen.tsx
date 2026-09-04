@@ -21,7 +21,7 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle as SvgCircle, Line, Path, Text as SvgText } from 'react-native-svg';
+import Svg, { Line } from 'react-native-svg';
 import {
   AppButton,
   AppDatePickerModal,
@@ -557,18 +557,23 @@ const VitalChartCard = ({
       {/* Responsive Full Width Scrollable Table */}
       <ScrollView
         horizontal
-        showsHorizontalScrollIndicator={true}
-        contentContainerStyle={{ flexGrow: 1, width: '100%' }}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ flexGrow: 1 }}
         style={{ width: '100%' }}
       >
-        <View style={{ width: '100%', minWidth: 310 }}>
+        <View style={{ minWidth: headers.length === 5 ? 420 : 340, width: '100%' }}>
           {/* Table Header Bar */}
           <View style={styles.vitalsTableHeaderBar}>
-            {headers.map((h, i) => (
-              <Text key={`head-${i}`} style={styles.vitalsTableHeadCell} numberOfLines={1}>
-                {h}
-              </Text>
-            ))}
+            {headers.map((h, i) => {
+              const is5Col = headers.length === 5;
+              const cellFlex = is5Col ? (i === 2 ? 1.4 : i === 3 || i === 4 ? 1.1 : 1) : (i === 1 ? 1.4 : i === 2 || i === 3 ? 1.1 : 1);
+              const cellMinW = is5Col ? (i === 2 ? 95 : i === 3 || i === 4 ? 75 : 65) : (i === 1 ? 95 : i === 2 || i === 3 ? 75 : 75);
+              return (
+                <Text key={`head-${i}`} style={[styles.vitalsTableHeadCell, { flex: cellFlex, minWidth: cellMinW }]} numberOfLines={1}>
+                  {h}
+                </Text>
+              );
+            })}
           </View>
 
           {/* Records List (Vertical Scrollable) */}
@@ -578,50 +583,65 @@ const VitalChartCard = ({
               nestedScrollEnabled={true}
               showsVerticalScrollIndicator={true}
             >
-              {last7DaysRecords.map((item, idx) => (
-                <View key={`row-${item.id ?? idx}`} style={styles.vitalsTableRow}>
-                  {vitalType === 'Blood Pressure' ? (
-                    <>
-                      <Text style={styles.vitalsTableCellText}>{item.bp_systolic ?? '--'}</Text>
-                      <Text style={styles.vitalsTableCellText}>{item.bp_diastolic ?? '--'}</Text>
-                    </>
-                  ) : vitalType === 'Sugar' ? (
-                    <>
-                      <Text style={styles.vitalsTableCellText}>{item.sugar_fasting ?? '--'}</Text>
-                      <Text style={styles.vitalsTableCellText}>{item.sugar_random ?? '--'}</Text>
-                    </>
-                  ) : (
-                    <Text style={styles.vitalsTableCellText}>
-                      {item.weight || item.temperature || item.spo2 || item.value || '--'}
+              {last7DaysRecords.map((item, idx) => {
+                const is5Col = headers.length === 5;
+                const col0Flex = 1;
+                const col0MinW = is5Col ? 65 : 75;
+                const dateFlex = 1.4;
+                const dateMinW = 95;
+                const timeFlex = 1.1;
+                const timeMinW = 75;
+                const actionFlex = 1.1;
+                const actionMinW = 75;
+
+                const dateStr = item.date ? item.date.split('T')[0] : (item.created_at ? item.created_at.split('T')[0] : '--');
+                const timeStr = item.time ? DateTimeUtils.formatTimeToAmPm(item.time) || item.time : '--';
+
+                return (
+                  <View key={`row-${item.id ?? idx}`} style={styles.vitalsTableRow}>
+                    {vitalType === 'Blood Pressure' ? (
+                      <>
+                        <Text style={[styles.vitalsTableCellText, { flex: col0Flex, minWidth: col0MinW }]} numberOfLines={1}>{item.bp_systolic ?? '--'}</Text>
+                        <Text style={[styles.vitalsTableCellText, { flex: col0Flex, minWidth: col0MinW }]} numberOfLines={1}>{item.bp_diastolic ?? '--'}</Text>
+                      </>
+                    ) : vitalType === 'Sugar' ? (
+                      <>
+                        <Text style={[styles.vitalsTableCellText, { flex: col0Flex, minWidth: col0MinW }]} numberOfLines={1}>{item.sugar_fasting ?? '--'}</Text>
+                        <Text style={[styles.vitalsTableCellText, { flex: col0Flex, minWidth: col0MinW }]} numberOfLines={1}>{item.sugar_random ?? '--'}</Text>
+                      </>
+                    ) : (
+                      <Text style={[styles.vitalsTableCellText, { flex: col0Flex, minWidth: col0MinW }]} numberOfLines={1}>
+                        {item.weight || item.temperature || item.spo2 || item.value || '--'}
+                      </Text>
+                    )}
+                    <Text style={[styles.vitalsTableCellText, { flex: dateFlex, minWidth: dateMinW }]} numberOfLines={1}>
+                      {dateStr}
                     </Text>
-                  )}
-                  <Text style={styles.vitalsTableCellText}>
-                    {item.date ? item.date.split('T')[0] : (item.created_at ? item.created_at.split('T')[0] : '--')}
-                  </Text>
-                  <Text style={styles.vitalsTableCellText}>
-                    {item.time ? DateTimeUtils.formatTimeToAmPm(item.time) || item.time : '--'}
-                  </Text>
+                    <Text style={[styles.vitalsTableCellText, { flex: timeFlex, minWidth: timeMinW }]} numberOfLines={1}>
+                      {timeStr}
+                    </Text>
 
-                  {/* ACTION Column with Edit and Delete Buttons */}
-                  <View style={styles.vitalsTableCellAction}>
-                    <TouchableOpacity
-                      style={styles.actionIconBtnDelete}
-                      onPress={() => onDeleteRecord && item.id && onDeleteRecord(item.id)}
-                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                    >
-                      <MaterialIcons name="delete-outline" size={19} color="#EF4444" />
-                    </TouchableOpacity>
+                    {/* ACTION Column with Edit and Delete Buttons */}
+                    <View style={[styles.vitalsTableCellAction, { flex: actionFlex, minWidth: actionMinW }]}>
+                      <TouchableOpacity
+                        style={styles.actionIconBtnDelete}
+                        onPress={() => onDeleteRecord && item.id && onDeleteRecord(item.id)}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <MaterialIcons name="delete-outline" size={19} color="#EF4444" />
+                      </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={styles.actionIconBtnEdit}
-                      onPress={() => onEditRecord ? onEditRecord(item) : onPress()}
-                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                    >
-                      <MaterialIcons name="edit" size={19} color="#059669" />
-                    </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionIconBtnEdit}
+                        onPress={() => onEditRecord ? onEditRecord(item) : onPress()}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <MaterialIcons name="edit" size={19} color="#059669" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </ScrollView>
           ) : (
             <View style={styles.vitalsTableBody}>
@@ -1363,7 +1383,9 @@ export const HomeScreen: React.FC = () => {
         {isAuthenticated && (
           <View style={styles.newDashboardSection}>
             <View style={styles.memberFilterHeaderRow}>
-              <Text style={styles.memberFilterTitle}>Patients Dashboard</Text>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={styles.sectionHeading} numberOfLines={1}>Patients Dashboard</Text>
+              </View>
               <TouchableOpacity
                 style={styles.viewAllBtn}
                 onPress={() => navigation.navigate('FamilyMemberList')}
@@ -1479,9 +1501,10 @@ export const HomeScreen: React.FC = () => {
 
             {/* Health Vitals Tracker Header */}
             <View style={styles.vitalsSectionHeader}>
-              <Text style={styles.vitalsSectionTitle} numberOfLines={1}>
-                Health Vitals Tracker ({activePatientInfo.name})
-              </Text>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={styles.sectionHeading} numberOfLines={1}>Health Vitals Tracker</Text>
+                <Text style={styles.sectionSubheading} numberOfLines={1}>Patient: {activePatientInfo.name}</Text>
+              </View>
               <TouchableOpacity
                 style={styles.viewAllBtn}
                 onPress={() => navigation.navigate('Vitals')}
@@ -1585,7 +1608,9 @@ export const HomeScreen: React.FC = () => {
             {/* Appointment List (Mobile Card List Items - NO squished multi-column tables) */}
             <View style={styles.webTableCard}>
               <View style={styles.webTableHeaderRow}>
-                <Text style={styles.webTableTitle}>Appointment List</Text>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={styles.sectionHeading} numberOfLines={1}>Appointment List</Text>
+                </View>
                 <TouchableOpacity
                   style={styles.viewAllBtn}
                   onPress={() => navigation.navigate('MyBookings')}
@@ -1630,7 +1655,9 @@ export const HomeScreen: React.FC = () => {
             {/* Patient Files (Mobile Card List Items - NO squished multi-column tables) */}
             <View style={styles.webTableCard}>
               <View style={styles.webTableHeaderRow}>
-                <Text style={styles.webTableTitle}>Files</Text>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={styles.sectionHeading} numberOfLines={1}>Medical Files</Text>
+                </View>
                 <TouchableOpacity
                   style={styles.viewAllBtn}
                   onPress={() => navigation.navigate('PatientFile')}
@@ -1747,9 +1774,9 @@ export const HomeScreen: React.FC = () => {
 
         {/* Section 5: Medical Specialities */}
         <View style={styles.sectionHeader}>
-          <View>
-            <Text style={styles.sectionHeading}>Medical Specialties</Text>
-            <Text style={styles.sectionSubheading}>Explore by specialization</Text>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={styles.sectionHeading} adjustsFontSizeToFit numberOfLines={2}>Medical Specialties</Text>
+            <Text style={styles.sectionSubheading} numberOfLines={1}>Explore by specialization</Text>
           </View>
           <TouchableOpacity
             style={styles.viewAllBtn}
@@ -1780,9 +1807,9 @@ export const HomeScreen: React.FC = () => {
 
         {/* Section 6: Top Verified Doctors */}
         <View style={styles.sectionHeader}>
-          <View>
-            <Text style={styles.sectionHeading}>Top Doctors in {activeCityName}</Text>
-            <Text style={styles.sectionSubheading}>Experienced & verified physicians</Text>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={styles.sectionHeading} adjustsFontSizeToFit numberOfLines={2}>Top Doctors in {activeCityName}</Text>
+            <Text style={styles.sectionSubheading} numberOfLines={1}>Experienced & verified physicians</Text>
           </View>
           {doctorList.length > 0 && (
             <TouchableOpacity
@@ -1849,9 +1876,9 @@ export const HomeScreen: React.FC = () => {
 
         {/* 7. Best Clinics Section */}
         <View style={styles.sectionHeader}>
-          <View>
-            <Text style={styles.sectionHeading}>Featured Clinics</Text>
-            <Text style={styles.sectionSubheading}>Trusted medical centers in {activeCityName}</Text>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={styles.sectionHeading} adjustsFontSizeToFit numberOfLines={2}>Featured Clinics</Text>
+            <Text style={styles.sectionSubheading} numberOfLines={1}>Trusted medical centers in {activeCityName}</Text>
           </View>
           {clinicList.length > 0 && (
             <TouchableOpacity
@@ -2150,7 +2177,7 @@ const ClinicFeatureCard = memo(
             </View>
           </View>
           <View style={styles.clinicAddressRow}>
-            <MaterialIcons name="location-on" size={13} color={Colors.secondaryFontColor} />
+            <MaterialIcons name="location-on" size={14} color={Colors.primaryColor} style={{ marginTop: 1 }} />
             <Text style={styles.clinicAddressText} numberOfLines={2}>
               {clinic.address || 'Medical Facility'}
             </Text>
@@ -2514,8 +2541,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    marginTop: 10,
-    marginBottom: 8,
+    marginTop: 22,
+    marginBottom: 10,
+    gap: 8,
   },
   sectionHeading: {
     fontSize: 15,
@@ -2744,7 +2772,8 @@ const styles = StyleSheet.create({
   /* Support / Emergency Banner */
   supportBannerCard: {
     marginHorizontal: 16,
-    marginTop: 18,
+    marginTop: 24,
+    marginBottom: 6,
     backgroundColor: '#EFF6FF',
     borderRadius: 16,
     padding: 14,
@@ -2855,11 +2884,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   clinicAddressText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontFamily: Typography.fontFamily.regular,
     color: Colors.secondaryFontColor,
     flex: 1,
-    lineHeight: 14,
+    lineHeight: 16,
   },
   clinicArrowWrap: {
     paddingLeft: 6,
@@ -2990,8 +3019,11 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 10,
     paddingHorizontal: 2,
+    gap: 8,
   },
   memberFilterTitle: {
+    flex: 1,
+    marginRight: 8,
     fontSize: 15,
     fontFamily: Typography.fontFamily.bold,
     color: Colors.primaryFontColor,
@@ -3058,11 +3090,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 10,
     width: '100%',
+    gap: 8,
   },
   vitalsSectionTitle: {
     flex: 1,
     marginRight: 8,
-    fontSize: 15,
+    fontSize: 14.5,
     fontFamily: Typography.fontFamily.bold,
     color: Colors.primaryFontColor,
   },
@@ -3333,8 +3366,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
+    gap: 8,
   },
   webTableTitle: {
+    flex: 1,
+    marginRight: 8,
     fontSize: 15,
     fontFamily: Typography.fontFamily.bold,
     color: Colors.primaryFontColor,

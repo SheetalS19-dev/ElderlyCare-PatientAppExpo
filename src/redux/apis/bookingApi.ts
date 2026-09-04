@@ -62,10 +62,13 @@ export interface AppointmentPayload {
 
 export interface CreateRzOrderPayload {
   amount: string;
-  key: string;
-  secret: string;
-  payload: string;
-  type: 'Appointment' | 'Wallet';
+  key?: string;
+  secret?: string;
+  payload?: string;
+  type?: 'Appointment' | 'Wallet';
+  user_id?: string;
+  currency?: string;
+  receipt?: string;
 }
 
 export const bookingApi = baseApi.injectEndpoints({
@@ -139,7 +142,7 @@ export const bookingApi = baseApi.injectEndpoints({
         method: 'POST',
         body,
       }),
-      invalidatesTags: ['Appointment'],
+      invalidatesTags: ['Appointment', 'User', 'WalletTxn'],
     }),
 
     // Creates the pending appointment + a Razorpay order server-side in one call

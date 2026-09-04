@@ -1,3 +1,4 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -9,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Colors, Typography } from '../../../constants';
 import {
   useGetBookedTimeSlotsQuery,
@@ -73,10 +73,28 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
     initialDate || calendarDays[0]?.dateStr || ''
   );
 
+  const normalizeTimeStr = (t?: string): string => {
+    if (!t) return '';
+    const clean = String(t).trim();
+    const parts = clean.split(':');
+    if (parts.length >= 2) {
+      const h = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      if (!isNaN(h) && !isNaN(m)) {
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      }
+    }
+    return clean.slice(0, 5);
+  };
+
+  const [selectedTime, setSelectedTime] = useState<string>(initialTime || '');
+
   useEffect(() => {
-    if (initialDate) setActiveDate(initialDate);
-    else if (calendarDays[0]?.dateStr) setActiveDate(calendarDays[0].dateStr);
-  }, [initialDate, calendarDays]);
+    if (visible) {
+      if (initialDate) setActiveDate(initialDate);
+      if (initialTime) setSelectedTime(initialTime);
+    }
+  }, [visible, initialDate, initialTime]);
 
   const activeDayName = useMemo(() => {
     if (!activeDate) return 'Monday';
@@ -86,6 +104,11 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
       return DAY_NAMES[d.getDay()] || 'Monday';
     }
     return 'Monday';
+  }, [activeDate]);
+
+  const activeFormattedDate = useMemo(() => {
+    if (!activeDate) return '';
+    return DateTimeUtils.getDataFormat(activeDate) || activeDate;
   }, [activeDate]);
 
   const effectiveSlotType = String(slotType || appointmentType || '1');
@@ -166,6 +189,7 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
       return;
     }
 
+    setSelectedTime(start);
     if (onSelectDateTime) onSelectDateTime(activeDate, start, end);
     if (onConfirm) onConfirm(activeDate, start, end);
     onClose();
@@ -221,7 +245,27 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
 
             {/* Time Slots Section */}
             <View style={styles.slotsSection}>
-              <Text style={styles.sectionTitle}>Available Slots ({activeDayName})</Text>
+              <Text style={styles.sectionTitle}>
+                Available Slots — {activeFormattedDate || activeDayName}
+              </Text>
+
+              {/* Legend Bar for Color Clarity */}
+              <View style={styles.legendRow}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
+                  <Text style={styles.legendText}>Available</Text>
+                </View>
+
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: Colors.primaryColor }]} />
+                  <Text style={styles.legendText}>Selected</Text>
+                </View>
+
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
+                  <Text style={styles.legendText}>Booked</Text>
+                </View>
+              </View>
 
               {loading ? (
                 <View style={styles.loadingBox}>
@@ -243,22 +287,44 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
                     const isBooked = isSlotBooked(start);
                     const isPast = isSlotPast(start);
                     const isUnavailable = isBooked || isPast;
-                    const isSelected = initialDate === activeDate && initialTime === start;
+                    const isSelected =
+                      Boolean(selectedTime || initialTime) &&
+                      normalizeTimeStr(selectedTime || initialTime) === normalizeTimeStr(start);
 
-                    let bg = '#4CAF50'; // Green (Available)
-                    if (isUnavailable) bg = '#F44336'; // Red (Unavailable)
-                    if (isSelected) bg = Colors.primaryColor; // Selected
+                    let cardBg = '#ECFDF5'; // Light Green (Available)
+                    let cardBorder = '#A7F3D0';
+                    let textColor = '#047857';
+                    let statusLabel = '';
+
+                    if (isUnavailable) {
+                      cardBg = '#FEF2F2'; // Light Red (Unavailable/Booked)
+                      cardBorder = '#FCA5A5';
+                      textColor = '#B91C1C';
+                      statusLabel = isBooked ? '' : '';
+                    }
+
+                    if (isSelected) {
+                      cardBg = Colors.primaryColor; // Blue (Selected)
+                      cardBorder = Colors.primaryColor;
+                      textColor = '#FFFFFF';
+                      statusLabel = '';
+                    }
 
                     return (
                       <TouchableOpacity
                         key={`slot-${index}-${start}`}
-                        style={[styles.slotCard, { backgroundColor: bg }]}
+                        style={[
+                          styles.slotCard,
+                          { backgroundColor: cardBg, borderColor: cardBorder },
+                          isUnavailable && styles.slotCardDisabled,
+                        ]}
                         onPress={() => handleSelectSlot(item)}
                         disabled={isUnavailable}
                         activeOpacity={0.8}
                       >
-                        <Text style={styles.slotText} numberOfLines={1}>
+                        <Text style={[styles.slotText, { color: textColor }]} numberOfLines={1}>
                           {start} {end ? `- ${end}` : ''}
+                          {statusLabel ? <Text style={{ fontSize: 10 }}>{statusLabel}</Text> : null}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -391,23 +457,54 @@ const styles = StyleSheet.create({
     color: '#E53E3E',
     textAlign: 'center',
   },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 16,
+    marginBottom: 14,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  legendText: {
+    fontSize: 12,
+    fontFamily: Typography.fontFamily.medium,
+    color: '#4A5568',
+  },
   slotsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
   slotCard: {
-    width: '31%',
+    width: '48.5%',
     height: 44,
-    borderRadius: 6,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
+    borderWidth: 1.5,
+  },
+  slotCardDisabled: {
+    opacity: 0.85,
   },
   slotText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontFamily: Typography.fontFamily.bold,
-    color: '#FFFFFF',
     textAlign: 'center',
   },
 });

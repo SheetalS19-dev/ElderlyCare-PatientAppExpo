@@ -42,6 +42,7 @@ type LoginMode = 'password';
 
 const REMEMBER_ME_KEY = '@elderly_care_remember_me';
 const REMEMBER_PHONE_KEY = '@elderly_care_remember_phone';
+const REMEMBER_PASSWORD_KEY = '@elderly_care_remember_password';
 const RESEND_SECONDS = 60;
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 
@@ -109,11 +110,16 @@ export const LoginScreen = ({ navigation, route }: Props) => {
   useEffect(() => {
     (async () => {
       try {
-        const savedRemember = await storageService.getItem(REMEMBER_ME_KEY);
-        const savedPhone = await storageService.getItem(REMEMBER_PHONE_KEY);
-        if (savedRemember === 'true' && savedPhone) {
+        const savedRemember = await storageService.getItem<boolean | string>(REMEMBER_ME_KEY);
+        const savedPhone = await storageService.getItem<string>(REMEMBER_PHONE_KEY);
+        const savedPassword = await storageService.getItem<string>(REMEMBER_PASSWORD_KEY);
+        const isRememberEnabled = savedRemember === true || savedRemember === 'true';
+        if (isRememberEnabled && savedPhone) {
           setRememberMe(true);
-          setPhone(savedPhone);
+          setPhone(String(savedPhone));
+          if (savedPassword) {
+            setPassword(String(savedPassword));
+          }
         }
       } catch {
         // ignore
@@ -179,9 +185,13 @@ export const LoginScreen = ({ navigation, route }: Props) => {
     if (rememberMe) {
       await storageService.setItem(REMEMBER_ME_KEY, 'true');
       await storageService.setItem(REMEMBER_PHONE_KEY, phone);
+      if (password) {
+        await storageService.setItem(REMEMBER_PASSWORD_KEY, password);
+      }
     } else {
       await storageService.removeItem(REMEMBER_ME_KEY);
       await storageService.removeItem(REMEMBER_PHONE_KEY);
+      await storageService.removeItem(REMEMBER_PASSWORD_KEY);
     }
 
     if (!password || password.trim().length === 0) {

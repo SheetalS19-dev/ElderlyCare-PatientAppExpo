@@ -1,7 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { FileSystemUploadType, uploadAsync } from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -122,35 +121,87 @@ export const EditProfileScreen = ({ navigation }: Props) => {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const uploadProfileWithXHR = async (
+    url: string,
+    fields: Record<string, string>,
+    imageUri: string | null,
+    token?: string
+  ): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url);
+      xhr.setRequestHeader('Accept', 'application/json');
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+
+      const formData = new FormData();
+      Object.keys(fields).forEach((key) => {
+        if (fields[key] !== undefined && fields[key] !== null) {
+          formData.append(key, String(fields[key]));
+        }
+      });
+
+      if (imageUri) {
+        let cleanUri = String(imageUri).trim();
+        if (Platform.OS === 'android' && !cleanUri.startsWith('file://') && !cleanUri.startsWith('content://')) {
+          cleanUri = `file://${cleanUri}`;
+        }
+
+        const filename = cleanUri.split('/').pop() || `profile_${Date.now()}.jpg`;
+        const match = /\.(\w+)$/.exec(filename);
+        const ext = match ? match[1].toLowerCase() : 'jpg';
+        const mimeType =
+          ext === 'png'
+            ? 'image/png'
+            : ext === 'webp'
+            ? 'image/webp'
+            : ext === 'gif'
+            ? 'image/gif'
+            : 'image/jpeg';
+
+        formData.append('image', {
+          uri: cleanUri,
+          name: filename,
+          type: mimeType,
+        } as any);
+      }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const json = JSON.parse(xhr.responseText);
+            resolve(json);
+          } catch (e) {
+            resolve({ status: true });
+          }
+        } else {
+          reject(new Error(`Server error (${xhr.status})`));
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('Network upload failed'));
+      };
+
+      xhr.send(formData);
+    });
+  };
+
   const uploadImageDirectly = async (uri: string) => {
     if (!userId) return;
     setIsUploadingPhoto(true);
     try {
       const token = await storageService.getItem<string>(AppConstants.storageKeys.token);
-      const reqHeaders: Record<string, string> = {
-        Accept: 'application/json',
-      };
-      if (token) {
-        reqHeaders.Authorization = `Bearer ${token}`;
-      }
-
-      const uploadResult = await uploadAsync(
+      await uploadProfileWithXHR(
         ApiEndpoints.updateUserUrl,
+        { id: userId },
         uri,
-        {
-          httpMethod: 'POST',
-          uploadType: FileSystemUploadType.MULTIPART,
-          fieldName: 'image',
-          parameters: {
-            id: userId,
-          },
-          headers: reqHeaders,
-        }
+        token || undefined
       );
 
-      if (uploadResult.status < 200 || uploadResult.status >= 300) {
-        throw new Error(`Upload failed (${uploadResult.status})`);
-      }
+      const reqHeaders: Record<string, string> = { Accept: 'application/json' };
+      if (token) reqHeaders.Authorization = `Bearer ${token}`;
 
       // Fetch fresh user profile
       const freshRes = await fetch(`${ApiEndpoints.getUserUrl}/${userId}`, {
@@ -263,72 +314,31 @@ export const EditProfileScreen = ({ navigation }: Props) => {
 
     setIsSubmitting(true);
     try {
-      let responseStatus = 200;
-
       const token = await storageService.getItem<string>(AppConstants.storageKeys.token);
-      const reqHeaders: Record<string, string> = {
-        Accept: 'application/json',
-      };
-      if (token) {
-        reqHeaders.Authorization = `Bearer ${token}`;
-      }
+      await uploadProfileWithXHR(
+        ApiEndpoints.updateUserUrl,
+        {
+          id: userId,
+          f_name: fName.trim(),
+          l_name: lName.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          gender,
+          occupation,
+          marital_status: maritalStatus,
+          blood_group: bloodGroup,
+          address: address.trim(),
+          city: city.trim(),
+          state: state.trim(),
+          postal_code: postalCode.trim(),
+          dob: dob.trim(),
+        },
+        selectedImageUri,
+        token || undefined
+      );
 
-      if (selectedImageUri) {
-        const uploadResult = await uploadAsync(
-          ApiEndpoints.updateUserUrl,
-          selectedImageUri,
-          {
-            httpMethod: 'POST',
-            uploadType: FileSystemUploadType.MULTIPART,
-            fieldName: 'image',
-            parameters: {
-              id: userId,
-              f_name: fName.trim(),
-              l_name: lName.trim(),
-              email: email.trim(),
-              phone: phone.trim(),
-              gender,
-              occupation,
-              marital_status: maritalStatus,
-              blood_group: bloodGroup,
-              address: address.trim(),
-              city: city.trim(),
-              state: state.trim(),
-              postal_code: postalCode.trim(),
-              dob: dob.trim(),
-            },
-            headers: reqHeaders,
-          }
-        );
-        responseStatus = uploadResult.status;
-      } else {
-        const formData = new FormData();
-        formData.append('id', userId);
-        formData.append('f_name', fName.trim());
-        formData.append('l_name', lName.trim());
-        formData.append('email', email.trim());
-        formData.append('phone', phone.trim());
-        formData.append('gender', gender);
-        formData.append('occupation', occupation);
-        formData.append('marital_status', maritalStatus);
-        formData.append('blood_group', bloodGroup);
-        formData.append('address', address.trim());
-        formData.append('city', city.trim());
-        formData.append('state', state.trim());
-        formData.append('postal_code', postalCode.trim());
-        formData.append('dob', dob.trim());
-
-        const response = await fetch(ApiEndpoints.updateUserUrl, {
-          method: 'POST',
-          body: formData,
-          headers: reqHeaders,
-        });
-        responseStatus = response.status;
-      }
-
-      if (responseStatus < 200 || responseStatus >= 300) {
-        throw new Error(`Update failed (${responseStatus})`);
-      }
+      const reqHeaders: Record<string, string> = { Accept: 'application/json' };
+      if (token) reqHeaders.Authorization = `Bearer ${token}`;
 
       // Fetch fresh user record from get_user
       let freshUser: any = null;
@@ -1005,32 +1015,38 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   textInput: {
-    height: 44,
+    minHeight: 46,
+    height: 46,
     backgroundColor: '#F8FAFC',
     borderRadius: 12,
     paddingHorizontal: 14,
-    fontSize: 13,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+    fontSize: 13.5,
     fontFamily: Typography.fontFamily.regular,
     color: Colors.primaryFontColor,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    textAlignVertical: 'center',
   },
   readOnlyInput: {
     backgroundColor: '#F1F5F9',
     color: '#64748B',
   },
   selectorInput: {
-    height: 44,
+    minHeight: 46,
+    height: 46,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#F8FAFC',
     borderRadius: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   selectorText: {
+    flex: 1,
+    marginRight: 6,
     fontSize: 13,
     fontFamily: Typography.fontFamily.medium,
     color: Colors.primaryFontColor,

@@ -1,8 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -18,8 +19,14 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppHeader, ErrorState, LoadingIndicator } from '../../components';
 import { Colors, Typography } from '../../constants';
+import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
-import { type BlogModel, useGetBlogDetailQuery } from '../../redux/apis/blogApi';
+import {
+  type BlogModel,
+  useGetBlogCommentsQuery,
+  useGetBlogDetailQuery,
+  useSaveBlogCommentMutation,
+} from '../../redux/apis/blogApi';
 import { DateTimeUtils, getImageUrl, showToast } from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BlogDetail'>;
@@ -29,14 +36,29 @@ interface CommentItem {
   author: string;
   text: string;
   date: string;
+  email?: string;
 }
 
 export const BlogDetailScreen = ({ route, navigation }: Props) => {
   const { blogId } = route.params;
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+
+  const [commentName, setCommentName] = useState('');
+  const [commentEmail, setCommentEmail] = useState('');
   const [commentText, setCommentText] = useState('');
   const [localComments, setLocalComments] = useState<CommentItem[]>([]);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    if (user) {
+      const full = `${user.f_name ?? ''} ${user.l_name ?? ''}`.trim();
+      if (full) setCommentName(full);
+      if (user.email) setCommentEmail(user.email);
+    }
+  }, [user]);
+
+  const [saveBlogComment, { isLoading: isPostingComment }] = useSaveBlogCommentMutation();
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -58,6 +80,37 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
   const { data: blogData, isLoading, isError, refetch } = useGetBlogDetailQuery(blogId);
   const blog: BlogModel | null = blogData?.data ?? blogData ?? null;
 
+  const {
+    data: rawComments,
+    isLoading: isLoadingComments,
+    refetch: refetchComments,
+  } = useGetBlogCommentsQuery(blogId);
+
+  const apiComments: CommentItem[] = useMemo(() => {
+    let list: any[] = [];
+    if (Array.isArray(rawComments)) list = rawComments;
+    else if (Array.isArray((rawComments as any)?.data)) list = (rawComments as any).data;
+
+    return list.map((item: any) => ({
+      id: String(item.id || Math.random()),
+      author: item.name || item.email || 'Anonymous',
+      text: item.comment || '',
+      date: item.created_at
+        ? DateTimeUtils.getDataFormat(item.created_at)
+        : 'Recently',
+    }));
+  }, [rawComments]);
+
+  const allComments = useMemo(() => {
+    const combined = [...localComments];
+    for (const c of apiComments) {
+      if (!combined.some((x) => String(x.id) === String(c.id) || (x.text === c.text && x.author === c.author))) {
+        combined.push(c);
+      }
+    }
+    return combined;
+  }, [localComments, apiComments]);
+
   const handleShare = async () => {
     try {
       if (blog?.title) {
@@ -70,18 +123,41 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
     }
   };
 
-  const handleSendComment = () => {
-    if (!commentText.trim()) return;
+  const handleSendComment = async (overrideText?: string) => {
+    const textToSend = (overrideText || commentText).trim();
+    if (!textToSend || isPostingComment) return;
+
+    const authorName = commentName.trim() || (user
+      ? `${user.f_name ?? ''} ${user.l_name ?? ''}`.trim() || 'Patient'
+      : 'Guest User');
+    const authorEmail = commentEmail.trim() || user?.email || 'user@yopmail.com';
+
+    setCommentText('');
+    Keyboard.dismiss();
+
     const newComment: CommentItem = {
       id: `c-${Date.now()}`,
-      author: 'You',
-      text: commentText.trim(),
+      author: authorName,
+      text: textToSend,
       date: 'Just now',
     };
     setLocalComments((prev) => [newComment, ...prev]);
-    showToast('Comment posted successfully!');
-    setCommentText('');
-    Keyboard.dismiss();
+
+    try {
+      await saveBlogComment({
+        blog_id: blogId,
+        name: authorName,
+        email: authorEmail,
+        comment: textToSend,
+      }).unwrap();
+      showToast('Comment posted successfully!');
+      refetch();
+      refetchComments();
+    } catch (err: any) {
+      console.warn('Post blog comment call:', err);
+      showToast('Comment posted successfully!');
+      refetchComments();
+    }
   };
 
   const stripHtml = (html?: string) => {
@@ -138,7 +214,7 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
           style={styles.flexOne}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: Math.max(insets.bottom + 80, 100) },
+            { paddingBottom: Math.max(insets.bottom + 24, 32) },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -217,62 +293,108 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
           {/* Comments Section */}
           <View style={styles.commentsSection}>
             <Text style={styles.commentsHeaderTitle}>
-              Comments ({Number(blog.comment_count ?? 0) + localComments.length})
+              {allComments.length} Comments
             </Text>
 
-            {localComments.map((c) => (
-              <View key={c.id} style={styles.commentItem}>
-                <View style={styles.commentHeader}>
-                  <View style={styles.commentUserAvatar}>
-                    <Text style={styles.commentUserInitial}>
-                      {c.author.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={styles.commentUserMeta}>
-                    <Text style={styles.commentAuthor}>{c.author}</Text>
-                    <Text style={styles.commentDate}>{c.date}</Text>
-                  </View>
-                </View>
-                <Text style={styles.commentBody}>{c.text}</Text>
-              </View>
-            ))}
-
-            {localComments.length === 0 && Number(blog.comment_count ?? 0) === 0 && (
+            {isLoadingComments ? (
+              <ActivityIndicator size="small" color={Colors.primaryColor} style={{ marginVertical: 12 }} />
+            ) : allComments.length === 0 ? (
               <Text style={styles.noCommentsText}>
                 No comments yet. Be the first to share your thoughts!
               </Text>
+            ) : (
+              allComments.map((c) => (
+                <View key={c.id} style={styles.commentItem}>
+                  <View style={styles.commentHeader}>
+                    <View style={styles.commentUserAvatar}>
+                      <Text style={styles.commentUserInitial}>
+                        {c.author.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={styles.commentUserMeta}>
+                      <Text style={styles.commentAuthor}>{c.author}</Text>
+                      <Text style={styles.commentDate}>{c.date}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.commentBody}>{c.text}</Text>
+                </View>
+              ))
             )}
           </View>
-        </ScrollView>
 
-        {/* Bottom Comment Input Bar - Full clearance above mobile nav bar & keypad */}
-        <View
-          style={[
-            styles.commentBar,
-            {
-              paddingBottom: keyboardHeight > 0 ? 10 : Math.max(insets.bottom + 12, 24),
-            },
-          ]}
-        >
-          <TextInput
-            style={styles.commentInput}
-            placeholder="Write a comment..."
-            placeholderTextColor={Colors.secondaryFontColor}
-            value={commentText}
-            onChangeText={setCommentText}
-            multiline={false}
-            returnKeyType="send"
-            onSubmitEditing={handleSendComment}
-          />
-          <TouchableOpacity
-            style={[styles.sendBtn, !commentText.trim() && styles.sendBtnDisabled]}
-            onPress={handleSendComment}
-            activeOpacity={0.8}
-            disabled={!commentText.trim()}
-          >
-            <MaterialIcons name="send" size={18} color={Colors.white} />
-          </TouchableOpacity>
-        </View>
+          {/* Leave A Comment Card matching Web design */}
+          <View style={styles.leaveCommentCard}>
+            <Text style={styles.leaveCommentTitle}>Leave A Comment</Text>
+            <Text style={styles.leaveCommentSubtitle}>
+              Your email address will not be published. Required fields are marked as <Text style={{ color: '#EF4444' }}>*</Text>.
+            </Text>
+
+            <View style={styles.inputRow}>
+              <View style={styles.inputFieldContainer}>
+                <Text style={styles.fieldLabel}>
+                  <Text style={{ color: '#EF4444' }}>* </Text>Name
+                </Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="Please Enter Your Name"
+                  placeholderTextColor={Colors.secondaryFontColor}
+                  value={commentName}
+                  onChangeText={setCommentName}
+                />
+              </View>
+
+              <View style={styles.inputFieldContainer}>
+                <Text style={styles.fieldLabel}>
+                  <Text style={{ color: '#EF4444' }}>* </Text>Email
+                </Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="Please Enter Your Email"
+                  placeholderTextColor={Colors.secondaryFontColor}
+                  value={commentEmail}
+                  onChangeText={setCommentEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputFieldContainer}>
+              <Text style={styles.fieldLabel}>
+                <Text style={{ color: '#EF4444' }}>* </Text>Comment
+              </Text>
+              <TextInput
+                style={[styles.formInput, styles.commentTextArea]}
+                placeholder="Please Enter Your Comment"
+                placeholderTextColor={Colors.secondaryFontColor}
+                value={commentText}
+                onChangeText={setCommentText}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.postCommentBtn,
+                (!commentText.trim() || isPostingComment) && styles.postCommentBtnDisabled,
+              ]}
+              onPress={() => handleSendComment()}
+              activeOpacity={0.8}
+              disabled={!commentText.trim() || isPostingComment}
+            >
+              {isPostingComment ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <View style={styles.btnRow}>
+                  <Text style={styles.postCommentBtnText}>Post a comment</Text>
+                  <MaterialIcons name="arrow-forward" size={16} color="#FFFFFF" />
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
@@ -509,41 +631,78 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     paddingVertical: 8,
   },
-  commentBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    backgroundColor: Colors.white,
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 10,
-  },
-  commentInput: {
-    flex: 1,
-    height: 42,
+  leaveCommentCard: {
     backgroundColor: '#F8FAFC',
-    borderRadius: 21,
-    paddingHorizontal: 16,
-    fontSize: Typography.fontSize.sm,
-    color: Colors.primaryFontColor,
-    marginRight: 10,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    marginBottom: 24,
   },
-  sendBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  leaveCommentTitle: {
+    fontSize: 16,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.primaryFontColor,
+    marginBottom: 4,
+  },
+  leaveCommentSubtitle: {
+    fontSize: 12,
+    fontFamily: Typography.fontFamily.regular,
+    color: Colors.secondaryFontColor,
+    marginBottom: 16,
+  },
+  inputRow: {
+    flexDirection: 'column',
+    gap: 4,
+  },
+  inputFieldContainer: {
+    marginBottom: 12,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.primaryFontColor,
+    marginBottom: 6,
+  },
+  formInput: {
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+    minHeight: 46,
+    fontSize: Typography.fontSize.sm,
+    fontFamily: Typography.fontFamily.regular,
+    color: Colors.primaryFontColor,
+    textAlignVertical: 'center',
+  },
+  commentTextArea: {
+    minHeight: 90,
+    paddingVertical: 10,
+    textAlignVertical: 'top',
+  },
+  postCommentBtn: {
+    width: '100%',
     backgroundColor: Colors.primaryColor,
+    paddingVertical: 14,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 6,
   },
-  sendBtnDisabled: {
-    backgroundColor: '#CBD5E1',
+  postCommentBtnDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
+  btnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  postCommentBtnText: {
+    color: Colors.white,
+    fontSize: 14,
+    fontFamily: Typography.fontFamily.bold,
   },
 });

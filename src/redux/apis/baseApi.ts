@@ -30,9 +30,6 @@ const rawBaseQuery = fetchBaseQuery({
       }
     }
     headers.set('Accept', 'application/json');
-    if (!headers.has('Content-Type')) {
-      headers.set('Content-Type', 'application/json');
-    }
     return headers;
   },
 });
@@ -107,6 +104,7 @@ export const baseApi = createApi({
     'Blog',
     'BlogCategory',
     'BlogTag',
+    'BlogComment',
   ],
   endpoints: () => ({}),
 });

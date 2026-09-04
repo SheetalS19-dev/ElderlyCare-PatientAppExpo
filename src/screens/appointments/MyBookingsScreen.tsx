@@ -2,7 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AppHeader,
@@ -25,6 +25,7 @@ export const MyBookingsScreen = () => {
   const navigation = useNavigation<RootNavigation>();
   const { isAuthenticated, user } = useAuth();
   const [tab, setTab] = useState<TabKey>('upcoming');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const userId = String(user?.id ?? (user as any)?.user_id ?? '');
 
@@ -54,7 +55,7 @@ export const MyBookingsScreen = () => {
     return allAppointments.filter((a) => {
       const s = (a.status || '').trim().toLowerCase();
       return (
-        ['pending', 'confirmed', 'rescheduled', 'scheduled'].includes(s) ||
+        ['pending', 'confirmed', 'rescheduled', 'scheduled', 'booked', 'active', 'approved', 'paid', 'in-process'].includes(s) ||
         !['completed', 'visited', 'rejected', 'cancelled', 'canceled'].includes(s)
       );
     });
@@ -68,6 +69,33 @@ export const MyBookingsScreen = () => {
   }, [allAppointments]);
 
   const currentList = tab === 'upcoming' ? upcomingAppointments : closedAppointments;
+
+  const filteredList = useMemo(() => {
+    if (!searchQuery.trim()) return currentList;
+    const query = searchQuery.trim().toLowerCase();
+
+    return currentList.filter((item: any) => {
+      const patientName = `${item.patient_f_name ?? item.f_name ?? ''} ${item.patient_l_name ?? item.l_name ?? ''}`.trim() || String(item.patient_name || item.name || '');
+      const docName = `${item.doct_f_name ?? item.doctor?.f_name ?? ''} ${item.doct_l_name ?? item.doctor?.l_name ?? ''}`.trim() || String(item.doctor_name || '');
+      const phone = String(item.phone || item.mobile || item.patient_phone || '');
+      const dept = String(item.dept_title || item.department_name || item.department || '');
+      const apptId = String(item.id ?? '');
+      const status = String(item.status ?? '');
+      const date = String(item.date ?? '');
+      const time = String(item.time_slots ?? '');
+
+      return (
+        patientName.toLowerCase().includes(query) ||
+        docName.toLowerCase().includes(query) ||
+        phone.includes(query) ||
+        dept.toLowerCase().includes(query) ||
+        apptId.includes(query) ||
+        status.toLowerCase().includes(query) ||
+        date.includes(query) ||
+        time.toLowerCase().includes(query)
+      );
+    });
+  }, [currentList, searchQuery]);
 
   if (!isAuthenticated) {
     return (
@@ -120,13 +148,35 @@ export const MyBookingsScreen = () => {
         </View>
       </View>
 
+      {/* Search Input Bar */}
+      <View style={styles.searchBarWrapper}>
+        <MaterialIcons name="search" size={20} color={Colors.secondaryFontColor} style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by patient, doctor, phone, dept..."
+          placeholderTextColor={Colors.secondaryFontColor}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity
+            onPress={() => setSearchQuery('')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MaterialIcons name="close" size={18} color={Colors.secondaryFontColor} />
+          </TouchableOpacity>
+        )}
+      </View>
+
       {isLoading ? (
         <LoadingIndicator />
       ) : isError ? (
         <ErrorState message="Couldn't load your appointments" onRetry={refetch} />
       ) : (
         <FlatList
-          data={currentList}
+          data={filteredList}
           keyExtractor={(item: AppointmentModel, index: number) => `appt-${item.id ?? index}`}
           contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + 20, 40) }]}
           refreshing={isFetching}
@@ -135,12 +185,14 @@ export const MyBookingsScreen = () => {
             <View style={styles.emptyContainer}>
               <EmptyState
                 message={
-                  tab === 'upcoming'
+                  searchQuery.trim().length > 0
+                    ? `No appointments found matching "${searchQuery}"`
+                    : tab === 'upcoming'
                     ? 'You have no upcoming consultations scheduled.'
                     : 'No past appointment history found.'
                 }
               />
-              {tab === 'upcoming' && (
+              {tab === 'upcoming' && !searchQuery.trim() && (
                 <TouchableOpacity
                   style={styles.bookNowBtn}
                   activeOpacity={0.85}
@@ -220,6 +272,36 @@ const styles = StyleSheet.create({
   segmentTextActive: {
     color: Colors.white,
     fontFamily: Typography.fontFamily.bold,
+  },
+  searchBarWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
+    paddingHorizontal: 12,
+    minHeight: 48,
+    height: 48,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.primaryFontColor,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+    textAlignVertical: 'center',
   },
   listContent: {
     flexGrow: 1,
