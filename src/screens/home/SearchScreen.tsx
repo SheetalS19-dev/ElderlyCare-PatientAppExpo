@@ -11,6 +11,7 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../../navigation/types';
@@ -37,6 +38,7 @@ import { getImageUrl } from '../../utils';
 type Props = NativeStackScreenProps<RootStackParamList, 'Search'>;
 
 export const SearchScreen = ({ navigation, route }: Props) => {
+  const insets = useSafeAreaInsets();
   const { isAuthenticated } = useAuth();
   const initialSearch = route.params?.searchQuery ?? '';
   const initialTab = route.params?.initialTab ?? 'doctors';
@@ -363,7 +365,7 @@ export const SearchScreen = ({ navigation, route }: Props) => {
               <FlatList
                 data={filteredDoctors}
                 keyExtractor={(item, index) => `doc-${item.user_id ?? item.id ?? index}`}
-                contentContainerStyle={styles.listContent}
+                contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + 50, 90) }]}
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={
                   <EmptyState message="No doctors found matching your search criteria" />
@@ -399,7 +401,7 @@ export const SearchScreen = ({ navigation, route }: Props) => {
             <FlatList
               data={filteredClinics}
               keyExtractor={(item, index) => `clinic-${item.id ?? index}`}
-              contentContainerStyle={styles.listContent}
+              contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + 50, 90) }]}
               showsVerticalScrollIndicator={false}
               ListEmptyComponent={
                 <EmptyState message="No clinics found matching your search criteria" />

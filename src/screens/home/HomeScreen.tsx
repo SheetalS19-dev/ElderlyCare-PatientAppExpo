@@ -861,6 +861,26 @@ export const HomeScreen: React.FC = () => {
     return [];
   }, [familyMembersData]);
 
+  const filteredFamilyMembersList = useMemo(() => {
+    if (!familyMembersList || familyMembersList.length === 0) return [];
+    const selfFName = (user?.f_name || (userProfileData as any)?.data?.f_name || '').trim().toLowerCase();
+    const selfLName = (user?.l_name || (userProfileData as any)?.data?.l_name || '').trim().toLowerCase();
+    const selfPhone = (user?.phone || (userProfileData as any)?.data?.phone || '').trim();
+    const mainUserId = String(user?.id ?? (userProfileData as any)?.data?.id ?? userIdStr);
+
+    return familyMembersList.filter((m) => {
+      const isSelf =
+        (m as any).is_self === true ||
+        (m.relationship || '').toLowerCase() === 'self' ||
+        String(m.id) === mainUserId ||
+        (selfFName &&
+          m.f_name?.trim().toLowerCase() === selfFName &&
+          (m.l_name?.trim().toLowerCase() === selfLName || !m.l_name) &&
+          (m.phone?.trim() === selfPhone || !m.phone || (m.relationship || '').toLowerCase() === 'self'));
+      return !isSelf;
+    });
+  }, [familyMembersList, user, userProfileData, userIdStr]);
+
   // Fetch Appointments & Medical Files for Dashboard Widgets
   const { data: rawAppointmentsData } = useGetAppointmentsQuery(userIdStr, { skip: !userIdStr });
   const { data: rawPatientFilesData } = useGetPatientFilesQuery(
@@ -1412,7 +1432,7 @@ export const HomeScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
 
-              {familyMembersList.map((m) => {
+              {filteredFamilyMembersList.map((m) => {
                 const memberId = String(m.id);
                 const isSelected = selectedMemberId === memberId;
                 return (

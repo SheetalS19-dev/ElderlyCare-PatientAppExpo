@@ -80,13 +80,32 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
     let list: FamilyMemberModel[] = [...rawList];
 
     if (currentUser && (currentUser.f_name || currentUser.id)) {
-      const selfIndex = list.findIndex(
-        (m) =>
-          String(m.id) === String(currentUser.id) ||
-          m.relationship === 'Self' ||
+      const selfUserFName = (currentUser.f_name || '').trim().toLowerCase();
+      const selfUserLName = (currentUser.l_name || '').trim().toLowerCase();
+      const selfUserPhone = (currentUser.phone || '').trim();
+      const currentUserIdStr = String(currentUser.id ?? '');
+
+      const selfEntries: FamilyMemberModel[] = [];
+      const nonSelfEntries: FamilyMemberModel[] = [];
+
+      for (const m of list) {
+        const isSelf =
           (m as any).is_self === true ||
-          (m.f_name === currentUser.f_name && m.phone === currentUser.phone)
-      );
+          (m.relationship || '').toLowerCase() === 'self' ||
+          (currentUserIdStr && String(m.id) === currentUserIdStr) ||
+          (selfUserFName &&
+            m.f_name?.trim().toLowerCase() === selfUserFName &&
+            (m.l_name?.trim().toLowerCase() === selfUserLName || !m.l_name) &&
+            (m.phone?.trim() === selfUserPhone || !m.phone || (m.relationship || '').toLowerCase() === 'self'));
+
+        if (isSelf) {
+          selfEntries.push(m);
+        } else {
+          nonSelfEntries.push(m);
+        }
+      }
+
+      const firstSelf = selfEntries[0];
 
       const selfItem: FamilyMemberModel = {
         id: currentUser.id,
@@ -96,26 +115,13 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
         phone: currentUser.phone,
         isd_code: currentUser.isd_code || '+91',
         gender: currentUser.gender || 'Male',
-        dob: currentUser.dob || '',
+        dob: firstSelf?.dob || currentUser.dob || '',
+        ...(firstSelf || {}),
         relationship: 'Self',
         is_self: true,
       } as any;
 
-      if (selfIndex >= 0) {
-        list = list.map((item, idx) =>
-          idx === selfIndex
-            ? {
-                ...item,
-                ...selfItem,
-                dob: item.dob || currentUser.dob || '',
-                relationship: item.relationship || 'Self',
-                is_self: true,
-              }
-            : item
-        );
-      } else {
-        list = [selfItem, ...list];
-      }
+      return [selfItem, ...nonSelfEntries];
     }
 
     return list;

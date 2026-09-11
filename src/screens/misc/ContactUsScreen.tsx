@@ -4,6 +4,7 @@ import React from 'react';
 import {
   ImageBackground,
   Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,24 +23,37 @@ export const ContactUsScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
 
   const handlePhoneCall = () => {
-    Linking.openURL('tel:+1-513-341-5151').catch(() => showToast('Could not place call'));
+    Linking.openURL(`tel:${AppConstants.support.helplineRawPhone}`).catch(() => showToast('Could not place call'));
   };
 
   const handleWhatsApp = () => {
-    Linking.openURL('https://wa.me/15133415151?text=Hello%20Support').catch(() =>
+    Linking.openURL(`https://wa.me/${AppConstants.support.helplineRawPhone}?text=Hello%20Support`).catch(() =>
       showToast('Could not open WhatsApp')
     );
   };
 
   const handleSupportEmail = () => {
-    Linking.openURL('mailto:support@theifapp.com').catch(() =>
+    Linking.openURL(`mailto:${AppConstants.support.supportEmail}`).catch(() =>
       showToast('Could not open email client')
     );
   };
 
   const handleInfoEmail = () => {
-    Linking.openURL('mailto:info@theifapp.com').catch(() =>
+    Linking.openURL(`mailto:${AppConstants.support.infoEmail}`).catch(() =>
       showToast('Could not open email client')
+    );
+  };
+
+  const handleOpenMap = () => {
+    const mapUrl = Platform.select({
+      ios: `maps:0,0?q=${encodeURIComponent(AppConstants.support.address)}`,
+      android: `geo:0,0?q=${encodeURIComponent(AppConstants.support.address)}`,
+      default: `https://maps.google.com/?q=${encodeURIComponent(AppConstants.support.address)}`,
+    });
+    Linking.openURL(mapUrl).catch(() =>
+      Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(AppConstants.support.address)}`).catch(() =>
+        showToast('Could not open map')
+      )
     );
   };
 
@@ -74,14 +88,14 @@ export const ContactUsScreen = ({ navigation }: Props) => {
         {/* Section Title */}
         <Text style={styles.sectionTitle}>Get in Touch</Text>
 
-        {/* Phone Support */}
+        {/* Phone Support / Emergency Line */}
         <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handlePhoneCall}>
           <View style={[styles.iconCircle, { backgroundColor: '#EFF6FF' }]}>
             <MaterialIcons name="phone" size={22} color="#2563EB" />
           </View>
           <View style={styles.info}>
-            <Text style={styles.label}>Helpline</Text>
-            <Text style={styles.value}>+1-513-341-5151</Text>
+            <Text style={styles.label}>Emergency Line / Helpline</Text>
+            <Text style={styles.value}>{AppConstants.support.helplineFormattedPhone}</Text>
           </View>
           <View style={styles.actionPill}>
             <Text style={styles.actionPillText}>Call Now</Text>
@@ -95,7 +109,7 @@ export const ContactUsScreen = ({ navigation }: Props) => {
           </View>
           <View style={styles.info}>
             <Text style={styles.label}>Support Email</Text>
-            <Text style={styles.value}>support@theifapp.com</Text>
+            <Text style={styles.value}>{AppConstants.support.supportEmail}</Text>
           </View>
           <View style={styles.actionPill}>
             <Text style={styles.actionPillText}>Write</Text>
@@ -109,27 +123,27 @@ export const ContactUsScreen = ({ navigation }: Props) => {
           </View>
           <View style={styles.info}>
             <Text style={styles.label}>General Info</Text>
-            <Text style={styles.value}>info@theifapp.com</Text>
+            <Text style={styles.value}>{AppConstants.support.infoEmail}</Text>
           </View>
           <View style={[styles.actionPill, { backgroundColor: '#F0FDF4' }]}>
             <Text style={[styles.actionPillText, { color: '#16A34A' }]}>Write</Text>
           </View>
         </TouchableOpacity>
 
-        {/* FAQs Link Card */}
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.faqCard}
-          onPress={() => navigation.navigate('Faq')}
-        >
-          <View style={styles.faqIconCircle}>
-            <MaterialIcons name="quiz" size={22} color={Colors.primaryColor} />
+        {/* Address / Visit Us On */}
+        <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleOpenMap}>
+          <View style={[styles.iconCircle, { backgroundColor: '#FEF3C7' }]}>
+            <MaterialIcons name="location-on" size={22} color="#D97706" />
           </View>
           <View style={styles.info}>
-            <Text style={styles.faqTitle}>Frequently Asked Questions</Text>
-            <Text style={styles.faqSubtitle}>Find quick answers to common questions</Text>
+            <Text style={styles.label}>Visit Us On</Text>
+            <Text style={[styles.value, { fontSize: 13, lineHeight: 18 }]} numberOfLines={2}>
+              {AppConstants.support.address}
+            </Text>
           </View>
-          <MaterialIcons name="chevron-right" size={22} color={Colors.primaryColor} />
+          <View style={[styles.actionPill, { backgroundColor: '#FEF3C7' }]}>
+            <Text style={[styles.actionPillText, { color: '#D97706' }]}>Locate</Text>
+          </View>
         </TouchableOpacity>
       </ScrollView>
     </View>

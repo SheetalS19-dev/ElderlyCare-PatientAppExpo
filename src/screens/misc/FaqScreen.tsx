@@ -81,7 +81,7 @@ const DEFAULT_FAQS: FaqItem[] = [
     id: 'faq-9',
     question: 'How can I contact customer support?',
     answer:
-      'You can contact our 24/7 care helpline at +91 99999 99999 or navigate to the "Care Support" page from the Drawer to send us a direct message.',
+      'You can contact our 24/7 care helpline at +918840 622 729 or navigate to the "Care Support" page from the Drawer to send us a direct message.',
   },
 ];
 
@@ -232,26 +232,6 @@ export const FaqScreen = ({ navigation }: Props) => {
             })}
           </View>
         )}
-
-        {/* Still have questions Support Callout */}
-        <View style={styles.supportCard}>
-          <View style={styles.supportIconCircle}>
-            <MaterialIcons name="support-agent" size={28} color={Colors.primaryColor} />
-          </View>
-          <View style={styles.supportMeta}>
-            <Text style={styles.supportTitle}>Still have questions?</Text>
-            <Text style={styles.supportSubtitle}>
-              Can't find what you're looking for? Our care team is here to assist 24/7.
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.supportBtn}
-            activeOpacity={0.85}
-            onPress={() => navigation.navigate('ContactUs' as any)}
-          >
-            <Text style={styles.supportBtnText}>Contact Us</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </View>
   );

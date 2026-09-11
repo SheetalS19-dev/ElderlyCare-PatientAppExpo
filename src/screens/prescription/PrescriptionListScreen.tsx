@@ -53,6 +53,26 @@ export const PrescriptionListScreen = ({ navigation }: Props) => {
     return list;
   }, [familyData]);
 
+  const filteredFamilyList = useMemo(() => {
+    if (!familyList || familyList.length === 0) return [];
+    const selfFName = (user?.f_name || '').trim().toLowerCase();
+    const selfLName = (user?.l_name || '').trim().toLowerCase();
+    const selfPhone = (user?.phone || '').trim();
+    const mainUserId = String(user?.id ?? uid ?? '');
+
+    return familyList.filter((m) => {
+      const isSelf =
+        (m as any).is_self === true ||
+        (m.relationship || '').toLowerCase() === 'self' ||
+        String(m.id) === mainUserId ||
+        (selfFName &&
+          m.f_name?.trim().toLowerCase() === selfFName &&
+          (m.l_name?.trim().toLowerCase() === selfLName || !m.l_name) &&
+          (m.phone?.trim() === selfPhone || !m.phone || (m.relationship || '').toLowerCase() === 'self'));
+      return !isSelf;
+    });
+  }, [familyList, user, uid]);
+
   const { data: rawData, isLoading, isError, refetch } = useGetPrescriptionsQuery(
     {
       userId: uid,
@@ -265,7 +285,7 @@ export const PrescriptionListScreen = ({ navigation }: Props) => {
             </Text>
           </TouchableOpacity>
 
-          {familyList.map((m) => {
+          {filteredFamilyList.map((m) => {
             const memberId = String(m.id);
             const isSelected = selectedFamilyId === memberId;
             return (
