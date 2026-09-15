@@ -1,7 +1,10 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ViewStyle, StatusBar, Platform } from 'react-native';
+import { Platform, StatusBar, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Typography } from '../../constants';
+import { Colors } from '../../constants';
+import { fs, hs, ws } from '../../utils/metrics';
+import { TYPOGRAPHY } from '../../utils/typography';
 
 export interface AppHeaderProps {
   title?: string;
@@ -31,7 +34,7 @@ export const AppHeader = (props: AppHeaderProps) => {
       <View style={styles.headerContent}>
         {onBackPress ? (
           <TouchableOpacity style={styles.backBtn} onPress={onBackPress} activeOpacity={0.7}>
-            <Text style={styles.backBtnText}>‹</Text>
+            <MaterialIcons name="arrow-back" size={fs(24)} color={Colors.white} />
           </TouchableOpacity>
         ) : (
           <View style={styles.placeholder} />
@@ -49,36 +52,36 @@ export const AppHeader = (props: AppHeaderProps) => {
 
 const styles = StyleSheet.create({
   headerContent: {
-    height: 56,
+    height: hs(56),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: ws(16),
   },
   backBtn: {
-    width: 36,
-    height: 36,
+    width: ws(36),
+    height: ws(36),
     justifyContent: 'center',
     alignItems: 'center',
   },
   backBtnText: {
     color: Colors.white,
-    fontSize: 28,
-    lineHeight: 28,
+    fontSize: fs(28),
+    lineHeight: fs(28),
   },
   title: {
     flex: 1,
     textAlign: 'center',
     color: Colors.white,
-    fontSize: Typography.fontSize.md,
-    fontFamily: Typography.fontFamily.medium,
-    fontWeight: '500',
+    ...TYPOGRAPHY.medium,
+    fontSize: fs(16),
   },
   placeholder: {
-    width: 36,
+    width: ws(36),
   },
   rightContainer: {
-    minWidth: 36,
+    minWidth: ws(36),
     alignItems: 'flex-end',
   },
 });
+

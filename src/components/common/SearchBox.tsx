@@ -10,7 +10,9 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { Colors, Typography } from '../../constants';
+import { Colors } from '../../constants';
+import { fs, hs, ws } from '../../utils/metrics';
+import { TYPOGRAPHY } from '../../utils/typography';
 
 export interface SearchBoxProps {
   value: string;
@@ -47,7 +49,7 @@ export const SearchBox: React.FC<SearchBoxProps> = ({
       style={[styles.container, containerStyle]}
     >
       <View style={styles.iconContainer}>
-        <MaterialIcons name="search" size={20} color={Colors.primaryColor} />
+        <MaterialIcons name="search" size={fs(20)} color={Colors.primaryColor} />
       </View>
       <TextInput
         style={[styles.input, inputStyle]}
@@ -66,7 +68,7 @@ export const SearchBox: React.FC<SearchBoxProps> = ({
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           style={styles.clearButton}
         >
-          <MaterialIcons name="cancel" size={18} color="#94A3B8" />
+          <MaterialIcons name="cancel" size={fs(18)} color="#94A3B8" />
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -78,10 +80,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    minHeight: 48,
-    height: 48,
+    borderRadius: fs(14),
+    paddingHorizontal: ws(12),
+    minHeight: hs(48),
+    height: hs(48),
     width: '100%',
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -92,20 +94,21 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   iconContainer: {
-    marginRight: 8,
+    marginRight: ws(8),
     alignItems: 'center',
     justifyContent: 'center',
   },
   input: {
     flex: 1,
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.regular,
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(14),
     color: Colors.primaryFontColor,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 4,
+    paddingVertical: Platform.OS === 'ios' ? hs(10) : hs(4),
     textAlignVertical: 'center',
   },
   clearButton: {
-    padding: 2,
-    marginLeft: 6,
+    padding: ws(2),
+    marginLeft: ws(6),
   },
 });
+

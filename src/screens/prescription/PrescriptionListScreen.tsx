@@ -19,7 +19,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import { useGetFamilyMembersQuery } from '../../redux/apis/bookingApi';
 import { useGetPrescriptionsQuery } from '../../redux/apis/prescriptionApi';
 import type { FamilyMemberModel, PrescriptionModel } from '../../types';
-import { DateTimeUtils, formatDoctorName, showToast } from '../../utils';
+import { DateTimeUtils, formatDoctorName, showToast, ws, hs, fs, TYPOGRAPHY } from '../../utils';
 import {
   downloadPrescriptionPdf,
   sharePrescriptionPdf,
@@ -28,12 +28,49 @@ import {
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PrescriptionList'>;
 
-export const PrescriptionListScreen = ({ navigation }: Props) => {
+const formatRxDateTime = (createdAt?: string) => {
+  if (!createdAt) return '--';
+  const str = String(createdAt).trim();
+  const dateObj = new Date(str);
+
+  if (!isNaN(dateObj.getTime())) {
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const year = dateObj.getFullYear();
+
+    let hours = dateObj.getHours();
+    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const hoursStr = String(hours).padStart(2, '0');
+
+    return `${day}/${month}/${year} ${hoursStr}:${minutes} ${ampm}`;
+  }
+
+  const clean = str.split('T')[0].split(' ')[0];
+  if (clean.includes('-')) {
+    const parts = clean.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+    }
+  }
+  return DateTimeUtils.getDataFormatWithTime(str) || str;
+};
+
+export const PrescriptionListScreen = ({ navigation, route }: Props) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const uid = String(user?.id ?? (user as any)?.user_id ?? '');
 
-  const [selectedFamilyId, setSelectedFamilyId] = useState<string>('');
+  const initialFamilyId = route.params?.familyMemberId ? String(route.params.familyMemberId) : '';
+  const [selectedFamilyId, setSelectedFamilyId] = useState<string>(initialFamilyId);
+
+  React.useEffect(() => {
+    if (route.params?.familyMemberId) {
+      setSelectedFamilyId(String(route.params.familyMemberId));
+    }
+  }, [route.params?.familyMemberId]);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
 
@@ -331,62 +368,66 @@ export const PrescriptionListScreen = ({ navigation }: Props) => {
               subtitle={debouncedSearch.trim() ? "Try searching with a different keyword or doctor name" : "Doctor issued prescriptions will appear here"}
             />
           }
-          renderItem={({ item }) => (
-            <AppCard style={styles.card}>
-              <TouchableOpacity
-                style={styles.cardTouchable}
-                activeOpacity={0.85}
-                onPress={() => handleOpenActionModal(item)}
-              >
-                {/* Doctor Avatar / Icon Box */}
-                <View style={styles.iconCircle}>
-                  <Text style={styles.rxTag}>Rx</Text>
-                </View>
+          renderItem={({ item }) => {
+            const patientFullName =
+              `${item.patient_f_name ?? ''} ${item.patient_l_name ?? ''}`.trim() ||
+              (item as any).patient_name ||
+              (item as any).patientName ||
+              user?.f_name ||
+              'Amit Singh';
 
-                {/* Prescription Info */}
-                <View style={styles.info}>
-                  <View style={styles.doctorHeaderRow}>
-                    <Text style={styles.doctorName} numberOfLines={1}>
-                      {formatDoctorName(item.doctor_f_name, item.doctor_l_name)}
+            const displayId = item.id ? `#${item.id}` : (item as any).prescription_id ? `#${(item as any).prescription_id}` : '';
+            const doctName =
+              formatDoctorName(item.doctor_f_name, item.doctor_l_name) ||
+              (item as any).doctor_name ||
+              'Dr. Doctor';
+
+            const formattedDateTime = formatRxDateTime(item.created_at || (item as any).date);
+
+            return (
+              <AppCard style={styles.card}>
+                <TouchableOpacity
+                  style={styles.cardTouchable}
+                  activeOpacity={0.85}
+                  onPress={() => handleOpenActionModal(item)}
+                >
+                  {/* Prescription Info */}
+                  <View style={styles.info}>
+                    <Text style={styles.cardTitle} numberOfLines={1}>
+                      {patientFullName} {displayId}
                     </Text>
-                    <View style={styles.rxIdBadge}>
-                      <Text style={styles.rxIdText}>#{item.id ?? ''}</Text>
-                    </View>
+                    <Text style={styles.cardMetaText} numberOfLines={1}>
+                      Doctor: {doctName}
+                    </Text>
+                    <Text style={styles.cardMetaText} numberOfLines={1}>
+                      Date: {formattedDateTime}
+                    </Text>
                   </View>
 
-                  <Text style={styles.patientName}>
-                    Patient: <Text style={styles.patientValue}>{item.patient_f_name ?? ''} {item.patient_l_name ?? ''}</Text>
-                  </Text>
+                  {/* Quick Actions */}
+                  <View style={styles.actionRow}>
+                    <TouchableOpacity
+                      style={styles.actionBtnBlue}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      onPress={() => handleView(item)}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialIcons name="visibility" size={18} color="#2563EB" />
+                    </TouchableOpacity>
 
-                  <Text style={styles.dateText}>
-                    <MaterialIcons name="access-time" size={12} color="#94A3B8" />{' '}
-                    {DateTimeUtils.getDataFormatWithTime(item.created_at)}
-                  </Text>
-                </View>
-
-                {/* Quick Actions */}
-                <View style={styles.actionRow}>
-                  <TouchableOpacity
-                    style={styles.actionBtnBlue}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    onPress={() => handleView(item)}
-                    activeOpacity={0.8}
-                  >
-                    <MaterialIcons name="visibility" size={18} color="#2563EB" />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.actionBtnOrange}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    onPress={() => handleDownload(item)}
-                    activeOpacity={0.8}
-                  >
-                    <MaterialIcons name="file-download" size={18} color={Colors.primaryColor} />
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            </AppCard>
-          )}
+                    <TouchableOpacity
+                      style={styles.actionBtnOrange}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      onPress={() => handleDownload(item)}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialIcons name="file-download" size={18} color={Colors.primaryColor} />
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              </AppCard>
+            );
+          }}
         />
       )}
 
@@ -412,12 +453,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgColor,
   },
   listContent: {
-    padding: 16,
+    padding: ws(16),
   },
   summaryCard: {
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 16,
+    padding: ws(16),
+    borderRadius: fs(16),
+    marginBottom: hs(16),
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -427,13 +468,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rxIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: ws(48),
+    height: ws(48),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: ws(14),
     borderWidth: 1,
     borderColor: '#DBEAFE',
   },
@@ -441,130 +484,145 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   summaryTitle: {
-    fontSize: Typography.fontSize.base,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(Typography.fontSize.base),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   summarySubtitle: {
-    marginTop: 2,
-    fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.medium,
+    marginTop: hs(2),
+    fontSize: fs(Typography.fontSize.xs),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
   },
   card: {
-    marginBottom: 12,
-    padding: 14,
-    borderRadius: 16,
+    marginBottom: hs(12),
+    padding: ws(14),
+    borderRadius: fs(16),
   },
   cardTouchable: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   iconCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: ws(46),
+    height: ws(46),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: ws(12),
     borderWidth: 1,
     borderColor: '#DBEAFE',
   },
   rxTag: {
-    fontSize: 16,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
   info: {
     flex: 1,
-    marginRight: 8,
+    marginRight: ws(8),
+  },
+  cardTitle: {
+    fontSize: fs(15),
+    ...TYPOGRAPHY.bold,
+    color: '#0F172A',
+    marginBottom: hs(4),
+  },
+  cardMetaText: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.medium,
+    color: '#64748B',
+    marginBottom: hs(2),
   },
   doctorHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: hs(4),
   },
   doctorName: {
     flex: 1,
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(Typography.fontSize.sm),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   rxIdBadge: {
     backgroundColor: '#F1F5F9',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginLeft: 6,
+    paddingHorizontal: ws(8),
+    paddingVertical: hs(2),
+    borderRadius: fs(8),
+    marginLeft: ws(6),
   },
   rxIdText: {
-    fontSize: 10,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(10),
+    ...TYPOGRAPHY.bold,
     color: Colors.secondaryFontColor,
   },
   patientName: {
-    fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(Typography.fontSize.xs),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
   },
   patientValue: {
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   dateText: {
-    marginTop: 4,
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.regular,
+    marginTop: hs(4),
+    fontSize: fs(11),
+    ...TYPOGRAPHY.regular,
     color: '#94A3B8',
   },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: ws(8),
   },
   actionBtnBlue: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: ws(36),
+    height: ws(36),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
   actionBtnOrange: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: ws(36),
+    height: ws(36),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
-
   searchWrapper: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 4,
+    paddingHorizontal: ws(16),
+    paddingTop: hs(12),
+    paddingBottom: hs(4),
   },
-
-  /* Family Filter Bar */
   filterSection: {
-    paddingVertical: 10,
+    paddingVertical: hs(10),
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
   filterScroll: {
-    paddingHorizontal: 16,
-    gap: 8,
+    paddingHorizontal: ws(16),
+    gap: ws(8),
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
+    gap: ws(5),
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(7),
+    borderRadius: fs(20),
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -574,13 +632,13 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryColor,
   },
   filterChipText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
   },
   filterChipTextActive: {
     color: Colors.white,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
   },
 });
 

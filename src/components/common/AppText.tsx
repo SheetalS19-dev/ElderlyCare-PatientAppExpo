@@ -1,7 +1,8 @@
 import React from 'react';
-import { Text as RNText, TextStyle, StyleProp, TextProps as RNTextProps } from 'react-native';
+import { Text as RNText, StyleProp, TextProps as RNTextProps, TextStyle } from 'react-native';
+import { Colors } from '../../constants';
 import { fs } from '../../utils/metrics';
-import { Colors, Typography } from '../../constants';
+import { TYPOGRAPHY } from '../../utils/typography';
 
 export type TextVariant =
   | 'h1'
@@ -36,23 +37,23 @@ export const AppText: React.FC<AppTextProps> = ({
   const getVariantStyle = (): TextStyle => {
     switch (variant) {
       case 'h1':
-        return { fontSize: fs(28), lineHeight: fs(34), fontFamily: Typography.fontFamily.bold };
+        return { fontSize: fs(28), lineHeight: fs(34), ...TYPOGRAPHY.bold };
       case 'h2':
-        return { fontSize: fs(22), lineHeight: fs(28), fontFamily: Typography.fontFamily.bold };
+        return { fontSize: fs(22), lineHeight: fs(28), ...TYPOGRAPHY.bold };
       case 'h3':
-        return { fontSize: fs(18), lineHeight: fs(24), fontFamily: Typography.fontFamily.bold };
+        return { fontSize: fs(18), lineHeight: fs(24), ...TYPOGRAPHY.bold };
       case 'subtitle':
-        return { fontSize: fs(16), lineHeight: fs(22), fontFamily: Typography.fontFamily.medium };
+        return { fontSize: fs(16), lineHeight: fs(22), ...TYPOGRAPHY.medium };
       case 'body':
-        return { fontSize: fs(15), lineHeight: fs(22), fontFamily: Typography.fontFamily.regular };
+        return { fontSize: fs(15), lineHeight: fs(22), ...TYPOGRAPHY.regular };
       case 'caption':
-        return { fontSize: fs(13), lineHeight: fs(18), fontFamily: Typography.fontFamily.regular };
+        return { fontSize: fs(13), lineHeight: fs(18), ...TYPOGRAPHY.regular };
       case 'button':
-        return { fontSize: fs(16), lineHeight: fs(22), fontFamily: Typography.fontFamily.bold };
+        return { fontSize: fs(16), lineHeight: fs(22), ...TYPOGRAPHY.bold };
       case 'label':
-        return { fontSize: fs(14), lineHeight: fs(20), fontFamily: Typography.fontFamily.medium };
+        return { fontSize: fs(14), lineHeight: fs(20), ...TYPOGRAPHY.medium };
       default:
-        return { fontSize: fs(15), lineHeight: fs(22), fontFamily: Typography.fontFamily.regular };
+        return { fontSize: fs(15), lineHeight: fs(22), ...TYPOGRAPHY.regular };
     }
   };
 
@@ -60,15 +61,16 @@ export const AppText: React.FC<AppTextProps> = ({
     if (!weight) return {};
     switch (weight) {
       case 'light':
-        return { fontFamily: Typography.fontFamily.light };
+        return { ...TYPOGRAPHY.light };
       case 'medium':
-        return { fontFamily: Typography.fontFamily.medium };
+        return { ...TYPOGRAPHY.medium };
       case 'semibold':
+        return { ...TYPOGRAPHY.semiBold };
       case 'bold':
-        return { fontFamily: Typography.fontFamily.bold };
+        return { ...TYPOGRAPHY.bold };
       case 'regular':
       default:
-        return { fontFamily: Typography.fontFamily.regular };
+        return { ...TYPOGRAPHY.regular };
     }
   };
 

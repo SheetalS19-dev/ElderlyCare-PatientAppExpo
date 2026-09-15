@@ -4,9 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { AppHeader, LoadingIndicator, ErrorState } from '../../components';
-import { Colors, Typography, ApiEndpoints } from '../../constants';
+import { Colors, ApiEndpoints } from '../../constants';
 import { useGetNotificationByIdQuery } from '../../redux/apis/notificationApi';
 import type { NotificationModel } from '../../types';
+import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'NotificationDetails'>;
 
@@ -66,18 +67,18 @@ export const NotificationDetailsScreen = ({ navigation, route }: Props) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgColor },
-  scrollContent: { padding: 16 },
+  scrollContent: { padding: ws(16) },
   bannerImage: {
     width: '100%',
-    height: 200,
-    borderRadius: 12,
-    marginBottom: 16,
+    height: hs(200),
+    borderRadius: fs(12),
+    marginBottom: hs(16),
     backgroundColor: '#F1F5F9',
   },
   card: {
     backgroundColor: Colors.white,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: fs(12),
+    padding: ws(16),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -85,21 +86,21 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   title: {
-    fontSize: Typography.fontSize.lg,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(18),
+    ...TYPOGRAPHY.bold,
     color: Colors.mainFontColor,
-    marginBottom: 8,
+    marginBottom: hs(8),
   },
   body: {
-    fontSize: Typography.fontSize.md,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    lineHeight: 22,
-    marginBottom: 12,
+    lineHeight: fs(22),
+    marginBottom: hs(12),
   },
   date: {
-    fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
   },
 });

@@ -13,9 +13,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppHeader } from '../../components';
-import { AppConstants, Colors, Typography } from '../../constants';
+import { AppConstants, Colors } from '../../constants';
 import type { RootStackParamList } from '../../navigation/types';
-import { showToast } from '../../utils';
+import { fs, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ContactUs'>;
 
@@ -62,7 +62,7 @@ export const ContactUsScreen = ({ navigation }: Props) => {
       <AppHeader title="Help & Support" onBackPress={() => navigation.goBack()} />
 
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 20, 30) }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + hs(20), hs(30)) }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Hero Support Banner with container_bg */}
@@ -80,7 +80,7 @@ export const ContactUsScreen = ({ navigation }: Props) => {
               </Text>
             </View>
             <View style={styles.heroIconCircle}>
-              <MaterialIcons name="support-agent" size={32} color={Colors.white} />
+              <MaterialIcons name="support-agent" size={fs(32)} color={Colors.white} />
             </View>
           </View>
         </ImageBackground>
@@ -91,7 +91,7 @@ export const ContactUsScreen = ({ navigation }: Props) => {
         {/* Phone Support / Emergency Line */}
         <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handlePhoneCall}>
           <View style={[styles.iconCircle, { backgroundColor: '#EFF6FF' }]}>
-            <MaterialIcons name="phone" size={22} color="#2563EB" />
+            <MaterialIcons name="phone" size={fs(22)} color="#2563EB" />
           </View>
           <View style={styles.info}>
             <Text style={styles.label}>Emergency Line / Helpline</Text>
@@ -105,7 +105,7 @@ export const ContactUsScreen = ({ navigation }: Props) => {
         {/* Support Email */}
         <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleSupportEmail}>
           <View style={[styles.iconCircle, { backgroundColor: '#EFF6FF' }]}>
-            <MaterialIcons name="email" size={22} color={Colors.primaryColor} />
+            <MaterialIcons name="email" size={fs(22)} color={Colors.primaryColor} />
           </View>
           <View style={styles.info}>
             <Text style={styles.label}>Support Email</Text>
@@ -119,7 +119,7 @@ export const ContactUsScreen = ({ navigation }: Props) => {
         {/* Info Email */}
         <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleInfoEmail}>
           <View style={[styles.iconCircle, { backgroundColor: '#F0FDF4' }]}>
-            <MaterialIcons name="mail-outline" size={22} color="#16A34A" />
+            <MaterialIcons name="mail-outline" size={fs(22)} color="#16A34A" />
           </View>
           <View style={styles.info}>
             <Text style={styles.label}>General Info</Text>
@@ -133,11 +133,11 @@ export const ContactUsScreen = ({ navigation }: Props) => {
         {/* Address / Visit Us On */}
         <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleOpenMap}>
           <View style={[styles.iconCircle, { backgroundColor: '#FEF3C7' }]}>
-            <MaterialIcons name="location-on" size={22} color="#D97706" />
+            <MaterialIcons name="location-on" size={fs(22)} color="#D97706" />
           </View>
           <View style={styles.info}>
             <Text style={styles.label}>Visit Us On</Text>
-            <Text style={[styles.value, { fontSize: 13, lineHeight: 18 }]} numberOfLines={2}>
+            <Text style={[styles.value, { fontSize: fs(13), lineHeight: fs(18) }]} numberOfLines={2}>
               {AppConstants.support.address}
             </Text>
           </View>
@@ -156,13 +156,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgColor,
   },
   scrollContent: {
-    padding: 16,
+    padding: ws(16),
   },
   heroCard: {
     backgroundColor: Colors.primaryColor,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
+    borderRadius: fs(20),
+    padding: ws(20),
+    marginBottom: hs(20),
     overflow: 'hidden',
     shadowColor: Colors.primaryColor,
     shadowOffset: { width: 0, height: 4 },
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   heroCardBg: {
-    borderRadius: 20,
+    borderRadius: fs(20),
     opacity: 0.95,
   },
   heroRow: {
@@ -181,41 +181,41 @@ const styles = StyleSheet.create({
   },
   heroTextCol: {
     flex: 1,
-    paddingRight: 12,
+    paddingRight: ws(12),
   },
   heroTitle: {
-    fontSize: 16,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
     color: Colors.white,
-    marginBottom: 4,
+    marginBottom: hs(4),
   },
   heroSubtitle: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: 'rgba(255, 255, 255, 0.9)',
-    lineHeight: 18,
+    lineHeight: fs(18),
   },
   heroIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: ws(52),
+    height: hs(52),
+    borderRadius: fs(26),
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginBottom: 12,
+    marginBottom: hs(12),
   },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: fs(16),
+    padding: ws(14),
+    marginBottom: hs(12),
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: Colors.shadow,
@@ -225,68 +225,68 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: ws(44),
+    height: hs(44),
+    borderRadius: fs(14),
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: ws(12),
   },
   info: {
     flex: 1,
   },
   label: {
-    fontSize: 10,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(10),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   value: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginTop: 2,
+    marginTop: hs(2),
   },
   actionPill: {
     backgroundColor: '#EFF6FF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(6),
+    borderRadius: fs(8),
   },
   actionPillText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
   faqCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#EFF6FF',
-    borderRadius: 16,
-    padding: 14,
-    marginTop: 6,
+    borderRadius: fs(16),
+    padding: ws(14),
+    marginTop: hs(6),
     borderWidth: 1,
     borderColor: '#DBEAFE',
   },
   faqIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: ws(44),
+    height: hs(44),
+    borderRadius: fs(14),
     backgroundColor: Colors.white,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: ws(12),
   },
   faqTitle: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   faqSubtitle: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    marginTop: 2,
+    marginTop: hs(2),
   },
 });

@@ -12,10 +12,11 @@ import {
   LoadingIndicator,
   StarRating,
 } from '../../components';
-import { ApiEndpoints, Colors, Typography } from '../../constants';
+import { ApiEndpoints, Colors } from '../../constants';
 import type { RootStackParamList } from '../../navigation/types';
 import { useGetTestimonialsQuery } from '../../redux/apis/testimonialApi';
 import type { TestimonialModel } from '../../types';
+import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Testimonial'>;
 
@@ -43,7 +44,7 @@ export const TestimonialScreen = ({ navigation }: Props) => {
           keyExtractor={(item, index) => `testi-${item.id ?? index}`}
           contentContainerStyle={[
             styles.listContainer,
-            { flexGrow: 1, paddingBottom: Math.max(insets.bottom + 20, 30) },
+            { flexGrow: 1, paddingBottom: Math.max(insets.bottom + hs(20), hs(30)) },
           ]}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
@@ -52,7 +53,7 @@ export const TestimonialScreen = ({ navigation }: Props) => {
                 <View style={styles.heroRow}>
                   <View style={styles.heroRatingBox}>
                     <Text style={styles.heroRatingScore}>4.9</Text>
-                    <StarRating rating={5} starSize={14} />
+                    <StarRating rating={5} starSize={fs(14)} />
                     <Text style={styles.heroRatingSub}>Patient Satisfaction</Text>
                   </View>
 
@@ -97,7 +98,7 @@ export const TestimonialScreen = ({ navigation }: Props) => {
                   {!!item.sub_title && <Text style={styles.subtitle}>{item.sub_title}</Text>}
 
                   <View style={styles.ratingRow}>
-                    <StarRating rating={Number(item.ratting ?? 5)} starSize={13} />
+                    <StarRating rating={Number(item.ratting ?? 5)} starSize={fs(13)} />
                     {!!item.created_at && <Text style={styles.date}>{item.created_at}</Text>}
                   </View>
                 </View>
@@ -117,11 +118,11 @@ export const TestimonialScreen = ({ navigation }: Props) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgColor },
-  listContainer: { padding: 16 },
+  listContainer: { padding: ws(16) },
   heroCard: {
-    padding: 18,
-    borderRadius: 18,
-    marginBottom: 16,
+    padding: ws(18),
+    borderRadius: fs(18),
+    marginBottom: hs(16),
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -132,120 +133,129 @@ const styles = StyleSheet.create({
   },
   heroRatingBox: {
     alignItems: 'center',
-    paddingRight: 16,
+    paddingRight: ws(16),
   },
   heroRatingScore: {
-    fontSize: 32,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(32),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    lineHeight: 36,
+    lineHeight: fs(36),
   },
   heroRatingSub: {
-    marginTop: 4,
-    fontSize: 10,
-    fontFamily: Typography.fontFamily.medium,
+    marginTop: hs(4),
+    fontSize: fs(10),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
   },
   heroDivider: {
-    width: 1,
-    height: 60,
+    width: ws(1),
+    height: hs(60),
     backgroundColor: '#F1F5F9',
-    marginRight: 16,
+    marginRight: ws(16),
   },
   heroTextCol: {
     flex: 1,
   },
   quoteBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: ws(32),
+    height: hs(32),
+    borderRadius: fs(16),
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: hs(4),
   },
   heroTitle: {
-    fontSize: Typography.fontSize.base,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   heroDesc: {
-    marginTop: 2,
-    fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.regular,
+    marginTop: hs(2),
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    lineHeight: 16,
+    lineHeight: fs(16),
   },
   card: {
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: fs(16),
+    padding: ws(16),
+    marginBottom: hs(12),
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: hs(12),
   },
-  avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#F1F5F9' },
+  avatar: {
+    width: ws(50),
+    height: ws(50),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: '#F1F5F9',
+  },
   avatarPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: ws(50),
+    height: ws(50),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EFF6FF',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#DBEAFE',
   },
   userMeta: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: ws(12),
   },
   userNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: ws(4),
   },
   title: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   verifiedTag: {
-    marginTop: 1,
+    marginTop: hs(1),
   },
   subtitle: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryColor,
-    marginTop: 1,
+    marginTop: hs(1),
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
-    gap: 8,
+    marginTop: hs(4),
+    gap: ws(8),
   },
   date: {
-    fontSize: 10,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(10),
+    ...TYPOGRAPHY.regular,
     color: '#94A3B8',
   },
   quoteBubble: {
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    borderLeftWidth: 3,
+    borderRadius: fs(12),
+    padding: ws(12),
+    borderLeftWidth: ws(3),
     borderLeftColor: Colors.primaryColor,
   },
   desc: {
-    fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: Colors.primaryFontColor,
-    lineHeight: 20,
+    lineHeight: fs(20),
     fontStyle: 'italic',
   },
 });

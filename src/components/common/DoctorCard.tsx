@@ -1,16 +1,18 @@
+import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { Colors, Typography } from '../../constants';
-import { formatDoctorName, getImageUrl } from '../../utils';
-import { StarRating } from './StarRating';
+import { Colors } from '../../constants';
 import type { DoctorModel } from '../../types';
+import { formatDoctorName, getImageUrl } from '../../utils';
+import { fs, hs, ws } from '../../utils/metrics';
+import { TYPOGRAPHY } from '../../utils/typography';
+import { StarRating } from './StarRating';
 
 interface DoctorCardProps {
   doctor: DoctorModel | any;
@@ -75,7 +77,7 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
         <View style={styles.avatarWrapper}>
           {!imageUrl || imageError ? (
             <View style={styles.avatarPlaceholder}>
-              <Ionicons name="person" size={24} color={Colors.primaryColor} />
+              <Ionicons name="person" size={fs(24)} color={Colors.primaryColor} />
             </View>
           ) : (
             <Image
@@ -97,7 +99,7 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
           </Text>
           {rating > 0 && (
             <View style={styles.ratingRow}>
-              <StarRating rating={rating} size={12} />
+              <StarRating rating={rating} size={fs(12)} />
               <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
             </View>
           )}
@@ -117,7 +119,7 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
         <View style={styles.avatarWrapper}>
           {!imageUrl || imageError ? (
             <View style={styles.avatarPlaceholder}>
-              <Ionicons name="person" size={32} color={Colors.primaryColor} />
+              <Ionicons name="person" size={fs(32)} color={Colors.primaryColor} />
             </View>
           ) : (
             <Image
@@ -141,7 +143,7 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
 
           {/* Rating Row */}
           <View style={styles.ratingRow}>
-            <StarRating rating={rating} size={13} />
+            <StarRating rating={rating} size={fs(13)} />
             <Text style={styles.ratingText}>
               {rating > 0 ? rating.toFixed(1) : '0.0'} ({reviewCount} review{reviewCount === 1 ? '' : 's'})
             </Text>
@@ -152,7 +154,7 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
             <View style={styles.metaRow}>
               <FontAwesome5
                 name="briefcase"
-                size={11}
+                size={fs(11)}
                 color={Colors.primaryColor}
               />
               <Text style={styles.metaText}>Experience {exYear} Year{Number(exYear) === 1 ? '' : 's'}</Text>
@@ -166,7 +168,7 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
         <View style={styles.stopBookingRow}>
           <Ionicons
             name="warning-outline"
-            size={14}
+            size={fs(14)}
             color={Colors.redColor}
           />
           <Text style={styles.stopBookingText}>
@@ -182,9 +184,9 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
           <View style={styles.clinicRow}>
             <FontAwesome5
               name="hospital"
-              size={13}
+              size={fs(13)}
               color={Colors.primaryColor}
-              style={{ marginTop: 2 }}
+              style={{ marginTop: hs(2) }}
             />
             <View style={styles.clinicDetails}>
               <Text style={styles.clinicTitle} numberOfLines={1}>
@@ -205,7 +207,7 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
         <View style={styles.doneRow}>
           <FontAwesome5
             name="check-circle"
-            size={13}
+            size={fs(13)}
             color={Colors.btnColorGreen}
           />
           <Text style={styles.doneText}>
@@ -232,9 +234,9 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.white,
-    borderRadius: 14,
-    padding: 14,
-    marginVertical: 6,
+    borderRadius: fs(14),
+    padding: ws(14),
+    marginVertical: hs(6),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
@@ -251,15 +253,19 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   avatar: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+    width: ws(68),
+    height: ws(68),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EEF2FF',
   },
   avatarPlaceholder: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+    width: ws(68),
+    height: ws(68),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EEF2FF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -270,116 +276,117 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 2,
     right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: ws(14),
+    height: ws(14),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#10B981',
     borderWidth: 2,
     borderColor: Colors.white,
   },
   info: {
-    marginLeft: 14,
+    marginLeft: ws(14),
     flex: 1,
   },
   name: {
-    fontSize: Typography?.fontSize?.md || 15,
-    fontFamily: Typography?.fontFamily?.bold || 'System',
-    fontWeight: '700',
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(15),
     color: Colors.mainFontColor || '#1E293B',
   },
   specialty: {
-    fontSize: Typography?.fontSize?.xs || 12,
-    fontFamily: Typography?.fontFamily?.medium || 'System',
+    ...TYPOGRAPHY.medium,
+    fontSize: fs(12),
     color: Colors.primaryColor,
-    marginTop: 2,
-    fontWeight: '500',
+    marginTop: hs(2),
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 5,
+    marginTop: hs(5),
   },
   ratingText: {
-    fontSize: Typography?.fontSize?.xs || 11,
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(11),
     color: Colors.secondaryFontColor || '#64748B',
-    marginLeft: 6,
-    fontFamily: Typography?.fontFamily?.regular,
+    marginLeft: ws(6),
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
-    gap: 6,
+    marginTop: hs(4),
+    gap: ws(6),
   },
   metaText: {
-    fontSize: Typography?.fontSize?.xs || 11,
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(11),
     color: Colors.secondaryFontColor || '#64748B',
-    fontFamily: Typography?.fontFamily?.regular,
   },
   stopBookingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FEF2F2',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 6,
-    marginTop: 8,
-    gap: 6,
+    paddingHorizontal: ws(8),
+    paddingVertical: hs(5),
+    borderRadius: fs(6),
+    marginTop: hs(8),
+    gap: ws(6),
   },
   stopBookingText: {
-    fontSize: 11,
+    ...TYPOGRAPHY.medium,
+    fontSize: fs(11),
     color: Colors.redColor,
-    fontWeight: '500',
   },
   divider: {
     height: 1,
     backgroundColor: '#F1F5F9',
-    marginVertical: 10,
+    marginVertical: hs(10),
   },
   clinicRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
-    marginBottom: 6,
+    gap: ws(8),
+    marginBottom: hs(6),
   },
   clinicDetails: {
     flex: 1,
   },
   clinicTitle: {
-    fontSize: 12,
-    fontWeight: '600',
+    ...TYPOGRAPHY.semiBold,
+    fontSize: fs(12),
     color: Colors.mainFontColor,
   },
   clinicAddress: {
-    fontSize: 11,
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(11),
     color: Colors.secondaryFontColor,
-    marginTop: 1,
+    marginTop: hs(1),
   },
   bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 8,
-    paddingTop: 8,
+    marginTop: hs(8),
+    paddingTop: hs(8),
     borderTopWidth: 1,
     borderTopColor: '#F8FAFC',
   },
   doneRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: ws(5),
     flex: 1,
   },
   doneText: {
-    fontSize: 11,
+    ...TYPOGRAPHY.medium,
+    fontSize: fs(11),
     color: Colors.secondaryFontColor,
-    fontWeight: '500',
   },
   bookButton: {
     backgroundColor: Colors.primaryColor,
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 8,
+    paddingHorizontal: ws(16),
+    paddingVertical: hs(7),
+    borderRadius: fs(8),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -387,9 +394,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.disabled || '#CBD5E1',
   },
   bookButtonText: {
+    ...TYPOGRAPHY.bold,
     color: Colors.white,
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: fs(12),
   },
 
   // Simple variant
@@ -397,20 +404,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: 12,
-    padding: 10,
-    marginVertical: 4,
+    borderRadius: fs(12),
+    padding: ws(10),
+    marginVertical: hs(4),
     borderWidth: 1,
     borderColor: '#F1F5F9',
   },
   simpleAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: ws(48),
+    height: ws(48),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EEF2FF',
   },
   simpleInfo: {
-    marginLeft: 12,
+    marginLeft: ws(12),
     flex: 1,
   },
 });

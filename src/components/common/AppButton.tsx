@@ -1,14 +1,16 @@
 import React from 'react';
 import {
-  TouchableOpacity,
-  Text,
-  StyleSheet,
   ActivityIndicator,
-  ViewStyle,
-  TextStyle,
   DimensionValue,
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  ViewStyle,
 } from 'react-native';
-import { Colors, Typography } from '../../constants';
+import { Colors } from '../../constants';
+import { fs, hs, ws } from '../../utils/metrics';
+import { TYPOGRAPHY } from '../../utils/typography';
 
 export interface AppButtonProps {
   title: string;
@@ -32,21 +34,25 @@ export const AppButton: React.FC<AppButtonProps> = ({
   disabled = false,
   color = Colors.btnColor,
   titleColor = Colors.white,
-  titleFontSize = Typography.fontSize.base,
-  height = 45,
+  titleFontSize,
+  height,
   width,
-  borderRadius = 8,
+  borderRadius,
   style,
   textStyle,
 }) => {
+  const scaledHeight = height !== undefined ? height : hs(45);
+  const scaledFontSize = titleFontSize !== undefined ? titleFontSize : fs(14);
+  const scaledRadius = borderRadius !== undefined ? borderRadius : fs(8);
+
   return (
     <TouchableOpacity
       style={[
         styles.button,
         {
           backgroundColor: disabled ? Colors.disabled : color,
-          height,
-          borderRadius,
+          height: scaledHeight,
+          borderRadius: scaledRadius,
         },
         width !== undefined ? { width } : null,
         style,
@@ -62,7 +68,7 @@ export const AppButton: React.FC<AppButtonProps> = ({
           style={[
             styles.title,
             {
-              fontSize: titleFontSize,
+              fontSize: scaledFontSize,
               color: titleColor,
             },
             textStyle,
@@ -80,10 +86,10 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: ws(16),
   },
   title: {
-    fontFamily: Typography.fontFamily.medium,
-    fontWeight: '500',
+    ...TYPOGRAPHY.medium,
   },
 });
+

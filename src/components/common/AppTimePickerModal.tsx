@@ -1,7 +1,9 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Colors, Typography } from '../../constants';
+import { Colors } from '../../constants';
+import { fs, hs, ws } from '../../utils/metrics';
+import { TYPOGRAPHY } from '../../utils/typography';
 
 export interface AppTimePickerModalProps {
   visible: boolean;
@@ -47,7 +49,7 @@ export const AppTimePickerModal: React.FC<AppTimePickerModalProps> = ({
           <View style={styles.header}>
             <Text style={styles.title}>{title}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <MaterialIcons name="close" size={22} color={Colors.primaryFontColor} />
+              <MaterialIcons name="close" size={fs(22)} color={Colors.primaryFontColor} />
             </TouchableOpacity>
           </View>
 
@@ -134,109 +136,113 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: ws(20),
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
   },
   box: {
     width: '100%',
-    maxWidth: 340,
+    maxWidth: ws(340),
     backgroundColor: Colors.white,
-    borderRadius: 20,
-    padding: 18,
+    borderRadius: fs(20),
+    padding: ws(18),
     elevation: 6,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: hs(12),
   },
   title: {
-    fontSize: 16,
-    fontFamily: Typography.fontFamily.bold,
+    flex: 1,
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(16),
     color: '#0F172A',
   },
   timeDisplayBox: {
     backgroundColor: '#EFF6FF',
-    borderRadius: 12,
-    paddingVertical: 10,
+    borderRadius: fs(12),
+    paddingVertical: hs(10),
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: hs(14),
   },
   timeDisplayText: {
-    fontSize: 22,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(22),
     color: Colors.primaryColor,
   },
   columnsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    height: 160,
-    marginBottom: 16,
+    height: hs(160),
+    marginBottom: hs(16),
   },
   column: {
     flex: 1,
     alignItems: 'center',
   },
   columnLabel: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(11),
     color: '#64748B',
-    marginBottom: 6,
+    marginBottom: hs(6),
   },
   scrollList: {
     width: '100%',
   },
   periodCol: {
-    gap: 8,
+    gap: hs(8),
   },
   itemPill: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingVertical: hs(6),
+    paddingHorizontal: ws(12),
+    borderRadius: fs(8),
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: hs(4),
   },
   itemPillActive: {
     backgroundColor: Colors.primaryColor,
   },
   itemText: {
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.medium,
+    ...TYPOGRAPHY.medium,
+    fontSize: fs(14),
     color: '#334155',
   },
   itemTextActive: {
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
     color: Colors.white,
   },
   btnRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
+    alignItems: 'center',
+    gap: ws(10),
   },
   cancelBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
+    flex: 1,
+    height: hs(44),
+    borderRadius: fs(10),
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cancelText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.medium,
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(13),
     color: '#64748B',
   },
   confirmBtn: {
+    flex: 1,
+    height: hs(44),
     backgroundColor: Colors.primaryColor,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: fs(10),
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   confirmText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(13),
     color: Colors.white,
   },
 });

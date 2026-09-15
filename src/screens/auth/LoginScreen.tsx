@@ -22,7 +22,7 @@ import {
   CountryCodeItem,
   CountryCodePicker,
 } from '../../components';
-import { AppConstants, Colors, Images, Typography } from '../../constants';
+import { AppConstants, Colors, Images } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
 import {
@@ -32,7 +32,7 @@ import {
 } from '../../redux/apis/authApi';
 import { confirmOtp, sendOtp } from '../../services/firebaseAuthService';
 import { storageService } from '../../services/storageService';
-import { DateTimeUtils, showToast } from '../../utils';
+import { DateTimeUtils, fs, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
 import { validateDob, validateEmail, validatePhone } from '../../validation/authValidation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
@@ -589,10 +589,12 @@ export const LoginScreen = ({ navigation, route }: Props) => {
 
                 {/* Switch to Register */}
                 <View style={styles.switchAuthRow}>
-                  <Text style={styles.switchAuthPrompt}>Don't have an account? </Text>
-                  <TouchableOpacity onPress={() => setStep('register')}>
-                    <Text style={styles.switchAuthLink}>Create Account</Text>
-                  </TouchableOpacity>
+                  <Text style={styles.switchAuthPrompt}>
+                    Don't have an account?{' '}
+                    <Text style={styles.switchAuthLink} onPress={() => setStep('register')}>
+                      Create Account
+                    </Text>
+                  </Text>
                 </View>
               </View>
             )}
@@ -854,10 +856,12 @@ export const LoginScreen = ({ navigation, route }: Props) => {
 
                 {/* Switch to Sign In */}
                 <View style={styles.switchAuthRow}>
-                  <Text style={styles.switchAuthPrompt}>Already have an account? </Text>
-                  <TouchableOpacity onPress={() => setStep('form')}>
-                    <Text style={styles.switchAuthLink}>Sign In</Text>
-                  </TouchableOpacity>
+                  <Text style={styles.switchAuthPrompt}>
+                    Already have an account?{' '}
+                    <Text style={styles.switchAuthLink} onPress={() => setStep('form')}>
+                      Sign In
+                    </Text>
+                  </Text>
                 </View>
               </View>
             )}
@@ -1013,31 +1017,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingHorizontal: ws(16),
+    paddingBottom: hs(10),
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: ws(40),
+    height: hs(40),
+    borderRadius: fs(20),
     justifyContent: 'center',
     alignItems: 'center',
   },
   topBarTitle: {
-    fontSize: Typography.fontSize.base,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   scrollContent: {
-    padding: 16,
+    padding: ws(16),
   },
   formCard: {
     backgroundColor: Colors.white,
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: fs(20),
+    padding: ws(20),
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: Colors.shadow,
@@ -1048,156 +1052,156 @@ const styles = StyleSheet.create({
   },
   logoWrapper: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: hs(16),
   },
   logoImage: {
-    width: 140,
-    height: 60,
+    width: ws(140),
+    height: hs(60),
   },
   cardTitle: {
-    fontSize: 20,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(20),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: hs(4),
   },
   cardSubtitle: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
     textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 20,
-    paddingHorizontal: 10,
+    lineHeight: fs(18),
+    marginBottom: hs(20),
+    paddingHorizontal: ws(10),
   },
   inputsSection: {
-    gap: 12,
+    gap: hs(12),
   },
   gridRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: ws(10),
   },
   gridCol: {
     flex: 1,
   },
   fullWidthCol: {},
   inputLabel: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
-    marginBottom: 5,
+    marginBottom: hs(5),
   },
   singleTextInput: {
-    height: 44,
+    height: hs(44),
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.regular,
+    borderRadius: fs(12),
+    paddingHorizontal: ws(14),
+    fontSize: fs(13),
+    ...TYPOGRAPHY.regular,
     color: Colors.primaryFontColor,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   dropdownSelector: {
-    height: 44,
+    height: hs(44),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    paddingHorizontal: 14,
+    borderRadius: fs(12),
+    paddingHorizontal: ws(14),
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   dropdownSelectorText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
   },
   placeholderText: {
     color: '#94A3B8',
-    fontFamily: Typography.fontFamily.regular,
+    ...TYPOGRAPHY.regular,
   },
   phoneInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
+    borderRadius: fs(12),
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    height: 46,
+    height: hs(46),
   },
   countryCodePickerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: ws(12),
     height: '100%',
   },
   countryCodeText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   phoneDivider: {
-    width: 1,
-    height: 24,
+    width: ws(1),
+    height: hs(24),
     backgroundColor: '#CBD5E1',
   },
   phoneTextInput: {
     flex: 1,
     height: '100%',
-    paddingHorizontal: 12,
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.regular,
+    paddingHorizontal: ws(12),
+    fontSize: fs(13),
+    ...TYPOGRAPHY.regular,
     color: Colors.primaryFontColor,
   },
   passwordSection: {
-    marginTop: 2,
+    marginTop: hs(2),
   },
   passwordInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
+    borderRadius: fs(12),
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    height: 44,
+    height: hs(44),
   },
   passwordTextInput: {
     flex: 1,
     height: '100%',
-    paddingHorizontal: 14,
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.regular,
+    paddingHorizontal: ws(14),
+    fontSize: fs(13),
+    ...TYPOGRAPHY.regular,
     color: Colors.primaryFontColor,
   },
   eyeIconBtn: {
-    paddingHorizontal: 12,
+    paddingHorizontal: ws(12),
   },
   inputBorderError: {
     borderColor: Colors.redColor,
   },
   fieldErrorText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.regular,
     color: Colors.redColor,
-    marginTop: 3,
+    marginTop: hs(3),
   },
   formOptionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: hs(4),
   },
   rememberMeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: ws(6),
   },
   checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
+    width: ws(18),
+    height: hs(18),
+    borderRadius: fs(4),
     borderWidth: 1.5,
     borderColor: '#94A3B8',
     justifyContent: 'center',
@@ -1208,33 +1212,33 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryColor,
   },
   rememberMeText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
   },
   forgotPasswordBtn: {
-    paddingVertical: 4,
+    paddingVertical: hs(4),
   },
   forgotPasswordText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
   toggleModeBtn: {
-    paddingVertical: 4,
+    paddingVertical: hs(4),
   },
   toggleModeText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
   submitButton: {
     backgroundColor: Colors.primaryColor,
-    height: 46,
-    borderRadius: 12,
+    height: hs(46),
+    borderRadius: fs(12),
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: hs(8),
     shadowColor: Colors.primaryColor,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
@@ -1245,29 +1249,30 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   submitButtonText: {
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: Colors.white,
   },
   switchAuthRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 14,
+    marginTop: hs(14),
   },
   switchAuthPrompt: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
+    textAlign: 'center',
   },
   switchAuthLink: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
   otpContainer: {
     alignItems: 'center',
-    marginVertical: 10,
+    marginVertical: hs(10),
     position: 'relative',
   },
   otpBoxesRow: {
@@ -1276,9 +1281,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   otpBox: {
-    width: 44,
-    height: 48,
-    borderRadius: 10,
+    width: ws(44),
+    height: hs(48),
+    borderRadius: fs(10),
     backgroundColor: '#F8FAFC',
     borderWidth: 1.5,
     borderColor: '#E2E8F0',
@@ -1296,8 +1301,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.redColor,
   },
   otpDigitText: {
-    fontSize: 18,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(18),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   hiddenOtpInput: {
@@ -1308,29 +1313,29 @@ const styles = StyleSheet.create({
   },
   resendRow: {
     alignItems: 'center',
-    marginVertical: 8,
+    marginVertical: hs(8),
   },
   timerText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
   },
   boldTimer: {
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
   resendBtnText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
   changePhoneBtn: {
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: hs(8),
   },
   changePhoneText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
     textDecorationLine: 'underline',
   },
@@ -1339,14 +1344,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: ws(24),
   },
   forgotModalCard: {
     width: '100%',
-    maxWidth: 340,
+    maxWidth: ws(340),
     backgroundColor: Colors.white,
-    borderRadius: 20,
-    padding: 22,
+    borderRadius: fs(20),
+    padding: ws(22),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -1354,40 +1359,40 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   forgotModalTitle: {
-    fontSize: 18,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(18),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
     textAlign: 'center',
-    marginBottom: 6,
+    marginBottom: hs(6),
   },
   forgotModalSubtitle: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
     textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 18,
+    lineHeight: fs(18),
+    marginBottom: hs(18),
   },
   forgotEmailInput: {
-    height: 44,
+    height: hs(44),
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.regular,
+    borderRadius: fs(12),
+    paddingHorizontal: ws(14),
+    fontSize: fs(13),
+    ...TYPOGRAPHY.regular,
     color: Colors.primaryFontColor,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    marginBottom: 16,
+    marginBottom: hs(16),
   },
   forgotModalActions: {
     flexDirection: 'row',
-    gap: 10,
+    gap: ws(10),
   },
   sendResetBtn: {
     flex: 1.4,
-    height: 42,
-    borderRadius: 10,
+    height: hs(42),
+    borderRadius: fs(10),
     backgroundColor: Colors.primaryColor,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1398,29 +1403,29 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   sendResetBtnText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
     color: Colors.white,
   },
   forgotCancelBtn: {
     flex: 1,
-    height: 42,
-    borderRadius: 10,
+    height: hs(42),
+    borderRadius: fs(10),
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
   },
   forgotCancelBtnText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   pickerModalContent: {
     width: '100%',
-    maxWidth: 320,
+    maxWidth: ws(320),
     backgroundColor: Colors.white,
-    borderRadius: 18,
-    padding: 18,
+    borderRadius: fs(18),
+    padding: ws(18),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -1428,50 +1433,50 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   pickerModalTitle: {
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginBottom: 12,
-    paddingBottom: 8,
+    marginBottom: hs(12),
+    paddingBottom: hs(8),
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   pickerOptionsList: {
-    gap: 6,
+    gap: hs(6),
   },
   pickerOptionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+    paddingVertical: hs(10),
+    paddingHorizontal: ws(12),
+    borderRadius: fs(10),
   },
   pickerOptionSelected: {
     backgroundColor: Colors.primaryColor,
   },
   pickerOptionText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
   },
   pickerOptionTextSelected: {
     color: Colors.white,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
   },
   tabContainer: {
     flexDirection: 'row',
     backgroundColor: '#F1F5F9',
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 20,
+    borderRadius: fs(12),
+    padding: ws(4),
+    marginBottom: hs(20),
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: hs(10),
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 9,
+    borderRadius: fs(9),
   },
   tabButtonActive: {
     backgroundColor: Colors.white,
@@ -1482,12 +1487,12 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   tabText: {
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.medium,
     color: '#64748B',
   },
   tabTextActive: {
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
 });

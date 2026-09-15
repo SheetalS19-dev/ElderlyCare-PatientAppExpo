@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Colors } from '../../constants';
+import { ws, hs, fs } from '../../utils/metrics';
 import { SkeletonCard, SkeletonDetail, SkeletonList } from './SkeletonLoader';
 
 export interface LoadingIndicatorProps {
@@ -31,7 +32,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
 
   if (variant === 'card') {
     return (
-      <View style={{ padding: 16 }}>
+      <View style={{ padding: ws(16) }}>
         <SkeletonCard />
       </View>
     );
@@ -46,15 +47,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(247, 248, 250, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: ws(20),
     zIndex: 999,
   },
   box: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: ws(360),
     backgroundColor: Colors.white,
-    padding: 16,
-    borderRadius: 16,
+    padding: ws(16),
+    borderRadius: fs(16),
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

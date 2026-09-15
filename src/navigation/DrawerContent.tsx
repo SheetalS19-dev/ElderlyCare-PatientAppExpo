@@ -10,10 +10,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppConstants, Colors, Typography } from '../constants';
+import { AppConstants, Colors } from '../constants';
 import { useAuth } from '../context/AuthContext';
 import { getUserFullName } from '../types';
 import { getImageUrl } from '../utils';
+import { fs, hs, ws } from '../utils/metrics';
+import { TYPOGRAPHY } from '../utils/typography';
 import type { RootStackParamList } from './types';
 
 interface MenuItem {
@@ -204,18 +206,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-
-  /* Header Banner */
   headerBanner: {
     backgroundColor: Colors.primaryColor,
-    paddingHorizontal: 18,
-    paddingBottom: 18,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingHorizontal: ws(18),
+    paddingBottom: hs(18),
+    borderBottomLeftRadius: ws(24),
+    borderBottomRightRadius: ws(24),
     shadowColor: Colors.primaryColor,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: hs(4) },
     shadowOpacity: 0.2,
-    shadowRadius: 8,
+    shadowRadius: ws(8),
     elevation: 6,
   },
   profileRow: {
@@ -223,16 +223,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarBorder: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: ws(56),
+    height: ws(56),
+    borderRadius: ws(28),
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.9)',
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: ws(12),
   },
   avatarImage: {
     width: '100%',
@@ -249,104 +249,100 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userName: {
-    fontSize: 16,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(16),
     color: Colors.white,
-    marginBottom: 2,
+    marginBottom: hs(2),
   },
   userSubtitle: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(12),
     color: 'rgba(255, 255, 255, 0.85)',
   },
   profileActionPill: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 10,
+    paddingVertical: hs(4),
+    paddingHorizontal: ws(10),
+    borderRadius: ws(10),
     alignSelf: 'flex-start',
-    marginTop: 6,
+    marginTop: hs(6),
   },
   profileActionText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(11),
     color: Colors.primaryColor,
-    marginRight: 2,
+    marginRight: ws(2),
   },
-
-  /* Menu Content */
   menuScroll: {
     flex: 1,
   },
   menuScrollContent: {
-    paddingHorizontal: 14,
-    paddingTop: 14,
+    paddingHorizontal: ws(14),
+    paddingTop: hs(14),
   },
   groupContainer: {
-    marginBottom: 16,
+    marginBottom: hs(16),
   },
   groupTitle: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(11),
     color: Colors.secondaryFontColor,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 6,
-    marginLeft: 4,
+    marginBottom: hs(6),
+    marginLeft: ws(4),
   },
   groupCard: {
     backgroundColor: Colors.white,
-    borderRadius: 16,
+    borderRadius: ws(16),
     borderWidth: 1,
     borderColor: '#E2E8F0',
     overflow: 'hidden',
     shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.03,
-    shadowRadius: 4,
+    shadowRadius: ws(4),
     elevation: 1,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 11,
-    paddingHorizontal: 12,
+    paddingVertical: hs(11),
+    paddingHorizontal: ws(12),
   },
   menuItemBorder: {
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   itemIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: ws(32),
+    height: ws(32),
+    borderRadius: ws(16),
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: ws(12),
   },
   itemLabel: {
     flex: 1,
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.medium,
+    ...TYPOGRAPHY.medium,
+    fontSize: fs(13),
     color: Colors.primaryFontColor,
   },
-
-  /* Auth Button */
   authSection: {
-    marginTop: 4,
-    marginBottom: 14,
+    marginTop: hs(4),
+    marginBottom: hs(14),
   },
   authButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#EFF6FF',
-    borderRadius: 14,
-    paddingVertical: 12,
-    gap: 8,
+    borderRadius: ws(14),
+    paddingVertical: hs(12),
+    gap: ws(8),
     borderWidth: 1,
     borderColor: 'rgba(37, 99, 235, 0.25)',
   },
@@ -355,28 +351,26 @@ const styles = StyleSheet.create({
     borderColor: '#FCA5A5',
   },
   authButtonText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(13),
     color: Colors.primaryColor,
   },
   logoutButtonText: {
     color: Colors.redColor,
   },
-
-  /* Footer */
   footerInfo: {
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: hs(6),
   },
   footerAppName: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(11),
     color: Colors.secondaryFontColor,
   },
   footerVersion: {
-    fontSize: 10,
-    fontFamily: Typography.fontFamily.regular,
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(10),
     color: '#94A3B8',
-    marginTop: 2,
+    marginTop: hs(2),
   },
 });

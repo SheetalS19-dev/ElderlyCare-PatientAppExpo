@@ -1,6 +1,8 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useState } from 'react';
+import QRCode from 'react-native-qrcode-svg';
 import { Image, KeyboardAvoidingView, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import {
   AppButton,
@@ -22,9 +24,10 @@ import {
   useGetAppointmentByIdQuery,
   useGetCancellationHistoryQuery,
 } from '../../redux/apis/appointmentApi';
+import { useGetDoctorByIdQuery } from '../../redux/apis/doctorApi';
 import type { AppointmentCancellationModel, AppointmentModel } from '../../types';
 import { UpcomingStatuses } from '../../types';
-import { DateTimeUtils, formatDoctorName, getImageUrl, showToast } from '../../utils';
+import { DateTimeUtils, formatDoctorName, getImageUrl, showToast, fs, hs, ws, TYPOGRAPHY } from '../../utils';
 import {
   downloadInvoicePdf,
   shareInvoicePdf,
@@ -81,6 +84,13 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
     if (Array.isArray(target)) return target[0] ?? null;
     return target ?? null;
   }, [rawAppointment]);
+
+  const doctId = String(appointment?.doct_id || appointment?.doctor_id || '');
+  const { data: rawDoctorData } = useGetDoctorByIdQuery(doctId, { skip: !doctId });
+  const doctorData = React.useMemo(() => {
+    if (!rawDoctorData) return null;
+    return (rawDoctorData as any)?.data ?? rawDoctorData;
+  }, [rawDoctorData]);
 
   const cancellationHistory: AppointmentCancellationModel[] = React.useMemo(() => {
     if (!rawCancellationHistory) return [];
@@ -267,6 +277,7 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
                     : require('../../../assets/icons/user.png')
                 }
                 style={styles.avatar}
+                resizeMode="cover"
               />
               <View style={styles.verifiedBadge}>
                 <MaterialIcons name="verified" size={14} color={Colors.primaryColor} />
@@ -408,7 +419,11 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
         </TouchableOpacity>
 
         {/* Prescription Vault Quick Card */}
-        <TouchableOpacity style={styles.invoiceCard} activeOpacity={0.85} onPress={() => navigation.navigate('PrescriptionList')}>
+        <TouchableOpacity
+          style={styles.invoiceCard}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('PrescriptionList')}
+        >
           <View style={styles.invoiceIconCircle}>
             <MaterialIcons name="description" size={22} color={Colors.primaryColor} />
           </View>
@@ -420,7 +435,11 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
         </TouchableOpacity>
 
         {/* Medical Files & Reports Quick Card */}
-        <TouchableOpacity style={styles.invoiceCard} activeOpacity={0.85} onPress={() => navigation.navigate('PatientFile')}>
+        <TouchableOpacity
+          style={styles.invoiceCard}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('PatientFile')}
+        >
           <View style={styles.invoiceIconCircle}>
             <MaterialIcons name="folder-open" size={22} color={Colors.primaryColor} />
           </View>
@@ -431,29 +450,107 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
           <MaterialIcons name="chevron-right" size={22} color={Colors.primaryColor} />
         </TouchableOpacity>
 
-        {/* Clinic Contact & Address Card */}
-        <AppCard style={styles.clinicContactCard}>
-          <Text style={styles.clinicCardTitle}>Clinic Contact & Location</Text>
-          <View style={styles.clinicInfoRow}>
-            <MaterialIcons name="business" size={18} color={Colors.primaryColor} />
-            <Text style={styles.clinicInfoText}>{appointment.clinic_title || 'Elderly Care Clinic'}</Text>
-          </View>
-          {!!(appointment as any).clinic_address && (
-            <View style={styles.clinicInfoRow}>
-              <MaterialIcons name="location-on" size={18} color={Colors.secondaryFontColor} />
-              <Text style={styles.clinicInfoText}>{(appointment as any).clinic_address}</Text>
-            </View>
-          )}
-          <View style={styles.clinicActionRow}>
-            <TouchableOpacity
-              style={styles.callClinicBtn}
-              onPress={() => Linking.openURL('tel:9876543227').catch(() => showToast('Could not initiate call'))}
-            >
-              <MaterialIcons name="phone" size={16} color={Colors.white} />
-              <Text style={styles.callClinicBtnText}>Call Clinic</Text>
-            </TouchableOpacity>
-          </View>
-        </AppCard>
+        {/* Contact Us Card */}
+        {(() => {
+          const docPhone =
+            (appointment as any).doct_phone ||
+            (appointment as any).doct_mobile ||
+            (appointment as any).doctor_phone ||
+            (appointment as any).phone ||
+            doctorData?.phone ||
+            doctorData?.mobile ||
+            '9876543126';
+
+          const docEmail =
+            (appointment as any).doct_email ||
+            (appointment as any).doctor_email ||
+            (appointment as any).email ||
+            doctorData?.email ||
+            'rita@yopmail.com';
+
+          const clinicName =
+            appointment.clinic_title ||
+            (appointment as any).clinic_name ||
+            (appointment as any).clinicName ||
+            doctorData?.clinic_title ||
+            doctorData?.clinic_name ||
+            'Max Super Specialty';
+
+          const rawAddress =
+            (appointment as any).clinic_address ||
+            (appointment as any).clinics_address ||
+            doctorData?.clinic_address ||
+            doctorData?.address ||
+            'Gomti Nagar, Lucknow, Uttar Pradesh 226010';
+
+          const clinicAddr =
+            clinicName && !rawAddress.toLowerCase().includes(clinicName.toLowerCase())
+              ? `${clinicName}, ${rawAddress}`
+              : rawAddress;
+
+          return (
+            <AppCard style={styles.contactUsCard}>
+              <Text style={styles.contactUsTitle}>Contact Us</Text>
+
+              {/* Phone Row */}
+              <TouchableOpacity
+                style={styles.contactRow}
+                activeOpacity={0.75}
+                onPress={() => {
+                  if (docPhone) {
+                    Linking.openURL(`tel:${docPhone}`).catch(() => showToast('Could not initiate call'));
+                  }
+                }}
+              >
+                <View style={styles.contactIconCircle}>
+                  <Ionicons name="call-outline" size={fs(18)} color="#2563EB" />
+                </View>
+                <View style={styles.contactTextGroup}>
+                  <Text style={styles.contactLabel}>Phone</Text>
+                  <Text style={styles.contactValue}>{docPhone}</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Email Row */}
+              <TouchableOpacity
+                style={styles.contactRow}
+                activeOpacity={0.75}
+                onPress={() => {
+                  if (docEmail) {
+                    Linking.openURL(`mailto:${docEmail}`).catch(() => showToast('Could not open mail app'));
+                  }
+                }}
+              >
+                <View style={styles.contactIconCircle}>
+                  <Ionicons name="mail-outline" size={fs(18)} color="#2563EB" />
+                </View>
+                <View style={styles.contactTextGroup}>
+                  <Text style={styles.contactLabel}>Email</Text>
+                  <Text style={styles.contactValue}>{docEmail}</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Clinic Address Row */}
+              <TouchableOpacity
+                style={[styles.contactRow, { marginBottom: 0 }]}
+                activeOpacity={0.75}
+                onPress={() => {
+                  if (clinicAddr) {
+                    Linking.openURL(`http://maps.google.com/maps?q=${encodeURIComponent(clinicAddr)}`).catch(() => showToast('Could not open map'));
+                  }
+                }}
+              >
+                <View style={styles.contactIconCircle}>
+                  <Ionicons name="location-outline" size={fs(18)} color="#2563EB" />
+                </View>
+                <View style={styles.contactTextGroup}>
+                  <Text style={styles.contactLabel}>Clinic Address</Text>
+                  <Text style={styles.contactValue} numberOfLines={3}>{clinicAddr}</Text>
+                </View>
+              </TouchableOpacity>
+            </AppCard>
+          );
+        })()}
 
 
         {/* Review Trigger Card */}
@@ -544,41 +641,151 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
 
       {/* Clinic Queue Arrival QR Code Modal */}
       <Modal visible={showQrModal} transparent animationType="slide" onRequestClose={() => setShowQrModal(false)}>
-        <View style={styles.dialogOverlay}>
-          <View style={styles.qrDialogBox}>
-            <View style={styles.dialogHeaderRow}>
-              <Text style={styles.qrDialogTitle}>Appointment Queue QR Code</Text>
-              <TouchableOpacity onPress={() => setShowQrModal(false)}>
-                <MaterialIcons name="close" size={22} color={Colors.secondaryFontColor} />
+        <View style={styles.qrModalOverlay}>
+          <View style={styles.qrModalContainer}>
+            {/* Header */}
+            <View style={styles.qrModalHeader}>
+              <Text style={styles.qrModalTitle}>Appointment Status</Text>
+              <TouchableOpacity onPress={() => setShowQrModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <MaterialIcons name="close" size={fs(22)} color="#1E293B" />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.qrBadgeRow}>
-              <View style={styles.qrIdBadge}>
-                <Text style={styles.qrIdBadgeText}>ID: #{appointment.id}</Text>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.qrModalScrollContent}>
+              {/* Top Verified & ID */}
+              <View style={styles.qrTopSection}>
+                <View style={styles.qrVerifiedIconBox}>
+                  <MaterialIcons name="verified" size={fs(32)} color="#2563EB" />
+                </View>
+                <Text style={styles.qrApptIdText}>Appointment ID: #{appointment.id}</Text>
+                <View style={styles.qrTypePill}>
+                  <Text style={styles.qrTypePillText}>{appointment.type || 'Video Consultant'}</Text>
+                </View>
               </View>
-              <View style={styles.qrTypeBadge}>
-                <Text style={styles.qrTypeBadgeText}>{appointment.type || 'OPD'}</Text>
-              </View>
-            </View>
 
-            <View style={styles.qrImageWrap}>
-              <MaterialIcons name="qr-code-2" size={130} color={Colors.primaryColor} />
-              <Text style={styles.qrInstructionText}>
-                Visit the clinic and scan the provided QR code to instantly generate your appointment queue number.
+              {/* QR Code Container */}
+              <View style={styles.qrCodeBox}>
+                {(() => {
+                  const qrPayload = JSON.stringify({
+                    appId: appointment.id,
+                    doct: formatDoctorName(appointment.doct_f_name, appointment.doct_l_name) || appointment.doctor_name,
+                    patient: `${appointment.patient_f_name ?? ''} ${appointment.patient_l_name ?? ''}`.trim() || appointment.patient_name || (user as any)?.name || user?.f_name,
+                    date: appointment.date || (appointment as any).appointment_date,
+                    time: appointment.time_slots || (appointment as any).appointment_time,
+                    type: appointment.type || 'Consultation',
+                  });
+
+                  return (
+                    <QRCode
+                      value={qrPayload || `APPOINTMENT_${appointment.id}`}
+                      size={fs(140)}
+                      color="#000000"
+                      backgroundColor="#FFFFFF"
+                    />
+                  );
+                })()}
+              </View>
+
+              {/* Success Headline & Instruction */}
+              <Text style={styles.qrSuccessTitle}>Your Appointment Booked successfully!</Text>
+              <Text style={styles.qrSuccessSub}>
+                Visit the clinic and scan the provided QR code to instantly generate your appointment queue number
               </Text>
-            </View>
 
-            <View style={styles.calendarBtnRow}>
-              <TouchableOpacity style={styles.calendarBtn} onPress={handleAddToGoogleCalendar}>
-                <MaterialIcons name="event" size={18} color={Colors.primaryColor} />
-                <Text style={styles.calendarBtnText}>Add to Google Calendar</Text>
-              </TouchableOpacity>
-            </View>
+              {/* Info Rows */}
+              <View style={styles.qrDetailsList}>
+                {/* Row 1: Doctor */}
+                <View style={styles.qrDetailCard}>
+                  <Text style={styles.qrDetailLabel}>Doctor</Text>
+                  <Text style={styles.qrDetailValue}>
+                    {formatDoctorName(appointment.doct_f_name, appointment.doct_l_name) || appointment.doctor_name || 'Dr. Rita Bishwash'}
+                  </Text>
+                </View>
 
-            <TouchableOpacity style={styles.qrCloseBtn} onPress={() => setShowQrModal(false)}>
-              <Text style={styles.qrCloseBtnText}>Close</Text>
-            </TouchableOpacity>
+                {/* Row 2: Date & Time */}
+                {(() => {
+                  const rawDateVal =
+                    appointment.date ||
+                    (appointment as any).appointment_date ||
+                    (appointment as any).appointmentDate;
+
+                  const rawTimeVal =
+                    appointment.time_slots ||
+                    (appointment as any).appointment_time ||
+                    (appointment as any).timeSlot ||
+                    (appointment as any).time;
+
+                  const formatDisplayDate = (rawDate?: string) => {
+                    if (!rawDate) return '';
+                    const str = String(rawDate).trim();
+                    if (!str) return '';
+
+                    const clean = str.split('T')[0].split(' ')[0];
+                    if (clean.includes('-')) {
+                      const parts = clean.split('-');
+                      if (parts.length === 3 && parts[0].length === 4) {
+                        return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+                      }
+                    } else if (clean.includes('/')) {
+                      const parts = clean.split('/');
+                      if (parts.length === 3) {
+                        if (parts[0].length === 4) {
+                          return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+                        } else if (parts[2].length === 4) {
+                          return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
+                        }
+                      }
+                    }
+                    return DateTimeUtils.getDataFormat(str) || str;
+                  };
+
+                  const formatDisplayTime = (rawTime?: string) => {
+                    if (!rawTime) return '';
+                    const str = String(rawTime).trim();
+                    if (!str) return '';
+                    return DateTimeUtils.formatTimeToAmPm(str) || str;
+                  };
+
+                  const dateStr = formatDisplayDate(rawDateVal) || '09/09/2026';
+                  const timeStr = formatDisplayTime(rawTimeVal) || '10:00 AM';
+                  const dateTimeStr = `${dateStr} | ${timeStr}`;
+
+                  return (
+                    <View style={styles.qrDetailCard}>
+                      <Text style={styles.qrDetailLabel}>Date & Time</Text>
+                      <Text style={styles.qrDetailValue}>{dateTimeStr}</Text>
+                    </View>
+                  );
+                })()}
+
+                {/* Row 3: Patient Name */}
+                <View style={styles.qrDetailCard}>
+                  <Text style={styles.qrDetailLabel}>Patient Name</Text>
+                  <Text style={styles.qrDetailValue}>
+                    {`${appointment.patient_f_name ?? ''} ${appointment.patient_l_name ?? ''}`.trim() ||
+                      appointment.patient_name ||
+                      (appointment as any).patientName ||
+                      (user as any)?.name ||
+                      user?.f_name ||
+                      'Amit Singh'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Divider & Footer Calendar Buttons */}
+              <View style={styles.qrDivider} />
+              <View style={styles.qrCalendarRow}>
+                <TouchableOpacity style={styles.qrCalBtn} onPress={handleAddToGoogleCalendar} activeOpacity={0.8}>
+                  <Ionicons name="logo-google" size={fs(14)} color="#4285F4" />
+                  <Text style={styles.qrCalBtnText}>Add to Calender</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.qrCalBtn} onPress={handleAddToGoogleCalendar} activeOpacity={0.8}>
+                  <Ionicons name="logo-apple" size={fs(14)} color="#000000" />
+                  <Text style={styles.qrCalBtnText}>Add to Calender</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -609,16 +816,16 @@ const InfoRow = ({ label, value }: { label: string; value: string }) => (
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgColor },
-  scrollContent: { padding: 16, paddingBottom: 40 },
+  scrollContent: { padding: ws(16), paddingBottom: hs(40) },
   headerStatusCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: Colors.white,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 12,
+    borderRadius: fs(14),
+    paddingHorizontal: ws(16),
+    paddingVertical: hs(12),
+    marginBottom: hs(12),
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
@@ -626,41 +833,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerAppIdLabel: {
-    fontSize: 10,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(10),
+    ...TYPOGRAPHY.bold,
     color: Colors.secondaryFontColor,
     letterSpacing: 0.5,
   },
   headerAppIdValue: {
-    fontSize: 16,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginTop: 2,
+    marginTop: hs(2),
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(6),
+    borderRadius: fs(20),
+    gap: ws(6),
   },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { fontSize: 13, fontFamily: Typography.fontFamily.bold },
+  statusDot: { width: ws(8), height: ws(8), aspectRatio: 1, borderRadius: 999, overflow: 'hidden' },
+  statusText: { fontSize: fs(13), ...TYPOGRAPHY.bold },
   doctorCard: {
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: fs(16),
+    padding: ws(14),
+    marginBottom: hs(12),
   },
   doctorRow: { flexDirection: 'row', alignItems: 'center' },
   avatarWrapper: {
     position: 'relative',
-    marginRight: 14,
+    marginRight: ws(14),
   },
   avatar: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+    width: ws(68),
+    height: ws(68),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: Colors.inputTextBgColor,
     borderWidth: 2,
     borderColor: Colors.primaryColor,
@@ -670,348 +879,436 @@ const styles = StyleSheet.create({
     bottom: 0,
     right: 0,
     backgroundColor: Colors.white,
-    borderRadius: 8,
+    width: ws(20),
+    height: ws(20),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: Colors.white,
+    elevation: 2,
   },
   doctorInfo: { flex: 1, justifyContent: 'center' },
-  doctorName: { fontSize: Typography.fontSize.base, fontFamily: Typography.fontFamily.bold, color: Colors.primaryFontColor },
+  doctorName: { fontSize: fs(Typography.fontSize.base), ...TYPOGRAPHY.bold, color: Colors.primaryFontColor },
   specBadge: {
     alignSelf: 'flex-start',
     backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginTop: 4,
+    paddingHorizontal: ws(8),
+    paddingVertical: hs(2),
+    borderRadius: fs(6),
+    marginTop: hs(4),
   },
-  specialization: { fontSize: 11, fontFamily: Typography.fontFamily.medium, color: Colors.primaryColor },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 6 },
-  ratingText: { fontSize: 11, fontFamily: Typography.fontFamily.medium, color: Colors.secondaryFontColor },
-  infoCard: { padding: 16, borderRadius: 16, marginBottom: 12 },
+  specialization: { fontSize: fs(11), ...TYPOGRAPHY.medium, color: Colors.primaryColor },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', marginTop: hs(6), gap: ws(6) },
+  ratingText: { fontSize: fs(11), ...TYPOGRAPHY.medium, color: Colors.secondaryFontColor },
+  infoCard: { padding: ws(16), borderRadius: fs(16), marginBottom: hs(12) },
   infoCardSectionTitle: {
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginBottom: 12,
+    marginBottom: hs(12),
   },
   infoGridContainer: {
-    gap: 10,
+    gap: hs(10),
   },
   infoItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   infoIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: ws(36),
+    height: hs(36),
+    borderRadius: fs(10),
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: ws(12),
   },
   infoItemMeta: {
     flex: 1,
   },
   infoItemLabel: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
   },
   infoItemValue: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginTop: 1,
+    marginTop: hs(1),
   },
   infoDivider: {
     height: 1,
     backgroundColor: '#F1F5F9',
-    marginVertical: 2,
+    marginVertical: hs(2),
   },
   videoBanner: {
     backgroundColor: Colors.primaryColor,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: fs(16),
+    padding: ws(16),
+    marginBottom: hs(12),
   },
   videoBannerInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: hs(12),
   },
   videoBannerTitle: {
-    fontSize: 15,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(15),
+    ...TYPOGRAPHY.bold,
     color: '#FFFFFF',
   },
   videoBannerSub: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: 'rgba(255,255,255,0.85)',
-    marginTop: 2,
+    marginTop: hs(2),
   },
   videoBannerBtn: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    borderRadius: fs(10),
   },
   invoiceCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: fs(16),
+    padding: ws(14),
+    marginBottom: hs(12),
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.04,
-    shadowRadius: 4,
+    shadowRadius: fs(4),
     elevation: 2,
   },
   invoiceIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: ws(42),
+    height: ws(42),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: ws(12),
   },
   invoiceMeta: {
     flex: 1,
   },
   invoiceTitle: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   invoiceSubtitle: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    marginTop: 2,
+    marginTop: hs(2),
   },
   reviewCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: fs(16),
+    padding: ws(14),
+    marginBottom: hs(12),
     borderWidth: 1,
     borderColor: '#DBEAFE',
   },
   reviewIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: ws(42),
+    height: ws(42),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: ws(12),
   },
   reviewMeta: { flex: 1 },
-  reviewTitle: { fontSize: 13, fontFamily: Typography.fontFamily.bold, color: Colors.primaryFontColor },
-  reviewSubtitle: { marginTop: 2, fontSize: 11, fontFamily: Typography.fontFamily.regular, color: Colors.secondaryFontColor },
-  cancelSection: { marginTop: 8, alignItems: 'center' },
+  reviewTitle: { fontSize: fs(13), ...TYPOGRAPHY.bold, color: Colors.primaryFontColor },
+  reviewSubtitle: { marginTop: hs(2), fontSize: fs(11), ...TYPOGRAPHY.regular, color: Colors.secondaryFontColor },
+  cancelSection: { marginTop: hs(8), alignItems: 'center' },
   cancelBannerPending: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: ws(6),
     backgroundColor: '#EFF6FF',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(10),
+    borderRadius: fs(10),
   },
   cancelBtnOutline: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    gap: ws(6),
+    paddingVertical: hs(10),
+    paddingHorizontal: ws(16),
   },
-  cancelText: { fontSize: 13, fontFamily: Typography.fontFamily.bold, color: Colors.redColor },
-  withdrawText: { fontSize: 13, fontFamily: Typography.fontFamily.medium, color: '#2563EB' },
-  bottomSpacer: { height: 20 },
-  dialogOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
-  dialogBox: { backgroundColor: Colors.white, borderRadius: 16, padding: 20 },
-  dialogHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-  dialogIconBox: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center' },
-  dialogTitle: { fontSize: Typography.fontSize.md, fontFamily: Typography.fontFamily.bold, color: Colors.primaryFontColor },
-  dialogMessage: { marginTop: 4, fontSize: Typography.fontSize.sm, color: Colors.secondaryFontColor, lineHeight: 20 },
-  reviewStarsRow: { marginVertical: 14, alignItems: 'center' },
-  dialogActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 20, gap: 10 },
-  dialogBtnCancel: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, backgroundColor: '#F1F5F9' },
-  dialogBtnConfirm: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, backgroundColor: Colors.primaryColor },
-  dialogBtnTextConfirm: { fontSize: Typography.fontSize.sm, fontFamily: Typography.fontFamily.bold, color: '#FFFFFF' },
-  dialogBtnTextMuted: { fontSize: Typography.fontSize.sm, fontFamily: Typography.fontFamily.medium, color: Colors.secondaryFontColor },
-  infoBtnTextConfirm: { fontSize: Typography.fontSize.sm, fontFamily: Typography.fontFamily.bold, color: '#FFFFFF' },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
-  infoLabel: { fontSize: Typography.fontSize.sm, color: Colors.secondaryFontColor },
-  infoValue: { fontSize: Typography.fontSize.sm, fontFamily: Typography.fontFamily.medium, color: Colors.primaryFontColor },
+  cancelText: { fontSize: fs(13), ...TYPOGRAPHY.bold, color: Colors.redColor },
+  withdrawText: { fontSize: fs(13), ...TYPOGRAPHY.medium, color: '#2563EB' },
+  bottomSpacer: { height: hs(20) },
+  dialogOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: ws(24) },
+  dialogBox: { backgroundColor: Colors.white, borderRadius: fs(16), padding: ws(20) },
+  dialogHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: ws(10), marginBottom: hs(8) },
+  dialogIconBox: { width: ws(36), height: ws(36), aspectRatio: 1, borderRadius: 999, overflow: 'hidden', backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center' },
+  dialogTitle: { fontSize: fs(Typography.fontSize.md), ...TYPOGRAPHY.bold, color: Colors.primaryFontColor },
+  dialogMessage: { marginTop: hs(4), fontSize: fs(Typography.fontSize.sm), color: Colors.secondaryFontColor, lineHeight: hs(20) },
+  reviewStarsRow: { marginVertical: hs(14), alignItems: 'center' },
+  dialogActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: hs(20), gap: ws(10) },
+  dialogBtnCancel: { paddingHorizontal: ws(16), paddingVertical: hs(10), borderRadius: fs(8), backgroundColor: '#F1F5F9' },
+  dialogBtnConfirm: { paddingHorizontal: ws(16), paddingVertical: hs(10), borderRadius: fs(8), backgroundColor: Colors.primaryColor },
+  dialogBtnTextConfirm: { fontSize: fs(Typography.fontSize.sm), ...TYPOGRAPHY.bold, color: '#FFFFFF' },
+  dialogBtnTextMuted: { fontSize: fs(Typography.fontSize.sm), ...TYPOGRAPHY.medium, color: Colors.secondaryFontColor },
+  infoBtnTextConfirm: { fontSize: fs(Typography.fontSize.sm), ...TYPOGRAPHY.bold, color: '#FFFFFF' },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: hs(6) },
+  infoLabel: { fontSize: fs(Typography.fontSize.sm), color: Colors.secondaryFontColor },
+  infoValue: { fontSize: fs(Typography.fontSize.sm), ...TYPOGRAPHY.medium, color: Colors.primaryFontColor },
 
   /* QR Code & Web Appointment Sync Styles */
   qrCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#EFF6FF',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: fs(16),
+    padding: ws(14),
+    marginBottom: hs(12),
     borderWidth: 1,
     borderColor: '#DBEAFE',
   },
   qrIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: ws(42),
+    height: ws(42),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: Colors.white,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: ws(12),
   },
   qrMeta: {
     flex: 1,
   },
   qrTitle: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   qrSubtitle: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    marginTop: 2,
+    marginTop: hs(2),
   },
-  qrDialogBox: {
+  qrModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: ws(16),
+  },
+  qrModalContainer: {
+    width: '100%',
+    maxHeight: '90%',
     backgroundColor: Colors.white,
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: fs(20),
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: hs(4) },
+    shadowOpacity: 0.2,
+    shadowRadius: fs(10),
+    elevation: 8,
   },
-  qrDialogTitle: {
-    fontSize: 16,
-    fontFamily: Typography.fontFamily.bold,
-    color: Colors.primaryFontColor,
-  },
-  qrBadgeRow: {
+  qrModalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginVertical: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: ws(18),
+    paddingVertical: hs(14),
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
   },
-  qrIdBadge: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#DBEAFE',
+  qrModalTitle: {
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
+    color: '#0F172A',
   },
-  qrIdBadgeText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.bold,
-    color: Colors.primaryColor,
-  },
-  qrTypeBadge: {
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  qrTypeBadgeText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.bold,
-    color: '#059669',
-  },
-  qrImageWrap: {
+  qrModalScrollContent: {
+    padding: ws(18),
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    padding: 20,
+  },
+  qrTopSection: {
+    alignItems: 'center',
+    marginBottom: hs(12),
+  },
+  qrVerifiedIconBox: {
+    marginBottom: hs(4),
+  },
+  qrApptIdText: {
+    fontSize: fs(15),
+    ...TYPOGRAPHY.bold,
+    color: '#0F172A',
+    marginBottom: hs(6),
+  },
+  qrTypePill: {
+    backgroundColor: '#00C853',
+    paddingHorizontal: ws(10),
+    paddingVertical: hs(4),
+    borderRadius: fs(6),
+  },
+  qrTypePillText: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.bold,
+    color: Colors.white,
+  },
+  qrCodeBox: {
+    width: ws(170),
+    height: ws(170),
+    aspectRatio: 1,
+    borderRadius: fs(16),
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    marginVertical: 10,
+    backgroundColor: Colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: hs(10),
   },
-  qrInstructionText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
-    color: Colors.secondaryFontColor,
+  qrSuccessTitle: {
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
+    color: '#0F172A',
     textAlign: 'center',
-    lineHeight: 18,
-    marginTop: 12,
+    marginTop: hs(4),
   },
-  calendarBtnRow: {
-    marginVertical: 10,
+  qrSuccessSub: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
+    color: '#64748B',
+    textAlign: 'center',
+    marginTop: hs(6),
+    marginBottom: hs(16),
+    lineHeight: hs(18),
+    paddingHorizontal: ws(8),
   },
-  calendarBtn: {
+  qrDetailsList: {
+    width: '100%',
+    gap: hs(8),
+    marginBottom: hs(14),
+  },
+  qrDetailCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.white,
+    borderRadius: fs(10),
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(12),
+  },
+  qrDetailLabel: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
+    color: '#64748B',
+  },
+  qrDetailValue: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
+    color: '#0F172A',
+  },
+  qrDateTimeValGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  qrDivider: {
+    width: '100%',
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginVertical: hs(12),
+  },
+  qrCalendarRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EFF6FF',
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#DBEAFE',
-    gap: 6,
+    gap: ws(10),
+    width: '100%',
   },
-  calendarBtnText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.bold,
-    color: Colors.primaryColor,
-  },
-  qrCloseBtn: {
-    backgroundColor: Colors.primaryColor,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  qrCloseBtnText: {
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.bold,
-    color: Colors.white,
-  },
-  clinicContactCard: {
-    marginBottom: 12,
-    padding: 14,
-  },
-  clinicCardTitle: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
-    color: Colors.primaryFontColor,
-    marginBottom: 10,
-  },
-  clinicInfoRow: {
+  qrCalBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
+    gap: ws(6),
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(8),
+    borderRadius: fs(8),
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  clinicInfoText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
-    color: Colors.primaryFontColor,
+  qrCalBtnText: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.bold,
+    color: '#0F172A',
+  },
+  contactUsCard: {
+    backgroundColor: Colors.white,
+    borderRadius: fs(18),
+    padding: ws(18),
+    marginBottom: hs(14),
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: hs(2) },
+    shadowOpacity: 0.04,
+    shadowRadius: fs(6),
+    elevation: 2,
+  },
+  contactUsTitle: {
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
+    color: '#0F172A',
+    marginBottom: hs(16),
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: hs(16),
+  },
+  contactIconCircle: {
+    width: ws(40),
+    height: ws(40),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: ws(14),
+  },
+  contactTextGroup: {
     flex: 1,
   },
-  clinicActionRow: {
-    marginTop: 8,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+  contactLabel: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
+    color: '#64748B',
+    marginBottom: hs(2),
   },
-  callClinicBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primaryColor,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 6,
+  contactValue: {
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
+    color: '#0F172A',
+    lineHeight: hs(20),
   },
   callClinicBtnText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
     color: Colors.white,
   },
 });

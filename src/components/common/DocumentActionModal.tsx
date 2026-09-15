@@ -9,7 +9,9 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Typography } from '../../constants';
+import { Colors } from '../../constants';
+import { fs, hs, ws } from '../../utils/metrics';
+import { TYPOGRAPHY } from '../../utils/typography';
 
 export interface DocumentActionModalProps {
   visible: boolean;
@@ -47,14 +49,14 @@ export const DocumentActionModal: React.FC<DocumentActionModalProps> = ({
       <View style={styles.backdrop}>
         <TouchableOpacity style={styles.dismissArea} activeOpacity={1} onPress={onClose} />
 
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom + 12, 24) }]}>
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom + hs(12), hs(24)) }]}>
           {/* Handle */}
           <View style={styles.handle} />
 
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.iconContainer}>
-              <MaterialIcons name="description" size={24} color={Colors.primaryColor} />
+              <MaterialIcons name="description" size={fs(24)} color={Colors.primaryColor} />
             </View>
             <View style={styles.headerTextGroup}>
               <Text style={styles.title} numberOfLines={1}>
@@ -65,7 +67,7 @@ export const DocumentActionModal: React.FC<DocumentActionModalProps> = ({
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <MaterialIcons name="close" size={22} color={Colors.secondaryFontColor} />
+              <MaterialIcons name="close" size={fs(22)} color={Colors.secondaryFontColor} />
             </TouchableOpacity>
           </View>
 
@@ -79,7 +81,7 @@ export const DocumentActionModal: React.FC<DocumentActionModalProps> = ({
               {/* 1. View / Preview Option */}
               <TouchableOpacity style={styles.actionCard} activeOpacity={0.75} onPress={onView}>
                 <View style={[styles.actionIconCircle, { backgroundColor: '#EBF5FF' }]}>
-                  <MaterialIcons name="visibility" size={22} color="#2563EB" />
+                  <MaterialIcons name="visibility" size={fs(22)} color="#2563EB" />
                 </View>
                 <View style={styles.actionMeta}>
                   <Text style={styles.actionTitle}>View / Preview Document</Text>
@@ -87,13 +89,13 @@ export const DocumentActionModal: React.FC<DocumentActionModalProps> = ({
                     Open in full-page preview with zoom, read & print options
                   </Text>
                 </View>
-                <MaterialIcons name="chevron-right" size={20} color="#CBD5E1" />
+                <MaterialIcons name="chevron-right" size={fs(20)} color="#CBD5E1" />
               </TouchableOpacity>
 
               {/* 2. Download to Storage Option */}
               <TouchableOpacity style={styles.actionCard} activeOpacity={0.75} onPress={onDownload}>
                 <View style={[styles.actionIconCircle, { backgroundColor: '#ECFDF5' }]}>
-                  <MaterialIcons name="file-download" size={22} color="#059669" />
+                  <MaterialIcons name="file-download" size={fs(22)} color="#059669" />
                 </View>
                 <View style={styles.actionMeta}>
                   <Text style={styles.actionTitle}>Download & Save to Device</Text>
@@ -101,13 +103,13 @@ export const DocumentActionModal: React.FC<DocumentActionModalProps> = ({
                     Save PDF file directly to your phone's storage
                   </Text>
                 </View>
-                <MaterialIcons name="chevron-right" size={20} color="#CBD5E1" />
+                <MaterialIcons name="chevron-right" size={fs(20)} color="#CBD5E1" />
               </TouchableOpacity>
 
               {/* 3. Share via Apps Option */}
               <TouchableOpacity style={styles.actionCard} activeOpacity={0.75} onPress={onShare}>
                 <View style={[styles.actionIconCircle, { backgroundColor: '#EFF6FF' }]}>
-                  <MaterialIcons name="share" size={22} color={Colors.primaryColor} />
+                  <MaterialIcons name="share" size={fs(22)} color={Colors.primaryColor} />
                 </View>
                 <View style={styles.actionMeta}>
                   <Text style={styles.actionTitle}>Share via Apps</Text>
@@ -115,7 +117,7 @@ export const DocumentActionModal: React.FC<DocumentActionModalProps> = ({
                     Send document via WhatsApp, Email, Drive or other apps
                   </Text>
                 </View>
-                <MaterialIcons name="chevron-right" size={20} color="#CBD5E1" />
+                <MaterialIcons name="chevron-right" size={fs(20)} color="#CBD5E1" />
               </TouchableOpacity>
             </View>
           )}
@@ -141,10 +143,10 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: Colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 18,
-    paddingTop: 10,
+    borderTopLeftRadius: fs(24),
+    borderTopRightRadius: fs(24),
+    paddingHorizontal: ws(18),
+    paddingTop: hs(10),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.12,
@@ -152,100 +154,104 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   handle: {
-    width: 38,
-    height: 4,
-    borderRadius: 2,
+    width: ws(38),
+    height: hs(4),
+    borderRadius: fs(2),
     backgroundColor: '#CBD5E1',
     alignSelf: 'center',
-    marginBottom: 14,
+    marginBottom: hs(14),
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: hs(16),
   },
   iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: ws(44),
+    height: ws(44),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: ws(12),
   },
   headerTextGroup: {
     flex: 1,
-    paddingRight: 8,
+    paddingRight: ws(8),
   },
   title: {
-    fontSize: Typography.fontSize.md,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(16),
     color: Colors.primaryFontColor,
   },
   subtitle: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.regular,
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(11),
     color: Colors.secondaryFontColor,
-    marginTop: 2,
+    marginTop: hs(2),
   },
   loadingContainer: {
-    paddingVertical: 32,
+    paddingVertical: hs(32),
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: hs(12),
   },
   loadingText: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.medium,
+    ...TYPOGRAPHY.medium,
+    fontSize: fs(14),
     color: Colors.secondaryFontColor,
   },
   actionsList: {
-    gap: 10,
-    marginBottom: 12,
+    gap: hs(10),
+    marginBottom: hs(12),
   },
   actionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    padding: 12,
+    borderRadius: fs(16),
+    padding: ws(12),
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   actionIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: ws(42),
+    height: ws(42),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: ws(12),
   },
   actionMeta: {
     flex: 1,
-    paddingRight: 6,
+    paddingRight: ws(6),
   },
   actionTitle: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(13),
     color: Colors.primaryFontColor,
   },
   actionDescription: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.regular,
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(11),
     color: Colors.secondaryFontColor,
-    marginTop: 2,
+    marginTop: hs(2),
   },
   cancelButton: {
     backgroundColor: '#F1F5F9',
-    borderRadius: 14,
-    paddingVertical: 12,
+    borderRadius: fs(14),
+    paddingVertical: hs(12),
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
+    marginTop: hs(4),
   },
   cancelButtonText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(13),
     color: Colors.secondaryFontColor,
   },
 });

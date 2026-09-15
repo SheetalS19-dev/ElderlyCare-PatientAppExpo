@@ -5,8 +5,10 @@
   "main": "expo-router/entry",
   "scripts": {
     "android": "expo run:android",
+    "clean": "cd android && gradlew clean",
     "build:apk": "cd android && gradlew assembleRelease",
     "build:apk:fast": "cd android && gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a",
+    "build:apk:clean": "cd android && gradlew clean assembleRelease -PreactNativeArchitectures=arm64-v8a",
     "build:apk:debug": "cd android && gradlew assembleDebug",
     "ios": "expo run:ios",
     "start": "react-native start",
@@ -45,6 +47,7 @@
     "react-dom": "19.2.3",
     "react-native": "0.86.2",
     "react-native-gesture-handler": "^2.16.2",
+    "react-native-qrcode-svg": "^6.3.24",
     "react-native-razorpay": "^2.3.0",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",

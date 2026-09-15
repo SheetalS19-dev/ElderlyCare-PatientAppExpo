@@ -1,6 +1,8 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
-import { Colors, Typography } from '../../constants';
+import { ActivityIndicator, StyleSheet, Text, TextStyle, TouchableOpacity, ViewStyle } from 'react-native';
+import { Colors } from '../../constants';
+import { fs, hs, ws } from '../../utils/metrics';
+import { TYPOGRAPHY } from '../../utils/typography';
 
 interface PrimaryButtonProps {
   title: string;
@@ -41,9 +43,9 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
 const styles = StyleSheet.create({
   button: {
     backgroundColor: Colors.primaryColor || '#2563EB',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+    paddingVertical: hs(14),
+    paddingHorizontal: ws(24),
+    borderRadius: fs(8),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -52,7 +54,7 @@ const styles = StyleSheet.create({
   },
   text: {
     color: Colors.white || '#FFFFFF',
-    fontSize: Typography?.fontSize?.base || 14,
-    fontFamily: Typography?.fontFamily?.medium,
+    ...TYPOGRAPHY.medium,
+    fontSize: fs(14),
   },
 });

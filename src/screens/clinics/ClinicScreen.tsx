@@ -15,12 +15,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppHeader, ErrorState, SkeletonDetail } from '../../components';
-import { Colors, Typography } from '../../constants';
+import { Colors } from '../../constants';
 import type { RootStackParamList } from '../../navigation/types';
 import { useGetClinicByIdQuery } from '../../redux/apis/clinicApi';
 import { useGetDoctorsByClinicIdQuery } from '../../redux/apis/doctorApi';
 import type { ClinicModel, DoctorModel } from '../../types';
-import { formatDoctorName, getImageUrl } from '../../utils';
+import { formatDoctorName, fs, getImageUrl, hs, TYPOGRAPHY, ws } from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Clinic'>;
 
@@ -80,7 +80,7 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
       <View style={styles.container}>
         <AppHeader title="Clinic Details" onBackPress={() => navigation.goBack()} />
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 20, 30) }]}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + hs(20), hs(30)) }]}
           showsVerticalScrollIndicator={false}
         >
           <SkeletonDetail />
@@ -105,7 +105,7 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
       <AppHeader title={clinic.title || 'Clinic Details'} onBackPress={() => navigation.goBack()} />
 
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 20, 30) }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + hs(20), hs(30)) }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Clinic Header Info Card */}
@@ -119,19 +119,19 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
               />
             ) : (
               <View style={styles.avatarPlaceholder}>
-                <FontAwesome5 name="hospital" size={28} color={Colors.primaryColor} />
+                <FontAwesome5 name="hospital" size={fs(28)} color={Colors.primaryColor} />
               </View>
             )}
 
             <View style={styles.headerInfo}>
               <View style={styles.verifiedBadge}>
-                <MaterialIcons name="verified" size={13} color="#059669" />
+                <MaterialIcons name="verified" size={fs(13)} color="#059669" />
                 <Text style={styles.verifiedText}>Verified Medical Center</Text>
               </View>
               <Text style={styles.clinicTitle}>{clinic.title}</Text>
               {!!clinic.address && (
                 <View style={styles.addressRow}>
-                  <MaterialIcons name="location-on" size={14} color={Colors.primaryColor} />
+                  <MaterialIcons name="location-on" size={fs(14)} color={Colors.primaryColor} />
                   <Text style={styles.clinicAddress} numberOfLines={2}>{clinic.address}</Text>
                 </View>
               )}
@@ -150,7 +150,7 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
                 activeOpacity={0.7}
               >
                 <View style={[styles.iconCircle, { backgroundColor: '#EFF6FF' }]}>
-                  <Ionicons name="call" size={18} color="#2563EB" />
+                  <Ionicons name="call" size={fs(18)} color="#2563EB" />
                 </View>
                 <Text style={styles.actionText}>Call</Text>
               </TouchableOpacity>
@@ -163,7 +163,7 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
                 activeOpacity={0.7}
               >
                 <View style={[styles.iconCircle, { backgroundColor: '#ECFDF5' }]}>
-                  <Ionicons name="logo-whatsapp" size={18} color="#10B981" />
+                  <Ionicons name="logo-whatsapp" size={fs(18)} color="#10B981" />
                 </View>
                 <Text style={styles.actionText}>WhatsApp</Text>
               </TouchableOpacity>
@@ -176,7 +176,7 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
                 activeOpacity={0.7}
               >
                 <View style={[styles.iconCircle, { backgroundColor: '#EFF6FF' }]}>
-                  <Ionicons name="mail" size={18} color="#2563EB" />
+                  <Ionicons name="mail" size={fs(18)} color="#2563EB" />
                 </View>
                 <Text style={styles.actionText}>Email</Text>
               </TouchableOpacity>
@@ -193,7 +193,7 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
                 activeOpacity={0.7}
               >
                 <View style={[styles.iconCircle, { backgroundColor: '#F3E8FF' }]}>
-                  <Ionicons name="navigate" size={18} color="#9333EA" />
+                  <Ionicons name="navigate" size={fs(18)} color="#9333EA" />
                 </View>
                 <Text style={styles.actionText}>Directions</Text>
               </TouchableOpacity>
@@ -206,7 +206,7 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
                 activeOpacity={0.7}
               >
                 <View style={[styles.iconCircle, { backgroundColor: '#FEE2E2' }]}>
-                  <MaterialCommunityIcons name="ambulance" size={18} color="#EF4444" />
+                  <MaterialCommunityIcons name="ambulance" size={fs(18)} color="#EF4444" />
                 </View>
                 <Text style={styles.actionText}>Emergency</Text>
               </TouchableOpacity>
@@ -223,12 +223,12 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
               activeOpacity={0.7}
             >
               <View style={styles.accordionTitleRow}>
-                <MaterialIcons name="info-outline" size={18} color={Colors.primaryColor} />
+                <MaterialIcons name="info-outline" size={fs(18)} color={Colors.primaryColor} />
                 <Text style={styles.sectionHeaderTitleNoMargin}>About Center</Text>
               </View>
               <Ionicons
                 name={descExpanded ? 'chevron-up' : 'chevron-down'}
-                size={18}
+                size={fs(18)}
                 color={Colors.secondaryFontColor}
               />
             </TouchableOpacity>
@@ -245,12 +245,12 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
               activeOpacity={0.7}
             >
               <View style={styles.accordionTitleRow}>
-                <MaterialIcons name="access-time" size={18} color={Colors.primaryColor} />
+                <MaterialIcons name="access-time" size={fs(18)} color={Colors.primaryColor} />
                 <Text style={styles.sectionHeaderTitleNoMargin}>Operating Hours</Text>
               </View>
               <Ionicons
                 name={hoursExpanded ? 'chevron-up' : 'chevron-down'}
-                size={18}
+                size={fs(18)}
                 color={Colors.secondaryFontColor}
               />
             </TouchableOpacity>
@@ -296,7 +296,7 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
                     />
                   ) : (
                     <View style={styles.docAvatarPlaceholder}>
-                      <Ionicons name="person" size={22} color={Colors.primaryColor} />
+                      <Ionicons name="person" size={fs(22)} color={Colors.primaryColor} />
                     </View>
                   )}
 
@@ -312,7 +312,7 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
 
                   <View style={styles.bookDocBtn}>
                     <Text style={styles.bookDocBtnText}>Book</Text>
-                    <MaterialIcons name="event" size={13} color={Colors.white} />
+                    <MaterialIcons name="event" size={fs(13)} color={Colors.white} />
                   </View>
                 </TouchableOpacity>
               );
@@ -326,12 +326,12 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgColor },
-  scrollContent: { padding: 16 },
+  scrollContent: { padding: ws(16) },
   card: {
     backgroundColor: Colors.white,
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 14,
+    borderRadius: fs(18),
+    padding: ws(16),
+    marginBottom: hs(14),
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: Colors.shadow,
@@ -341,82 +341,83 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   headerRow: { flexDirection: 'row', alignItems: 'center' },
-  clinicAvatar: { width: 72, height: 72, borderRadius: 16, backgroundColor: '#F1F5F9' },
+  clinicAvatar: { width: ws(72), height: ws(72), borderRadius: 999, overflow: 'hidden', backgroundColor: '#F1F5F9' },
   avatarPlaceholder: {
-    width: 72,
-    height: 72,
-    borderRadius: 16,
+    width: ws(72),
+    height: ws(72),
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerInfo: { flex: 1, marginLeft: 14 },
+  headerInfo: { flex: 1, marginLeft: ws(14) },
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: ws(4),
     backgroundColor: '#ECFDF5',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: ws(8),
+    paddingVertical: hs(3),
+    borderRadius: fs(6),
     alignSelf: 'flex-start',
-    marginBottom: 6,
+    marginBottom: hs(6),
   },
   verifiedText: {
-    fontSize: 10,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(10),
+    ...TYPOGRAPHY.bold,
     color: '#059669',
   },
   clinicTitle: {
-    fontSize: Typography.fontSize.base,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginBottom: 3,
+    marginBottom: hs(3),
   },
   addressRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 2,
-    marginTop: 2,
+    gap: ws(2),
+    marginTop: hs(2),
   },
   clinicAddress: {
     flex: 1,
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    lineHeight: 16,
+    lineHeight: fs(16),
   },
   sectionHeaderTitle: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginBottom: 12,
+    marginBottom: hs(12),
   },
   sectionHeaderTitleNoMargin: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: hs(12),
   },
   accordionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: ws(8),
   },
   countBadge: {
     backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingHorizontal: ws(8),
+    paddingVertical: hs(2),
+    borderRadius: fs(10),
   },
   countBadgeText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
   actionRow: {
@@ -426,16 +427,18 @@ const styles = StyleSheet.create({
   },
   actionItem: { alignItems: 'center' },
   iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: ws(44),
+    height: ws(44),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: hs(6),
   },
   actionText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
   },
   accordionHeader: {
@@ -444,94 +447,103 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   descriptionText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.regular,
     color: '#334155',
-    lineHeight: 20,
-    marginTop: 8,
+    lineHeight: fs(20),
+    marginTop: hs(8),
   },
-  hoursContainer: { marginTop: 10 },
+  hoursContainer: { marginTop: hs(10) },
   hourRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 6,
+    paddingVertical: hs(6),
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   dayText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
   },
   timeText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
   },
   noDoctorsText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
     fontStyle: 'italic',
   },
   doctorCardItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: hs(12),
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
-  doctorAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#F1F5F9' },
+  doctorAvatar: {
+    width: ws(48),
+    height: ws(48),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: '#F1F5F9',
+  },
   docAvatarPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: ws(48),
+    height: ws(48),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   doctorInfo: {
     flex: 1,
-    marginLeft: 12,
-    marginRight: 12,
+    marginLeft: ws(12),
+    marginRight: ws(12),
   },
   doctorName: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   specTag: {
     backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: ws(8),
+    paddingVertical: hs(3),
+    borderRadius: fs(6),
     alignSelf: 'flex-start',
-    marginTop: 4,
-    marginBottom: 4,
+    marginTop: hs(4),
+    marginBottom: hs(4),
     maxWidth: '100%',
   },
   doctorSpec: {
-    fontSize: 10,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(10),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
   doctorExp: {
-    fontSize: 10,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(10),
+    ...TYPOGRAPHY.regular,
     color: '#64748B',
   },
   bookDocBtn: {
     backgroundColor: Colors.primaryColor,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(8),
+    borderRadius: fs(8),
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: ws(4),
   },
   bookDocBtnText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
     color: Colors.white,
   },
 });

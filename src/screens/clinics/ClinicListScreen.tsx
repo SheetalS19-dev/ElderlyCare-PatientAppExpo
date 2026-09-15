@@ -15,16 +15,18 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AppHeader,
+  CitySelectModal,
   EmptyState,
   ErrorState,
   LoadingIndicator,
   SearchBox,
 } from '../../components';
-import { ApiEndpoints, Colors, Typography } from '../../constants';
+import { ApiEndpoints, Colors } from '../../constants';
 import type { RootStackParamList } from '../../navigation/types';
 import { useGetClinicsQuery } from '../../redux/apis/clinicApi';
 import { useGetCitiesQuery } from '../../redux/apis/doctorApi';
 import type { CityModel, ClinicModel } from '../../types';
+import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ClinicList'>;
 
@@ -98,7 +100,7 @@ export const ClinicListScreen = ({ navigation }: Props) => {
             onPress={() => setIsCityModalVisible(true)}
           >
             <View style={styles.cityIconCircle}>
-              <Ionicons name="location-sharp" size={16} color={Colors.primaryColor} />
+              <Ionicons name="location-sharp" size={fs(16)} color={Colors.primaryColor} />
             </View>
             <View style={styles.cityTextGroup}>
               <Text style={styles.citySelectorLabel}>Location</Text>
@@ -106,12 +108,12 @@ export const ClinicListScreen = ({ navigation }: Props) => {
                 {selectedCity.title || 'All Cities'}
               </Text>
             </View>
-            <Ionicons name="chevron-down" size={18} color={Colors.secondaryFontColor} />
+            <Ionicons name="chevron-down" size={fs(18)} color={Colors.secondaryFontColor} />
           </TouchableOpacity>
 
           {!!selectedCity.id && (
             <TouchableOpacity style={styles.clearCityBtn} onPress={handleClearCity}>
-              <Ionicons name="close-circle" size={20} color={Colors.secondaryFontColor} />
+              <Ionicons name="close-circle" size={fs(20)} color={Colors.secondaryFontColor} />
             </TouchableOpacity>
           )}
         </View>
@@ -141,7 +143,7 @@ export const ClinicListScreen = ({ navigation }: Props) => {
           <FlatList
             data={clinics}
             keyExtractor={(item, index) => `clinic-${item.id ?? index}`}
-            contentContainerStyle={[styles.listContainer, { flexGrow: 1, paddingBottom: Math.max(insets.bottom + 20, 30) }]}
+            contentContainerStyle={[styles.listContainer, { flexGrow: 1, paddingBottom: Math.max(insets.bottom + hs(20), hs(30)) }]}
             showsVerticalScrollIndicator={false}
             refreshing={isClinicsFetching}
             onRefresh={refetchClinics}
@@ -161,14 +163,14 @@ export const ClinicListScreen = ({ navigation }: Props) => {
                   />
                 ) : (
                   <View style={styles.placeholderImage}>
-                    <FontAwesome5 name="hospital-alt" size={26} color={Colors.primaryColor} />
+                    <FontAwesome5 name="hospital-alt" size={fs(26)} color={Colors.primaryColor} />
                   </View>
                 )}
 
                 <View style={styles.clinicDetails}>
                   <View style={styles.badgeRow}>
                     <View style={styles.verifiedBadge}>
-                      <MaterialIcons name="verified" size={12} color="#059669" />
+                      <MaterialIcons name="verified" size={fs(12)} color="#059669" />
                       <Text style={styles.verifiedText}>Verified Center</Text>
                     </View>
                   </View>
@@ -182,7 +184,7 @@ export const ClinicListScreen = ({ navigation }: Props) => {
                 </View>
 
                 <View style={styles.chevronCircle}>
-                  <Ionicons name="chevron-forward" size={18} color={Colors.primaryColor} />
+                  <Ionicons name="chevron-forward" size={fs(18)} color={Colors.primaryColor} />
                 </View>
               </TouchableOpacity>
             )}
@@ -191,116 +193,93 @@ export const ClinicListScreen = ({ navigation }: Props) => {
       </View>
 
       {/* City Picker Modal */}
-      <Modal
+      <CitySelectModal
         visible={isCityModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setIsCityModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Location / City</Text>
-              <TouchableOpacity onPress={() => setIsCityModalVisible(false)}>
-                <Ionicons name="close-circle" size={26} color={Colors.secondaryFontColor} />
-              </TouchableOpacity>
-            </View>
-
-            <SearchBox
-              value={citySearch}
-              onChangeText={setCitySearch}
-              placeholder="Search city..."
-            />
-
-            <FlatList
-              data={cities}
-              keyExtractor={(item, index) => `city-${item.id ?? index}`}
-              style={{ marginTop: 12 }}
-              ListEmptyComponent={<EmptyState message="No cities found" />}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.cityItem}
-                  onPress={() => handleSelectCity(item)}
-                >
-                  <Ionicons name="location-outline" size={18} color={Colors.primaryColor} />
-                  <Text style={styles.cityItemText}>
-                    {item.title}
-                    {item.state_title ? `, ${item.state_title}` : ''}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setIsCityModalVisible(false)}
+        cities={cities}
+        selectedCityId={selectedCity.id || 'ALL'}
+        onSelectCity={(cityObj) => {
+          if (cityObj) {
+            const cityTitle = cityObj.state_title
+              ? `${cityObj.title || cityObj.name}, ${cityObj.state_title}`
+              : cityObj.title || cityObj.name || '';
+            setSelectedCity({ id: String(cityObj.id ?? ''), title: cityTitle });
+          } else {
+            setSelectedCity({ id: '', title: '' });
+          }
+          setIsCityModalVisible(false);
+        }}
+      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgColor },
-  content: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
+  content: { flex: 1, paddingHorizontal: ws(16), paddingTop: hs(12) },
   citySelectorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
-    gap: 8,
+    marginBottom: hs(10),
+    gap: ws(8),
   },
   citySelector: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: fs(14),
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(8),
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   cityIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: ws(32),
+    height: ws(32),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: ws(10),
   },
   cityTextGroup: {
     flex: 1,
   },
   citySelectorLabel: {
-    fontSize: 9,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(9),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
     textTransform: 'uppercase',
   },
   citySelectorText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginTop: 1,
+    marginTop: hs(1),
   },
   clearCityBtn: {
-    padding: 6,
+    padding: ws(6),
   },
-  searchWrapper: { marginBottom: 8 },
+  searchWrapper: { marginBottom: hs(8) },
   resultsHeaderRow: {
-    marginBottom: 10,
+    marginBottom: hs(10),
   },
   resultsCountText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
   },
-  listContainer: { paddingBottom: 24 },
+  listContainer: { paddingBottom: hs(24) },
   clinicCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: fs(16),
+    padding: ws(12),
+    marginBottom: hs(12),
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: Colors.shadow,
@@ -310,54 +289,58 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   clinicImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 14,
+    width: ws(64),
+    height: ws(64),
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#F1F5F9',
   },
   placeholderImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 14,
+    width: ws(64),
+    height: ws(64),
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  clinicDetails: { flex: 1, marginLeft: 12, marginRight: 8 },
+  clinicDetails: { flex: 1, marginLeft: ws(12), marginRight: ws(8) },
   badgeRow: {
     flexDirection: 'row',
-    marginBottom: 3,
+    marginBottom: hs(3),
   },
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ECFDF5',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    gap: 3,
+    paddingHorizontal: ws(6),
+    paddingVertical: hs(2),
+    borderRadius: fs(4),
+    gap: ws(3),
   },
   verifiedText: {
-    fontSize: 9,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(9),
+    ...TYPOGRAPHY.bold,
     color: '#059669',
   },
   clinicTitle: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginBottom: 3,
+    marginBottom: hs(3),
   },
   clinicAddress: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    lineHeight: 16,
+    lineHeight: fs(16),
   },
   chevronCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: ws(32),
+    height: ws(32),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -369,34 +352,34 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: Colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 16,
+    borderTopLeftRadius: fs(20),
+    borderTopRightRadius: fs(20),
+    padding: ws(16),
     maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: hs(12),
   },
   modalTitle: {
-    fontSize: Typography.fontSize.md,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   cityItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingVertical: hs(12),
+    paddingHorizontal: ws(8),
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   cityItemText: {
-    marginLeft: 10,
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.regular,
+    marginLeft: ws(10),
+    fontSize: fs(14),
+    ...TYPOGRAPHY.regular,
     color: Colors.primaryFontColor,
   },
 });

@@ -784,7 +784,22 @@ export async function viewPrescriptionPdf(
   info: PrescriptionPdfInfo = {},
 ) {
   const uri = await generatePrescriptionPdf(prescription, info);
-  await Print.printAsync({ uri });
+  try {
+    await Print.printAsync({ uri });
+  } catch (err: any) {
+    const msg = String(err?.message || err || '');
+    if (msg.includes('Another print request is already in progress')) {
+      console.warn('Print request is already in progress');
+    } else {
+      try {
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'View Prescription PDF' });
+        }
+      } catch (shareErr) {
+        console.warn('Could not open print or sharing view:', shareErr);
+      }
+    }
+  }
   return uri;
 }
 

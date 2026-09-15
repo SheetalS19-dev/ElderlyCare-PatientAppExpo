@@ -25,16 +25,17 @@ import type { RootStackParamList } from '../../navigation/types';
 import { useGetFamilyMembersQuery } from '../../redux/apis/bookingApi';
 import { useGetPatientFilesQuery } from '../../redux/apis/patientFilesApi';
 import type { FamilyMemberModel, PatientFileModel } from '../../types';
-import { DateTimeUtils, downloadAndSaveFile, getImageUrl, showToast } from '../../utils';
+import { DateTimeUtils, downloadAndSaveFile, getImageUrl, showToast, ws, hs, fs, TYPOGRAPHY } from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PatientFile'>;
 
-export const PatientFileScreen = ({ navigation }: Props) => {
+export const PatientFileScreen = ({ navigation, route }: Props) => {
   const { user } = useAuth();
   const uid = String(user?.id ?? (user as any)?.user_id ?? '');
 
+  const initialMemberId = route.params?.familyMemberId ? String(route.params.familyMemberId) : 'all';
   const [search, setSearch] = useState('');
-  const [selectedMemberId, setSelectedMemberId] = useState<string>('all');
+  const [selectedMemberId, setSelectedMemberId] = useState<string>(initialMemberId);
   const debouncedSearch = useDebounce(search, 400);
 
   const { data: familyData } = useGetFamilyMembersQuery(uid, {
@@ -192,19 +193,44 @@ export const PatientFileScreen = ({ navigation }: Props) => {
   };
 
   const formatPatientName = (item: any) => {
-    const name =
+    return (
       item.patient_name ||
       `${item.patient_f_name ?? item.f_name ?? ''} ${item.patient_l_name ?? item.l_name ?? ''}`.trim() ||
       user?.f_name ||
-      'Patient';
-    const phone = item.patient_phone || item.phone || '';
-    return phone ? `${name} (${phone})` : name;
+      'Patient'
+    );
   };
 
   const formatFileDate = (item: any) => {
-    const d = item.date || item.created_at || item.updated_at;
+    const d = item.created_at || item.date || item.updated_at;
     if (!d) return '--';
-    return DateTimeUtils.getDataFormat(d);
+    const str = String(d).trim();
+    const dateObj = new Date(str);
+
+    if (!isNaN(dateObj.getTime())) {
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const year = dateObj.getFullYear();
+
+      let hours = dateObj.getHours();
+      const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const hoursStr = String(hours).padStart(2, '0');
+
+      return `${day}/${month}/${year} ${hoursStr}:${minutes} ${ampm}`;
+    }
+
+    const clean = str.split('T')[0].split(' ')[0];
+    if (clean.includes('-')) {
+      const parts = clean.split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+      }
+    }
+
+    return DateTimeUtils.getDataFormatWithTime(str) || str;
   };
 
   return (
@@ -272,18 +298,15 @@ export const PatientFileScreen = ({ navigation }: Props) => {
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={<EmptyState message="No patient files found" />}
           renderItem={({ item }) => {
-            const title = (item as any).title || item.file_name || 'Medical File';
+            const rawTitle = (item as any).title || item.file_name || 'Medical File';
+            const fileIdStr = item.id ? ` #${item.id}` : '';
+            const title = `${rawTitle}${fileIdStr}`;
             const patientInfo = formatPatientName(item);
             const dateStr = formatFileDate(item);
 
             return (
               <AppCard style={styles.fileCard}>
                 <View style={styles.row}>
-                  {/* Blue Folder Icon Box */}
-                  <View style={styles.folderIconBox}>
-                    <MaterialIcons name="folder" size={26} color="#2563EB" />
-                  </View>
-
                   {/* File Metadata */}
                   <View style={styles.info}>
                     <Text style={styles.fileTitle} numberOfLines={1}>
@@ -297,21 +320,24 @@ export const PatientFileScreen = ({ navigation }: Props) => {
                     </Text>
                   </View>
 
-                  {/* Open / Download Action Buttons */}
+                  {/* Quick Actions */}
                   <View style={styles.actionGroup}>
                     <TouchableOpacity
-                      style={styles.fileActionBtn}
-                      onPress={() => handleDownload(item)}
-                      activeOpacity={0.8}
-                    >
-                      <MaterialIcons name="file-download" size={18} color="#FFFFFF" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.fileActionBtn, styles.openActionBtn]}
+                      style={styles.actionBtnBlue}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       onPress={() => handleOpenFile(item)}
                       activeOpacity={0.8}
                     >
-                      <MaterialIcons name="open-in-new" size={18} color="#2563EB" />
+                      <MaterialIcons name="visibility" size={18} color="#2563EB" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.actionBtnOrange}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      onPress={() => handleDownload(item)}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialIcons name="file-download" size={18} color={Colors.primaryColor} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -335,98 +361,104 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E2E8F0',
   },
   memberScroll: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 8,
+    paddingHorizontal: ws(16),
+    paddingVertical: hs(10),
+    gap: ws(8),
   },
   memberChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(7),
+    borderRadius: fs(20),
     backgroundColor: '#F1F5F9',
-    marginRight: 6,
+    marginRight: ws(6),
   },
   memberChipSelected: {
     backgroundColor: Colors.primaryColor,
   },
   memberChipText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.medium,
     color: '#475569',
   },
   memberChipTextSelected: {
     color: '#FFFFFF',
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
   },
   searchWrapper: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 4,
+    paddingHorizontal: ws(16),
+    paddingTop: hs(12),
+    paddingBottom: hs(4),
   },
   listContent: {
     flexGrow: 1,
-    padding: 16,
-    paddingBottom: 40,
+    padding: ws(16),
+    paddingBottom: hs(40),
   },
   fileCard: {
-    marginBottom: 12,
-    borderRadius: 12,
+    marginBottom: hs(12),
+    borderRadius: fs(12),
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    padding: 14,
+    padding: ws(14),
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   folderIconBox: {
-    width: 46,
-    height: 46,
-    borderRadius: 10,
+    width: ws(46),
+    height: hs(46),
+    borderRadius: fs(10),
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: ws(12),
   },
   info: {
     flex: 1,
   },
   fileTitle: {
-    fontSize: 15,
-    fontFamily: Typography.fontFamily.bold,
-    fontWeight: '700',
+    fontSize: fs(15),
+    ...TYPOGRAPHY.bold,
     color: '#1E293B',
-    marginBottom: 3,
+    marginBottom: hs(3),
   },
   patientSubtext: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.regular,
     color: '#64748B',
-    marginBottom: 2,
+    marginBottom: hs(2),
   },
   dateSubtext: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.regular,
-    color: '#94A3B8',
+    fontSize: fs(13),
+    ...TYPOGRAPHY.regular,
+    color: '#64748B',
   },
   actionGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginLeft: 8,
+    gap: ws(8),
+    marginLeft: ws(8),
   },
-  fileActionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: Colors.primaryColor,
+  actionBtnBlue: {
+    width: ws(36),
+    height: ws(36),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  openActionBtn: {
+  actionBtnOrange: {
+    width: ws(36),
+    height: ws(36),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

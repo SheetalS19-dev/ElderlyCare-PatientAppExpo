@@ -16,7 +16,7 @@ import {
   useGetTimeSlotsQuery,
 } from '../../../redux/apis/bookingApi';
 import type { BookedTimeSlotModel, TimeSlotModel } from '../../../types';
-import { DateTimeUtils } from '../../../utils';
+import { DateTimeUtils, fs, hs, ws, TYPOGRAPHY } from '../../../utils';
 
 export interface DateTimeSheetProps {
   visible: boolean;
@@ -48,11 +48,11 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
 
-  // Generate 7 days starting from today
+  // Generate 30 days starting from today
   const calendarDays = useMemo(() => {
     const days = [];
     const now = new Date();
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 30; i++) {
       const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
       const yyyy = d.getFullYear();
       const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -76,15 +76,20 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
   const normalizeTimeStr = (t?: string): string => {
     if (!t) return '';
     const clean = String(t).trim();
-    const parts = clean.split(':');
+    const isPm = /pm/i.test(clean);
+    const isAm = /am/i.test(clean);
+
+    const parts = clean.replace(/[^0-9:]/g, '').split(':');
     if (parts.length >= 2) {
-      const h = parseInt(parts[0], 10);
+      let h = parseInt(parts[0], 10);
       const m = parseInt(parts[1], 10);
       if (!isNaN(h) && !isNaN(m)) {
+        if (isPm && h < 12) h += 12;
+        if (isAm && h === 12) h = 0;
         return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
       }
     }
-    return clean.slice(0, 5);
+    return clean.slice(0, 5).toLowerCase();
   };
 
   const [selectedTime, setSelectedTime] = useState<string>(initialTime || '');
@@ -120,13 +125,13 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
   }, [effectiveSlotType]);
 
   // Fetch available slots from backend
-  const { data: rawTimeSlots, isLoading: isLoadingSlots } = useGetTimeSlotsQuery(
+  const { data: rawTimeSlots, isLoading: isLoadingSlots, isFetching: isFetchingSlots } = useGetTimeSlotsQuery(
     { doctId: String(doctId), day: activeDayName, slotType: effectiveSlotType },
     { skip: !visible || !doctId || !activeDayName }
   );
 
   // Fetch booked slots for the active date
-  const { data: rawBookedSlots, isLoading: isLoadingBooked } = useGetBookedTimeSlotsQuery(
+  const { data: rawBookedSlots, isLoading: isLoadingBooked, isFetching: isFetchingBooked } = useGetBookedTimeSlotsQuery(
     { doctId: String(doctId), date: activeDate, type: appTypeName },
     { skip: !visible || !doctId || !activeDate }
   );
@@ -136,7 +141,24 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
     if (Array.isArray(rawTimeSlots)) list = rawTimeSlots;
     else if (Array.isArray((rawTimeSlots as any)?.data)) list = (rawTimeSlots as any).data;
     else if (Array.isArray((rawTimeSlots as any)?.response)) list = (rawTimeSlots as any).response;
-    return list;
+
+    const seen = new Set<string>();
+    const uniqueSlots: any[] = [];
+
+    for (const item of list) {
+      const start = item.time_start || item.timeStart || item.start_time || item.time || '';
+      const end = item.time_end || item.timeEnd || item.end_time || '';
+      const normStart = normalizeTimeStr(start);
+      const normEnd = normalizeTimeStr(end);
+      const key = normEnd ? `${normStart}-${normEnd}` : normStart;
+
+      if (normStart && !seen.has(key)) {
+        seen.add(key);
+        uniqueSlots.push(item);
+      }
+    }
+
+    return uniqueSlots;
   }, [rawTimeSlots]);
 
   const bookedSlots: BookedTimeSlotModel[] = useMemo(() => {
@@ -149,10 +171,13 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
 
   const isSlotBooked = (startSlot: string): boolean => {
     if (!startSlot) return false;
-    const cleanStart = startSlot.trim().toLowerCase();
+    const cleanStart = normalizeTimeStr(startSlot);
+    if (!cleanStart) return false;
+
     return bookedSlots.some((b) => {
-      const bSlot = (b.slot || (b as any).time_slots || '').trim().toLowerCase();
-      return bSlot === cleanStart || bSlot.includes(cleanStart);
+      const rawBSlot = b.slot || (b as any).time_slots || (b as any).time || (b as any).start_time || '';
+      const cleanB = normalizeTimeStr(String(rawBSlot));
+      return cleanB === cleanStart;
     });
   };
 
@@ -166,7 +191,8 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
 
     if (activeDate < todayStr) return true;
     if (activeDate === todayStr) {
-      const timeParts = startSlot.split(':');
+      const norm = normalizeTimeStr(startSlot);
+      const timeParts = norm.split(':');
       if (timeParts.length >= 2) {
         const slotHour = parseInt(timeParts[0], 10);
         const slotMin = parseInt(timeParts[1], 10);
@@ -195,7 +221,7 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
     onClose();
   };
 
-  const loading = isLoadingSlots || isLoadingBooked;
+  const loading = isLoadingSlots || isLoadingBooked || isFetchingSlots || isFetchingBooked;
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -212,7 +238,7 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
           </View>
 
           <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
-            {/* 7-Day Date Picker Strip */}
+            {/* 30-Day Date Picker Strip */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -294,21 +320,21 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
                     let cardBg = '#ECFDF5'; // Light Green (Available)
                     let cardBorder = '#A7F3D0';
                     let textColor = '#047857';
-                    let statusLabel = '';
 
                     if (isUnavailable) {
                       cardBg = '#FEF2F2'; // Light Red (Unavailable/Booked)
                       cardBorder = '#FCA5A5';
                       textColor = '#B91C1C';
-                      statusLabel = isBooked ? '' : '';
                     }
 
                     if (isSelected) {
                       cardBg = Colors.primaryColor; // Blue (Selected)
                       cardBorder = Colors.primaryColor;
                       textColor = '#FFFFFF';
-                      statusLabel = '';
                     }
+
+                    const displayStart = DateTimeUtils.formatTimeToAmPm(start) || start;
+                    const displayEnd = end ? (DateTimeUtils.formatTimeToAmPm(end) || end) : '';
 
                     return (
                       <TouchableOpacity
@@ -323,8 +349,7 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
                         activeOpacity={0.8}
                       >
                         <Text style={[styles.slotText, { color: textColor }]} numberOfLines={1}>
-                          {start} {end ? `- ${end}` : ''}
-                          {statusLabel ? <Text style={{ fontSize: 10 }}>{statusLabel}</Text> : null}
+                          {displayStart}{displayEnd ? ` - ${displayEnd}` : ''}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -358,59 +383,59 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
+    paddingHorizontal: ws(20),
+    paddingTop: hs(16),
+    paddingBottom: hs(12),
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: fs(20),
+    borderTopRightRadius: fs(20),
   },
   headerTitle: {
-    fontSize: 16,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
     color: '#1A202C',
   },
   scrollArea: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingHorizontal: ws(16),
+    paddingTop: hs(16),
   },
   calendarStrip: {
     flexDirection: 'row',
-    gap: 8,
-    paddingBottom: 4,
+    gap: ws(8),
+    paddingBottom: hs(4),
   },
   dateCard: {
-    width: 62,
-    height: 86,
-    borderRadius: 10,
+    width: ws(62),
+    height: hs(86),
+    borderRadius: fs(10),
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingVertical: 6,
+    paddingVertical: hs(6),
   },
   dateCardActive: {
     backgroundColor: Colors.primaryColor,
     borderColor: Colors.primaryColor,
   },
   dateMonthText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: '#718096',
   },
   dateDayNum: {
-    fontSize: 22,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(22),
+    ...TYPOGRAPHY.bold,
     color: '#1A202C',
-    lineHeight: 26,
-    marginVertical: 2,
+    lineHeight: hs(26),
+    marginVertical: hs(2),
   },
   dateDayName: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: '#718096',
   },
   dateTextActive: {
@@ -419,41 +444,41 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: '#E2E8F0',
-    marginVertical: 16,
+    marginVertical: hs(16),
   },
   slotsSection: {
-    marginBottom: 20,
+    marginBottom: hs(20),
   },
   sectionTitle: {
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: '#2D3748',
-    marginBottom: 12,
+    marginBottom: hs(12),
   },
   loadingBox: {
-    paddingVertical: 30,
+    paddingVertical: hs(30),
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: hs(8),
   },
   loadingText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.regular,
     color: '#718096',
   },
   emptyBox: {
-    padding: 20,
+    padding: ws(20),
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFF5F5',
-    borderRadius: 8,
+    borderRadius: fs(8),
     borderWidth: 1,
     borderColor: '#FED7D7',
   },
   emptyText: {
-    marginTop: 8,
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.medium,
+    marginTop: hs(8),
+    fontSize: fs(13),
+    ...TYPOGRAPHY.medium,
     color: '#E53E3E',
     textAlign: 'center',
   },
@@ -461,50 +486,50 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    gap: 16,
-    marginBottom: 14,
+    gap: ws(16),
+    marginBottom: hs(14),
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(8),
+    borderRadius: fs(8),
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: ws(6),
   },
   legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: ws(10),
+    height: hs(10),
+    borderRadius: fs(5),
   },
   legendText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: '#4A5568',
   },
   slotsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: ws(8),
   },
   slotCard: {
     width: '48.5%',
-    height: 44,
-    borderRadius: 10,
+    height: hs(44),
+    borderRadius: fs(10),
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: ws(6),
     borderWidth: 1.5,
   },
   slotCardDisabled: {
     opacity: 0.85,
   },
   slotText: {
-    fontSize: 11.5,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(11.5),
+    ...TYPOGRAPHY.bold,
     textAlign: 'center',
   },
 });

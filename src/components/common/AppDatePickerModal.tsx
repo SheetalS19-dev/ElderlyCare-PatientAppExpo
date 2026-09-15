@@ -1,3 +1,4 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { useMemo, useState } from 'react';
 import {
   Modal,
@@ -7,8 +8,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Colors, Typography } from '../../constants';
+import { Colors } from '../../constants';
+import { fs, hs, ws } from '../../utils/metrics';
+import { TYPOGRAPHY } from '../../utils/typography';
 
 export interface AppDatePickerModalProps {
   visible: boolean;
@@ -126,7 +128,7 @@ export const AppDatePickerModal: React.FC<AppDatePickerModalProps> = ({
           <View style={styles.header}>
             <Text style={styles.headerTitle}>{title}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <MaterialIcons name="close" size={22} color="#718096" />
+              <MaterialIcons name="close" size={fs(22)} color="#718096" />
             </TouchableOpacity>
           </View>
 
@@ -140,7 +142,7 @@ export const AppDatePickerModal: React.FC<AppDatePickerModalProps> = ({
               <Text style={styles.yearText}>{MONTH_NAMES[currentMonth]} {currentYear}</Text>
               <MaterialIcons
                 name={showYearSelector ? 'arrow-drop-up' : 'arrow-drop-down'}
-                size={22}
+                size={fs(22)}
                 color="#1A202C"
               />
             </TouchableOpacity>
@@ -148,10 +150,10 @@ export const AppDatePickerModal: React.FC<AppDatePickerModalProps> = ({
             {!showYearSelector && (
               <View style={styles.navArrowsRow}>
                 <TouchableOpacity style={styles.arrowBtn} onPress={handlePrevMonth}>
-                  <MaterialIcons name="chevron-left" size={24} color="#4A5568" />
+                  <MaterialIcons name="chevron-left" size={fs(24)} color="#4A5568" />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.arrowBtn} onPress={handleNextMonth}>
-                  <MaterialIcons name="chevron-right" size={24} color="#4A5568" />
+                  <MaterialIcons name="chevron-right" size={fs(24)} color="#4A5568" />
                 </TouchableOpacity>
               </View>
             )}
@@ -248,7 +250,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: ws(20),
   },
   backdrop: {
     position: 'absolute',
@@ -259,10 +261,10 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: ws(360),
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: fs(16),
+    padding: ws(16),
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -273,55 +275,56 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 10,
+    paddingBottom: hs(10),
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
   headerTitle: {
-    fontSize: 15,
-    fontFamily: Typography.fontFamily.bold,
+    flex: 1,
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(15),
     color: '#1A202C',
   },
   monthYearBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 10,
-    marginBottom: 8,
+    marginTop: hs(10),
+    marginBottom: hs(8),
   },
   yearDropdownBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
+    paddingVertical: hs(4),
+    paddingHorizontal: ws(8),
+    borderRadius: fs(6),
     backgroundColor: '#F7FAFC',
   },
   yearText: {
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(14),
     color: '#1A202C',
   },
   navArrowsRow: {
     flexDirection: 'row',
-    gap: 4,
+    gap: ws(4),
   },
   arrowBtn: {
-    padding: 4,
+    padding: ws(4),
   },
   calendarContainer: {
-    marginTop: 4,
+    marginTop: hs(4),
   },
   dayLabelsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 6,
+    marginBottom: hs(6),
   },
   dayLabelText: {
-    width: 36,
+    width: ws(36),
     textAlign: 'center',
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
+    ...TYPOGRAPHY.medium,
+    fontSize: fs(12),
     color: '#718096',
   },
   daysGrid: {
@@ -330,14 +333,14 @@ const styles = StyleSheet.create({
   },
   emptyDayCell: {
     width: `${100 / 7}%`,
-    height: 38,
+    height: hs(38),
   },
   dayCell: {
     width: `${100 / 7}%`,
-    height: 38,
+    height: hs(38),
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 19,
+    borderRadius: fs(19),
   },
   dayCellSelected: {
     backgroundColor: Colors.primaryColor,
@@ -346,34 +349,34 @@ const styles = StyleSheet.create({
     opacity: 0.25,
   },
   dayCellText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.medium,
+    ...TYPOGRAPHY.medium,
+    fontSize: fs(13),
     color: '#1A202C',
   },
   dayCellTextSelected: {
     color: '#FFFFFF',
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
   },
   dayCellTextDisabled: {
     color: '#A0AEC0',
   },
   yearScroll: {
-    height: 230,
-    marginVertical: 6,
+    height: hs(230),
+    marginVertical: hs(6),
   },
   yearGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: hs(4),
   },
   yearChip: {
     width: '30%',
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingVertical: hs(10),
+    borderRadius: fs(8),
     backgroundColor: '#F7FAFC',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: hs(8),
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
@@ -382,42 +385,47 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryColor,
   },
   yearChipText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.medium,
+    ...TYPOGRAPHY.medium,
+    fontSize: fs(13),
     color: '#2D3748',
   },
   yearChipTextActive: {
     color: '#FFFFFF',
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
   },
   footerRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
     alignItems: 'center',
-    gap: 12,
-    marginTop: 14,
-    paddingTop: 10,
+    gap: ws(12),
+    marginTop: hs(14),
+    paddingTop: hs(10),
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
   },
   cancelBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    flex: 1,
+    height: hs(44),
+    borderRadius: ws(10),
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cancelBtnText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.medium,
-    color: '#718096',
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(13),
+    color: '#64748B',
   },
   confirmBtn: {
+    flex: 1,
+    height: hs(44),
     backgroundColor: Colors.primaryColor,
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-    borderRadius: 8,
+    borderRadius: ws(10),
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   confirmBtnText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(13),
     color: '#FFFFFF',
   },
 });

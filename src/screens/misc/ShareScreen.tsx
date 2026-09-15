@@ -13,10 +13,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton, AppCard, AppHeader, LoadingIndicator } from '../../components';
-import { ApiEndpoints, AppConstants, Colors, Typography } from '../../constants';
+import { ApiEndpoints, AppConstants, Colors } from '../../constants';
 import type { RootStackParamList } from '../../navigation/types';
 import { apiClient } from '../../services/apiClient';
-import { showToast } from '../../utils';
+import { fs, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Share'>;
 
@@ -71,14 +71,14 @@ export const ShareScreen = ({ navigation }: Props) => {
             style={styles.scrollContainer}
             contentContainerStyle={[
               styles.scrollContent,
-              { paddingBottom: Math.max(insets.bottom + 80, 90) },
+              { paddingBottom: Math.max(insets.bottom + hs(80), hs(90)) },
             ]}
             showsVerticalScrollIndicator={false}
           >
             {/* Hero Banner Card */}
             <AppCard style={styles.heroCard}>
               <View style={styles.heroIconCircle}>
-                <MaterialIcons name="share" size={36} color={Colors.primaryColor} />
+                <MaterialIcons name="share" size={fs(36)} color={Colors.primaryColor} />
               </View>
               <Text style={styles.heroTitle}>Invite Family & Friends</Text>
               <Text style={styles.heroSubtitle}>
@@ -93,7 +93,7 @@ export const ShareScreen = ({ navigation }: Props) => {
             <AppCard style={styles.featureCard}>
               <View style={styles.featureRow}>
                 <View style={[styles.featureIconBox, { backgroundColor: '#EFF6FF' }]}>
-                  <MaterialIcons name="favorite" size={22} color="#2563EB" />
+                  <MaterialIcons name="favorite" size={fs(22)} color="#2563EB" />
                 </View>
                 <View style={styles.featureInfo}>
                   <Text style={styles.featureTitle}>Family Vitals Tracking</Text>
@@ -105,7 +105,7 @@ export const ShareScreen = ({ navigation }: Props) => {
             <AppCard style={styles.featureCard}>
               <View style={styles.featureRow}>
                 <View style={[styles.featureIconBox, { backgroundColor: '#ECFDF5' }]}>
-                  <MaterialIcons name="event-available" size={22} color="#10B981" />
+                  <MaterialIcons name="event-available" size={fs(22)} color="#10B981" />
                 </View>
                 <View style={styles.featureInfo}>
                   <Text style={styles.featureTitle}>Instant Appointments</Text>
@@ -117,7 +117,7 @@ export const ShareScreen = ({ navigation }: Props) => {
             <AppCard style={styles.featureCard}>
               <View style={styles.featureRow}>
                 <View style={[styles.featureIconBox, { backgroundColor: '#EFF6FF' }]}>
-                  <MaterialIcons name="description" size={22} color={Colors.primaryColor} />
+                  <MaterialIcons name="description" size={fs(22)} color={Colors.primaryColor} />
                 </View>
                 <View style={styles.featureInfo}>
                   <Text style={styles.featureTitle}>Digital Prescriptions & Vault</Text>
@@ -128,10 +128,10 @@ export const ShareScreen = ({ navigation }: Props) => {
           </ScrollView>
 
           {/* Sticky Bottom Bar */}
-          <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom + 12, 16) }]}>
+          <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom + hs(12), hs(16)) }]}>
             <AppButton
               title="Share Link Now"
-              height={50}
+              height={hs(50)}
               onPress={handleShare}
             />
           </View>
@@ -153,77 +153,79 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    padding: ws(16),
   },
   heroCard: {
     alignItems: 'center',
-    padding: 24,
-    borderRadius: 20,
-    marginBottom: 20,
+    padding: ws(24),
+    borderRadius: fs(20),
+    marginBottom: hs(20),
     backgroundColor: Colors.white,
   },
   heroIconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: ws(72),
+    height: ws(72),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: hs(16),
     borderWidth: 1.5,
     borderColor: '#DBEAFE',
   },
   heroTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(18),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: hs(8),
   },
   heroSubtitle: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: fs(22),
   },
   sectionTitle: {
-    fontSize: Typography.fontSize.base,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginBottom: 12,
+    marginBottom: hs(12),
   },
   featureCard: {
-    marginBottom: 10,
-    padding: 14,
-    borderRadius: 14,
+    marginBottom: hs(10),
+    padding: ws(14),
+    borderRadius: fs(14),
   },
   featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   featureIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: ws(44),
+    height: hs(44),
+    borderRadius: fs(22),
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: ws(14),
   },
   featureInfo: {
     flex: 1,
   },
   featureTitle: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   featureDesc: {
-    marginTop: 2,
-    fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.regular,
+    marginTop: hs(2),
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    lineHeight: 18,
+    lineHeight: fs(18),
   },
   bottomBar: {
     position: 'absolute',
@@ -231,8 +233,8 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: Colors.white,
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingHorizontal: ws(16),
+    paddingTop: hs(12),
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
     elevation: 8,

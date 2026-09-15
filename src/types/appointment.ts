@@ -2,6 +2,7 @@ export interface AppointmentModel {
   id?: number | string;
   user_id?: number | string;
   patient_id?: number | string;
+  family_member_id?: number | string;
   patient_f_name?: string;
   patient_l_name?: string;
   patient_phone?: string;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { Colors } from '../../constants';
+import { ws, hs, fs } from '../../utils/metrics';
 
 interface AppCardProps {
   children?: React.ReactNode;
@@ -23,9 +24,9 @@ export const AppCard: React.FC<AppCardProps> = ({ children, style, onPress, acti
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.white || '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginVertical: 6,
+    borderRadius: fs(12),
+    padding: ws(16),
+    marginVertical: hs(6),
     shadowColor: Colors.shadow || '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,

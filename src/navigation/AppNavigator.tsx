@@ -1,46 +1,46 @@
-import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import type { RootStackParamList } from './types';
-import { DrawerNavigator } from './DrawerNavigator';
-import { Colors, Typography } from '../constants';
+import { Colors } from '../constants';
 import {
-  LoginScreen,
-  DoctorListScreen,
-  DoctorDetailsScreen,
+  AboutUsScreen,
+  AppointmentDetailsScreen,
+  BlogDetailScreen,
+  BlogListScreen,
   BookAppointmentScreen,
   ClinicListScreen,
   ClinicScreen,
-  MyBookingsScreen,
-  AppointmentDetailsScreen,
-  WalletScreen,
-  EditProfileScreen,
-  NotificationScreen,
-  NotificationDetailsScreen,
-  VitalsScreen,
-  VitalDetailsScreen,
-  PrescriptionListScreen,
-  PatientFileScreen,
-  FamilyMemberListScreen,
-  TestimonialScreen,
   ContactUsScreen,
-  AboutUsScreen,
+  DoctorDetailsScreen,
+  DoctorListScreen,
+  EditProfileScreen,
+  FamilyMemberListScreen,
   FaqScreen,
-  PrivacyScreen,
-  TermCondScreen,
-  ShareScreen,
-  BlogListScreen,
-  BlogDetailScreen,
-  SearchScreen,
   FullScreenImageViewerScreen,
+  LoginScreen,
+  MyBookingsScreen,
+  NotificationDetailsScreen,
+  NotificationScreen,
+  PatientFileScreen,
+  PrescriptionListScreen,
+  PrivacyScreen,
+  SearchScreen,
+  ShareScreen,
+  TermCondScreen,
+  TestimonialScreen,
+  VitalDetailsScreen,
+  VitalsScreen,
+  WalletScreen,
 } from '../screens';
+import { TYPOGRAPHY } from '../utils/typography';
+import { DrawerNavigator } from './DrawerNavigator';
+import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const screenOptions = {
   headerStyle: { backgroundColor: Colors.appBarColor },
   headerTintColor: Colors.white,
-  headerTitleStyle: { fontFamily: Typography.fontFamily.medium },
+  headerTitleStyle: { ...TYPOGRAPHY.medium },
 };
 
 export const AppNavigator = () => {

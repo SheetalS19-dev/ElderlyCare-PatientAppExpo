@@ -12,8 +12,10 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Typography } from '../../constants';
+import { Colors } from '../../constants';
 import type { CityModel } from '../../types';
+import { fs, hs, ws } from '../../utils/metrics';
+import { TYPOGRAPHY } from '../../utils/typography';
 
 export interface CitySelectModalProps {
   visible: boolean;
@@ -82,7 +84,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
           onPress={onClose}
         />
 
-        <View style={[styles.modalSheetBox, { paddingBottom: Math.max(insets.bottom + 12, 24) }]}>
+        <View style={[styles.modalSheetBox, { paddingBottom: Math.max(insets.bottom + hs(12), hs(24)) }]}>
           {/* Sheet Handle */}
           <View style={styles.modalHandle} />
 
@@ -93,7 +95,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
               onPress={onClose}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <MaterialIcons name="close" size={22} color={Colors.primaryFontColor} />
+              <MaterialIcons name="close" size={fs(22)} color={Colors.primaryFontColor} />
             </TouchableOpacity>
           </View>
 
@@ -101,7 +103,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
           <View style={styles.searchContainer}>
             <MaterialIcons
               name="search"
-              size={20}
+              size={fs(20)}
               color={Colors.primaryColor}
               style={styles.searchIcon}
             />
@@ -115,7 +117,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <MaterialIcons name="cancel" size={18} color="#94A3B8" />
+                <MaterialIcons name="cancel" size={fs(18)} color="#94A3B8" />
               </TouchableOpacity>
             )}
           </View>
@@ -143,7 +145,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
                   >
                     <MaterialIcons
                       name="my-location"
-                      size={18}
+                      size={fs(18)}
                       color={isCurrentLocationSelected ? Colors.white : '#0284C7'}
                     />
                   </View>
@@ -162,7 +164,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
                   </View>
                 </View>
                 {isCurrentLocationSelected && (
-                  <MaterialIcons name="check-circle" size={20} color={Colors.primaryColor} />
+                  <MaterialIcons name="check-circle" size={fs(20)} color={Colors.primaryColor} />
                 )}
               </TouchableOpacity>
             )}
@@ -183,7 +185,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
                   >
                     <MaterialIcons
                       name="public"
-                      size={18}
+                      size={fs(18)}
                       color={isAllCitiesSelected ? Colors.white : Colors.primaryColor}
                     />
                   </View>
@@ -200,14 +202,14 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
                   </View>
                 </View>
                 {isAllCitiesSelected && (
-                  <MaterialIcons name="check-circle" size={20} color={Colors.primaryColor} />
+                  <MaterialIcons name="check-circle" size={fs(20)} color={Colors.primaryColor} />
                 )}
               </TouchableOpacity>
             )}
 
             {filteredCities.length === 0 ? (
               <View style={styles.emptyContainer}>
-                <MaterialIcons name="location-off" size={32} color={Colors.secondaryFontColor} />
+                <MaterialIcons name="location-off" size={fs(32)} color={Colors.secondaryFontColor} />
                 <Text style={styles.emptyText}>No cities found matching "{searchQuery}"</Text>
               </View>
             ) : (
@@ -235,7 +237,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
                       >
                         <MaterialIcons
                           name="location-city"
-                          size={18}
+                          size={fs(18)}
                           color={isSelected ? Colors.white : Colors.primaryColor}
                         />
                       </View>
@@ -254,7 +256,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
                       </View>
                     </View>
                     {isSelected && (
-                      <MaterialIcons name="check-circle" size={20} color={Colors.primaryColor} />
+                      <MaterialIcons name="check-circle" size={fs(20)} color={Colors.primaryColor} />
                     )}
                   </TouchableOpacity>
                 );
@@ -278,10 +280,10 @@ const styles = StyleSheet.create({
   },
   modalSheetBox: {
     backgroundColor: Colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 16,
-    paddingTop: 10,
+    borderTopLeftRadius: fs(24),
+    borderTopRightRadius: fs(24),
+    paddingHorizontal: ws(16),
+    paddingTop: hs(10),
     maxHeight: '80%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
@@ -290,57 +292,58 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   modalHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
+    width: ws(36),
+    height: hs(4),
+    borderRadius: fs(2),
     backgroundColor: '#CBD5E1',
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: hs(12),
   },
   modalSheetHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: hs(12),
   },
   modalSheetTitle: {
-    fontSize: Typography.fontSize.md,
-    fontFamily: Typography.fontFamily.bold,
+    flex: 1,
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(16),
     color: Colors.primaryFontColor,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 44,
+    borderRadius: fs(12),
+    paddingHorizontal: ws(12),
+    height: hs(44),
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    marginBottom: 14,
+    marginBottom: hs(14),
   },
   searchIcon: {
-    marginRight: 6,
+    marginRight: ws(6),
   },
   searchInput: {
     flex: 1,
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.regular,
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(14),
     color: Colors.primaryFontColor,
     paddingVertical: 0,
   },
   cityList: {
-    maxHeight: 340,
+    maxHeight: hs(340),
   },
   cityRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 8,
+    borderRadius: fs(12),
+    paddingVertical: hs(12),
+    paddingHorizontal: ws(14),
+    marginBottom: hs(8),
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
@@ -351,13 +354,13 @@ const styles = StyleSheet.create({
   cityRowLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: ws(10),
     flex: 1,
   },
   cityIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: ws(32),
+    height: ws(32),
+    borderRadius: ws(16),
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -366,29 +369,29 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primaryColor,
   },
   cityNameText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.medium,
+    ...TYPOGRAPHY.medium,
+    fontSize: fs(13),
     color: Colors.primaryFontColor,
   },
   cityNameTextSelected: {
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
   cityStateText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.regular,
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(11),
     color: Colors.secondaryFontColor,
-    marginTop: 1,
+    marginTop: hs(1),
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 24,
+    paddingVertical: hs(24),
   },
   emptyText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(12),
     color: Colors.secondaryFontColor,
-    marginTop: 8,
+    marginTop: hs(8),
   },
 });

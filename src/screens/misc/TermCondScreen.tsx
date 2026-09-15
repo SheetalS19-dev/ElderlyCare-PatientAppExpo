@@ -4,8 +4,9 @@ import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppCard, AppHeader } from '../../components';
-import { AppConstants, Colors, Typography } from '../../constants';
+import { AppConstants, Colors } from '../../constants';
 import type { RootStackParamList } from '../../navigation/types';
+import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TermCond'>;
 
@@ -19,7 +20,7 @@ export const TermCondScreen = ({ navigation }: Props) => {
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: Math.max(insets.bottom + 20, 40) },
+          { paddingBottom: Math.max(insets.bottom + hs(20), hs(40)) },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -27,7 +28,7 @@ export const TermCondScreen = ({ navigation }: Props) => {
         <AppCard style={styles.heroCard}>
           <View style={styles.heroRow}>
             <View style={styles.heroIconCircle}>
-              <MaterialIcons name="assignment" size={28} color={Colors.primaryColor} />
+              <MaterialIcons name="assignment" size={fs(28)} color={Colors.primaryColor} />
             </View>
             <View style={styles.heroTextWrapper}>
               <Text style={styles.heroTitle}>Terms of Service</Text>
@@ -42,7 +43,7 @@ export const TermCondScreen = ({ navigation }: Props) => {
         {/* Content Section 1 */}
         <AppCard style={styles.card}>
           <View style={styles.sectionHeaderRow}>
-            <MaterialIcons name="verified-user" size={20} color={Colors.primaryColor} />
+            <MaterialIcons name="verified-user" size={fs(20)} color={Colors.primaryColor} />
             <Text style={styles.heading}>1. Acceptance of Terms</Text>
           </View>
           <Text style={styles.paragraph}>
@@ -53,7 +54,7 @@ export const TermCondScreen = ({ navigation }: Props) => {
         {/* Content Section 2 */}
         <AppCard style={styles.card}>
           <View style={styles.sectionHeaderRow}>
-            <MaterialIcons name="medical-services" size={20} color={Colors.primaryColor} />
+            <MaterialIcons name="medical-services" size={fs(20)} color={Colors.primaryColor} />
             <Text style={styles.heading}>2. Healthcare & Medical Disclaimer</Text>
           </View>
           <Text style={styles.paragraph}>
@@ -64,7 +65,7 @@ export const TermCondScreen = ({ navigation }: Props) => {
         {/* Content Section 3 */}
         <AppCard style={styles.card}>
           <View style={styles.sectionHeaderRow}>
-            <MaterialIcons name="event-available" size={20} color={Colors.primaryColor} />
+            <MaterialIcons name="event-available" size={fs(20)} color={Colors.primaryColor} />
             <Text style={styles.heading}>3. Booking & Cancellation Rules</Text>
           </View>
           <Text style={styles.paragraph}>
@@ -75,7 +76,7 @@ export const TermCondScreen = ({ navigation }: Props) => {
         {/* Content Section 4 */}
         <AppCard style={styles.card}>
           <View style={styles.sectionHeaderRow}>
-            <MaterialIcons name="account-balance-wallet" size={20} color={Colors.primaryColor} />
+            <MaterialIcons name="account-balance-wallet" size={fs(20)} color={Colors.primaryColor} />
             <Text style={styles.heading}>4. Wallet & Payment Processing</Text>
           </View>
           <Text style={styles.paragraph}>
@@ -93,66 +94,68 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgColor,
   },
   scrollContent: {
-    padding: 16,
+    padding: ws(16),
   },
   heroCard: {
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 12,
+    padding: ws(16),
+    borderRadius: fs(16),
+    marginBottom: hs(12),
   },
   heroRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   heroIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: ws(48),
+    height: ws(48),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: ws(12),
   },
   heroTextWrapper: {
     flex: 1,
   },
   heroTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(18),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   heroSubtitle: {
-    marginTop: 2,
-    fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.medium,
+    marginTop: hs(2),
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
   },
   dateTag: {
-    marginTop: 12,
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    marginTop: hs(12),
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryColor,
   },
   card: {
-    marginBottom: 12,
-    padding: 16,
-    borderRadius: 16,
+    marginBottom: hs(12),
+    padding: ws(16),
+    borderRadius: fs(16),
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: ws(8),
+    marginBottom: hs(8),
   },
   heading: {
-    fontSize: Typography.fontSize.base,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   paragraph: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    lineHeight: 22,
+    lineHeight: fs(22),
   },
 });

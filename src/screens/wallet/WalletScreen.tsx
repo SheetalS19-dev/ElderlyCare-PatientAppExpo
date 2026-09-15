@@ -37,9 +37,8 @@ import {
   useAddWalletMoneyMutation,
   useGetWalletTransactionsQuery,
 } from '../../redux/apis/walletApi';
-import { startRazorpayPayment } from '../../services/razorpayService';
 import type { TxnModel } from '../../types';
-import { DateTimeUtils, showToast } from '../../utils';
+import { DateTimeUtils, fs, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
 
 type RootNavigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -185,7 +184,7 @@ export const WalletScreen = () => {
     await refetch();
   };
 
-  const handleProcess = async () => {
+  const handleProcess = () => {
     const numeric = Number(amount);
     if (!amount || isNaN(numeric) || numeric < MIN_AMOUNT || numeric > MAX_AMOUNT) {
       setAmountError(
@@ -196,68 +195,19 @@ export const WalletScreen = () => {
 
     setAmountError(undefined);
     setShowAddMoney(false);
-    setProcessing(true);
 
-    try {
-      let methodParam = 'Online';
-      if (selectedMethod === 'Net Banking') methodParam = 'NetBanking';
-      else if (selectedMethod === 'Card') methodParam = 'Card';
-      else if (selectedMethod === 'Wallet') methodParam = 'Wallet';
-      else if (selectedMethod === 'UPI / GPay / PhonePe') methodParam = 'UPI';
+    let methodParam = 'Online';
+    if (selectedMethod === 'Net Banking') methodParam = 'NetBanking';
+    else if (selectedMethod === 'Card') methodParam = 'Card';
+    else if (selectedMethod === 'Wallet') methodParam = 'Wallet';
+    else if (selectedMethod === 'UPI / GPay / PhonePe') methodParam = 'UPI';
 
-      // 1. Open Razorpay checkout FIRST — amount passed in rupees,
-      //    razorpayService converts to paise internally.
-      const paymentResult: any = await startRazorpayPayment({
-        amount: numeric,
-        name: 'ElderlyCare',
-        description: `Wallet top-up via ${selectedMethod}`,
-        prefill: {
-          email: (user as any)?.email || '',
-          contact: (user as any)?.phone || (user as any)?.mobile || '',
-          name:
-            `${(user as any)?.first_name ?? ''} ${(user as any)?.last_name ?? ''}`.trim() ||
-            'Patient',
-        },
-      });
-
-      const paymentTxnId = paymentResult?.razorpay_payment_id;
-      if (!paymentTxnId) {
-        throw new Error('Payment did not return a transaction id');
-      }
-
-      // 2. Only credit the wallet AFTER Razorpay confirms success,
-      //    using the REAL payment id (not a locally-generated one).
-      const addMoneyPayload = {
-        user_id: uid,
-        amount: String(numeric),
-        payment_transaction_id: paymentTxnId,
-        payment_method: methodParam,
-        transaction_type: 'Credited',
-        description: `Amount credited via ${selectedMethod}`,
-      };
-
-      await addWalletMoney(addMoneyPayload).unwrap();
-      showToast('Amount credited to wallet successfully!');
-
-      const profileRes = await refetchProfile();
-      if (profileRes?.data) {
-        const freshData = (profileRes.data as any)?.data ?? profileRes.data;
-        await updateUser({ ...(user || {}), ...freshData });
-      }
-      refetch();
-    } catch (e: any) {
-      // Razorpay cancel/dismiss surfaces as an error (code 0 / "Payment Cancelled")
-      const isCancelled =
-        e?.code === 0 || /cancel/i.test(e?.description || e?.message || '');
-      if (!isCancelled) {
-        showToast(
-          e?.data?.message || e?.description || e?.message || e?.error || 'Payment failed. Please try again.'
-        );
-      }
-    } finally {
-      setProcessing(false);
-      setAmount('');
-    }
+    setPendingPaymentInfo({
+      numericAmount: numeric,
+      description: `Wallet top-up via ${selectedMethod}`,
+      methodParam,
+    });
+    setShowRazorpayWebModal(true);
   };
 
   const handleRazorpaySuccess = async (paymentTxnId: string) => {
@@ -557,6 +507,10 @@ export const WalletScreen = () => {
           setPendingPaymentInfo(null);
           showToast(errorMsg || 'Payment failed');
         }}
+        // NOTE: RazorpayWebModal currently has FORCE_TEST_MODE = true, so it
+        // ignores this prop and always uses its own TEST_KEY_ID constant.
+        // Once you've confirmed the gateway-provided key works reliably,
+        // flip FORCE_TEST_MODE to false in RazorpayWebModal.tsx to go live.
         keyId={
           (gateway as any)?.razorpay_key ||
           (gateway as any)?.key_id ||
@@ -738,21 +692,21 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgColor,
   },
   listContent: {
-    padding: 16,
+    padding: ws(16),
   },
   filterTabsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
+    gap: ws(8),
+    marginBottom: hs(10),
   },
   filterTabPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
+    gap: ws(6),
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(7),
+    borderRadius: fs(20),
     backgroundColor: '#F1F5F9',
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -762,8 +716,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryColor,
   },
   filterTabText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.bold,
     color: Colors.secondaryFontColor,
   },
   filterTabTextActive: {
@@ -773,65 +727,67 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: 12,
+    borderRadius: fs(12),
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingHorizontal: 12,
-    height: 44,
-    marginBottom: 14,
+    paddingHorizontal: ws(12),
+    height: hs(44),
+    marginBottom: hs(14),
     shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: hs(1) },
     shadowOpacity: 0.02,
-    shadowRadius: 3,
+    shadowRadius: fs(3),
     elevation: 1,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: ws(8),
   },
   searchInput: {
     flex: 1,
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
     paddingVertical: 0,
   },
   balanceCard: {
-    borderRadius: 20,
+    borderRadius: fs(20),
     backgroundColor: Colors.primaryColor,
-    padding: 20,
-    marginBottom: 20,
+    padding: ws(20),
+    marginBottom: hs(20),
     overflow: 'hidden',
     shadowColor: Colors.primaryColor,
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: hs(6) },
     shadowOpacity: 0.25,
-    shadowRadius: 10,
+    shadowRadius: fs(10),
     elevation: 6,
   },
   balanceCardBgImage: {
-    borderRadius: 20,
+    borderRadius: fs(20),
     opacity: 0.95,
   },
   balanceHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: hs(16),
   },
   balanceLabel: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: 'rgba(255, 255, 255, 0.85)',
   },
   balanceValue: {
-    marginTop: 4,
-    fontSize: 28,
-    fontFamily: Typography.fontFamily.bold,
+    marginTop: hs(4),
+    fontSize: fs(28),
+    ...TYPOGRAPHY.bold,
     color: Colors.white,
   },
   walletIconCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: ws(54),
+    height: ws(54),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -841,67 +797,65 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.white,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    gap: 6,
+    paddingVertical: hs(10),
+    paddingHorizontal: ws(16),
+    borderRadius: fs(12),
+    gap: ws(6),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.08,
-    shadowRadius: 4,
+    shadowRadius: fs(4),
     elevation: 2,
   },
   addMoneyBtnText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
   sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    marginTop: 4,
+    marginBottom: hs(12),
+    marginTop: hs(4),
   },
   sectionTitle: {
-    fontSize: Typography.fontSize.md,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(Typography.fontSize.md),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
-  /* Web Wallet Summary Stats Row */
-
   summaryStatsGrid: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
+    gap: ws(12),
+    marginBottom: hs(12),
   },
   statSummaryCard: {
     flex: 1,
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: fs(16),
+    padding: ws(14),
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.03,
-    shadowRadius: 4,
+    shadowRadius: fs(4),
     elevation: 1,
   },
   statSummaryLabel: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
-    marginBottom: 4,
+    marginBottom: hs(4),
   },
   statSummaryValue: {
-    fontSize: 18,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(18),
+    ...TYPOGRAPHY.bold,
   },
   totalTxnBanner: {
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 16,
+    borderRadius: fs(16),
+    padding: ws(14),
+    marginBottom: hs(16),
     borderWidth: 1,
     borderColor: '#E2E8F0',
     flexDirection: 'row',
@@ -909,169 +863,166 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   totalTxnBannerLabel: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
   },
   totalTxnBannerValue: {
-    fontSize: 16,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   txnCard: {
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 10,
+    borderRadius: fs(16),
+    padding: ws(14),
+    marginBottom: hs(10),
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.03,
-    shadowRadius: 4,
+    shadowRadius: fs(4),
     elevation: 1,
   },
   txnTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: hs(6),
   },
   txnLeftGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: ws(8),
   },
   statusBadgePill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: ws(8),
+    paddingVertical: hs(3),
+    borderRadius: fs(6),
     borderWidth: 1,
   },
   statusBadgePillText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.bold,
   },
   txnAmountText: {
-    fontSize: 16,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
   },
   paymentModeBadge: {
     backgroundColor: '#F1F5F9',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: ws(8),
+    paddingVertical: hs(3),
+    borderRadius: fs(6),
     borderWidth: 1,
     borderColor: '#CBD5E1',
   },
   paymentModeBadgeText: {
-    fontSize: 10,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(10),
+    ...TYPOGRAPHY.bold,
     color: Colors.secondaryFontColor,
   },
   txnMetaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginVertical: 6,
+    marginVertical: hs(6),
   },
   txnIdColumn: {
     flex: 1,
-    paddingRight: 8,
+    paddingRight: ws(8),
   },
   txnIdLabel: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   txnIdValue: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
   },
   payIdLabel: {
-    fontSize: 10,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(10),
+    ...TYPOGRAPHY.bold,
     color: Colors.secondaryFontColor,
-    marginTop: 2,
+    marginTop: hs(2),
   },
   payIdValue: {
-    fontSize: 10,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(10),
+    ...TYPOGRAPHY.regular,
     color: '#475569',
   },
   txnDateText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
   },
   txnBottomRow: {
-    marginTop: 6,
-    paddingTop: 6,
+    marginTop: hs(6),
+    paddingTop: hs(6),
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
   txnRightGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: ws(4),
   },
   expandedDetailsBox: {
-    marginTop: 8,
-    paddingTop: 8,
+    marginTop: hs(8),
+    paddingTop: hs(8),
   },
   expandedDivider: {
     height: 1,
     backgroundColor: '#F1F5F9',
-    marginBottom: 8,
+    marginBottom: hs(8),
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 6,
+    marginBottom: hs(6),
   },
   detailLabel: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
-    width: 110,
+    width: ws(110),
   },
   detailValue: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
     flex: 1,
     textAlign: 'right',
   },
   notesText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
   },
-
-
-
   txnBottomLine: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: hs(4),
   },
   txnDate: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
   },
   methodBadge: {
     backgroundColor: '#F1F5F9',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingHorizontal: ws(6),
+    paddingVertical: hs(2),
+    borderRadius: fs(6),
   },
   methodBadgeText: {
-    fontSize: 9,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(9),
+    ...TYPOGRAPHY.bold,
     color: Colors.secondaryFontColor,
   },
 
@@ -1086,99 +1037,101 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: Colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 10,
+    borderTopLeftRadius: fs(24),
+    borderTopRightRadius: fs(24),
+    paddingHorizontal: ws(20),
+    paddingTop: hs(10),
     maxHeight: '90%',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
+    shadowOffset: { width: 0, height: hs(-4) },
     shadowOpacity: 0.12,
-    shadowRadius: 10,
+    shadowRadius: fs(10),
     elevation: 12,
   },
   sheetHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
+    width: ws(36),
+    height: hs(4),
+    borderRadius: fs(2),
     backgroundColor: '#CBD5E1',
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: hs(12),
   },
   sheetHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
+    marginBottom: hs(16),
+    paddingBottom: hs(12),
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   sheetHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: ws(10),
   },
   sheetIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: ws(40),
+    height: ws(40),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
   sheetTitle: {
-    fontSize: 16,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   balancePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
+    marginTop: hs(2),
   },
   balancePillLabel: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
   },
   balancePillValue: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
   closeHeaderBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: ws(30),
+    height: hs(30),
+    borderRadius: fs(15),
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
   },
   inputSectionLabel: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginTop: 8,
-    marginBottom: 10,
+    marginTop: hs(8),
+    marginBottom: hs(10),
   },
   methodGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 14,
+    gap: ws(10),
+    marginBottom: hs(14),
   },
   methodCard: {
     width: '48%',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingHorizontal: ws(10),
+    paddingVertical: hs(10),
+    borderRadius: fs(12),
     backgroundColor: '#F8FAFC',
     borderWidth: 1.5,
     borderColor: '#E2E8F0',
-    gap: 8,
+    gap: ws(8),
     position: 'relative',
   },
   methodCardActive: {
@@ -1186,9 +1139,9 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryColor,
   },
   methodIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: ws(32),
+    height: hs(32),
+    borderRadius: fs(8),
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1197,48 +1150,47 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primaryColor,
   },
   methodCardText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
     flex: 1,
   },
   methodCardTextActive: {
     color: Colors.primaryColor,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
   },
   selectedCheckBadge: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: ws(18),
+    height: hs(18),
+    borderRadius: fs(9),
     backgroundColor: Colors.primaryColor,
     justifyContent: 'center',
     alignItems: 'center',
   },
   hintText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    marginTop: -8,
-    marginBottom: 14,
+    marginTop: hs(-8),
+    marginBottom: hs(14),
   },
   quickAmountLabel: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginTop: 4,
-    marginBottom: 8,
+    marginTop: hs(4),
+    marginBottom: hs(8),
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 20,
+    gap: ws(8),
+    marginBottom: hs(20),
   },
   chip: {
-    flexGrow: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(10),
+    borderRadius: fs(10),
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -1250,26 +1202,26 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryColor,
   },
   chipText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
   },
   chipTextActive: {
     color: Colors.primaryColor,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
   },
   sheetActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginTop: 12,
-    marginBottom: 8,
+    gap: ws(12),
+    marginTop: hs(12),
+    marginBottom: hs(8),
     width: '100%',
   },
   closeBtn: {
     flex: 1,
-    height: 48,
-    borderRadius: 12,
+    height: hs(48),
+    borderRadius: fs(12),
     borderWidth: 1.5,
     borderColor: '#CBD5E1',
     backgroundColor: Colors.white,
@@ -1277,32 +1229,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   closeBtnText: {
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
     textAlign: 'center',
   },
   confirmAddBtn: {
     flex: 1.5,
-    height: 48,
+    height: hs(48),
     flexDirection: 'row',
-    borderRadius: 12,
+    borderRadius: fs(12),
     backgroundColor: Colors.primaryColor,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
+    gap: ws(6),
     shadowColor: Colors.primaryColor,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowRadius: fs(4),
     elevation: 3,
   },
   confirmAddBtnDisabled: {
     opacity: 0.7,
   },
   confirmAddBtnText: {
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: Colors.white,
     textAlign: 'center',
   },
@@ -1310,12 +1262,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    gap: 8,
+    paddingVertical: hs(14),
+    gap: ws(8),
   },
   footerLoaderText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
   },
 });

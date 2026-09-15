@@ -18,7 +18,7 @@ import {
   SearchBox,
   AppHeader,
 } from '../../components';
-import { Colors, Typography } from '../../constants';
+import { Colors } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import { useDebounce } from '../../hooks';
 import type { RootStackParamList } from '../../navigation/types';
@@ -27,6 +27,7 @@ import {
   useGetDoctorsQuery,
 } from '../../redux/apis/doctorApi';
 import type { DepartmentModel, DoctorModel } from '../../types';
+import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DoctorList'>;
 
@@ -246,7 +247,7 @@ export const DoctorListScreen = ({ navigation, route }: Props) => {
           keyExtractor={(item: DoctorModel, index: number) =>
             `doc-${item.user_id ?? item.id ?? index}`
           }
-          contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + 20, 32) }]}
+          contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + hs(20), hs(32)) }]}
           refreshing={isFetching}
           onRefresh={refetch}
           showsVerticalScrollIndicator={false}
@@ -291,65 +292,65 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgColor,
   },
   searchWrapper: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 6,
+    paddingHorizontal: ws(16),
+    paddingTop: hs(12),
+    paddingBottom: hs(6),
   },
   deptScrollWrapper: {
-    paddingVertical: 6,
+    paddingVertical: hs(6),
   },
   deptChipsContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: ws(16),
   },
   deptChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(7),
+    borderRadius: fs(20),
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    marginRight: 8,
+    marginRight: ws(8),
   },
   deptChipActive: {
     backgroundColor: Colors.primaryColor,
     borderColor: Colors.primaryColor,
   },
   deptChipText: {
-    fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
   },
   deptChipTextActive: {
     color: Colors.white,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
   },
   filterBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: ws(16),
+    paddingVertical: hs(8),
     backgroundColor: '#EFF6FF',
     borderBottomWidth: 1,
     borderBottomColor: '#DBEAFE',
   },
   filterText: {
     flex: 1,
-    fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
   },
   filterHighlight: {
     color: Colors.primaryColor,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
   },
   clearDeptBtn: {
-    marginLeft: 8,
+    marginLeft: ws(8),
   },
   listContent: {
     flexGrow: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    paddingBottom: 32,
+    paddingHorizontal: ws(16),
+    paddingVertical: hs(8),
+    paddingBottom: hs(32),
   },
 });

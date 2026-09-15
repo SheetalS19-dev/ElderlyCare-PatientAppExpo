@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Colors } from '../../constants';
+import { ws, fs } from '../../utils/metrics';
 
 interface StarRatingProps {
   rating: number;
@@ -20,7 +21,7 @@ export const StarRating: React.FC<StarRatingProps> = ({
   readOnly = true,
   onRatingChange,
 }) => {
-  const iconSize = starSize ?? size;
+  const iconSize = fs(starSize ?? size);
   const stars = [];
   for (let i = 1; i <= maxStars; i++) {
     let name = 'star-outline';
@@ -30,7 +31,7 @@ export const StarRating: React.FC<StarRatingProps> = ({
       name = 'star-half';
     }
     stars.push(
-      <MaterialIcons key={i} name={name as any} size={iconSize} color="#FFC107" style={{ marginRight: 2 }} />
+      <MaterialIcons key={i} name={name as any} size={iconSize} color="#FFC107" style={{ marginRight: ws(2) }} />
     );
   }
   return <View style={styles.container}>{stars}</View>;

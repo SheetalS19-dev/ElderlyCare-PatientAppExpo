@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppHeader, ErrorState, LoadingIndicator } from '../../components';
-import { Colors, Typography } from '../../constants';
+import { Colors } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
 import {
@@ -27,7 +27,7 @@ import {
   useGetBlogDetailQuery,
   useSaveBlogCommentMutation,
 } from '../../redux/apis/blogApi';
-import { DateTimeUtils, getImageUrl, showToast } from '../../utils';
+import { DateTimeUtils, fs, getImageUrl, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BlogDetail'>;
 
@@ -214,7 +214,7 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
           style={styles.flexOne}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: Math.max(insets.bottom + 24, 32) },
+            { paddingBottom: Math.max(insets.bottom + hs(24), hs(32)) },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -249,7 +249,7 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
           <View style={styles.metaRow}>
             <View style={styles.authorGroup}>
               <View style={styles.authorAvatar}>
-                <MaterialIcons name="person" size={16} color={Colors.primaryColor} />
+                <MaterialIcons name="person" size={fs(16)} color={Colors.primaryColor} />
               </View>
               <View>
                 <Text style={styles.authorName}>{blog.author_name || 'Medical Specialist'}</Text>
@@ -258,7 +258,7 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
             </View>
 
             <TouchableOpacity onPress={handleShare} style={styles.shareBtn} activeOpacity={0.7}>
-              <Ionicons name="share-social-outline" size={20} color={Colors.primaryColor} />
+              <Ionicons name="share-social-outline" size={fs(20)} color={Colors.primaryColor} />
               <Text style={styles.shareBtnText}>Share</Text>
             </TouchableOpacity>
           </View>
@@ -282,7 +282,7 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
           {/* Care Helpline Callout Box */}
           <View style={styles.careCallout}>
             <View style={styles.careCalloutHeader}>
-              <MaterialIcons name="health-and-safety" size={24} color={Colors.primaryColor} />
+              <MaterialIcons name="health-and-safety" size={fs(24)} color={Colors.primaryColor} />
               <Text style={styles.careCalloutTitle}>Need Personal Medical Advice?</Text>
             </View>
             <Text style={styles.careCalloutBody}>
@@ -297,7 +297,7 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
             </Text>
 
             {isLoadingComments ? (
-              <ActivityIndicator size="small" color={Colors.primaryColor} style={{ marginVertical: 12 }} />
+              <ActivityIndicator size="small" color={Colors.primaryColor} style={{ marginVertical: hs(12) }} />
             ) : allComments.length === 0 ? (
               <Text style={styles.noCommentsText}>
                 No comments yet. Be the first to share your thoughts!
@@ -389,7 +389,7 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
               ) : (
                 <View style={styles.btnRow}>
                   <Text style={styles.postCommentBtnText}>Post a comment</Text>
-                  <MaterialIcons name="arrow-forward" size={16} color="#FFFFFF" />
+                  <MaterialIcons name="arrow-forward" size={fs(16)} color="#FFFFFF" />
                 </View>
               )}
             </TouchableOpacity>
@@ -409,15 +409,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 24,
+    padding: ws(16),
+    paddingBottom: hs(24),
   },
   bannerContainer: {
     width: '100%',
-    height: 220,
-    borderRadius: 18,
+    height: hs(220),
+    borderRadius: fs(18),
     overflow: 'hidden',
-    marginBottom: 16,
+    marginBottom: hs(16),
     position: 'relative',
     backgroundColor: '#F1F5F9',
   },
@@ -427,109 +427,109 @@ const styles = StyleSheet.create({
   },
   categoryPill: {
     position: 'absolute',
-    bottom: 12,
-    left: 12,
+    bottom: hs(12),
+    left: ws(12),
     backgroundColor: Colors.primaryColor,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 8,
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(5),
+    borderRadius: fs(8),
   },
   categoryPillText: {
     color: Colors.white,
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
   },
   inlineCategoryPill: {
     alignSelf: 'flex-start',
     backgroundColor: '#EFF6FF',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginBottom: 10,
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(4),
+    borderRadius: fs(8),
+    marginBottom: hs(10),
   },
   inlineCategoryPillText: {
     color: Colors.primaryColor,
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
   },
   title: {
-    fontSize: 20,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(20),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    lineHeight: 28,
-    marginBottom: 12,
+    lineHeight: fs(28),
+    marginBottom: hs(12),
   },
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingBottom: 14,
+    paddingBottom: hs(14),
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
-    marginBottom: 14,
+    marginBottom: hs(14),
   },
   authorGroup: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   authorAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: ws(38),
+    height: hs(38),
+    borderRadius: fs(19),
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: ws(10),
   },
   authorName: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   dateText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    marginTop: 2,
+    marginTop: hs(2),
   },
   shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#EFF6FF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    gap: 4,
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(6),
+    borderRadius: fs(10),
+    gap: ws(4),
   },
   shareBtnText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 16,
+    gap: ws(6),
+    marginBottom: hs(16),
   },
   tagPill: {
     backgroundColor: '#F8FAFC',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: ws(10),
+    paddingVertical: hs(4),
+    borderRadius: fs(8),
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   tagText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
   },
   bodyCard: {
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 16,
+    borderRadius: fs(16),
+    padding: ws(18),
+    marginBottom: hs(16),
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: Colors.shadow,
@@ -539,157 +539,158 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   bodyText: {
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.regular,
     color: '#334155',
-    lineHeight: 24,
+    lineHeight: fs(24),
   },
   careCallout: {
     backgroundColor: '#EFF6FF',
-    borderRadius: 16,
-    padding: 16,
-    borderLeftWidth: 4,
+    borderRadius: fs(16),
+    padding: ws(16),
+    borderLeftWidth: ws(4),
     borderLeftColor: Colors.primaryColor,
-    marginBottom: 20,
+    marginBottom: hs(20),
   },
   careCalloutHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
+    gap: ws(8),
+    marginBottom: hs(6),
   },
   careCalloutTitle: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   careCalloutBody: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    lineHeight: 18,
+    lineHeight: fs(18),
   },
   commentsSection: {
-    marginTop: 8,
-    marginBottom: 16,
+    marginTop: hs(8),
+    marginBottom: hs(16),
   },
   commentsHeaderTitle: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginBottom: 12,
+    marginBottom: hs(12),
   },
   commentItem: {
     backgroundColor: Colors.white,
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 10,
+    borderRadius: fs(14),
+    padding: ws(12),
+    marginBottom: hs(10),
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   commentHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: hs(6),
   },
   commentUserAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: ws(28),
+    height: hs(28),
+    borderRadius: fs(14),
     backgroundColor: Colors.primaryColor,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
+    marginRight: ws(8),
   },
   commentUserInitial: {
     color: Colors.white,
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
   },
   commentUserMeta: {
     flex: 1,
   },
   commentAuthor: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   commentDate: {
-    fontSize: 10,
+    fontSize: fs(10),
     color: Colors.secondaryFontColor,
+    ...TYPOGRAPHY.regular,
   },
   commentBody: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: '#334155',
-    lineHeight: 18,
+    lineHeight: fs(18),
   },
   noCommentsText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
     fontStyle: 'italic',
-    paddingVertical: 8,
+    paddingVertical: hs(8),
   },
   leaveCommentCard: {
     backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: fs(16),
+    padding: ws(16),
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    marginBottom: 24,
+    marginBottom: hs(24),
   },
   leaveCommentTitle: {
-    fontSize: 16,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginBottom: 4,
+    marginBottom: hs(4),
   },
   leaveCommentSubtitle: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    marginBottom: 16,
+    marginBottom: hs(16),
   },
   inputRow: {
     flexDirection: 'column',
-    gap: 4,
+    gap: hs(4),
   },
   inputFieldContainer: {
-    marginBottom: 12,
+    marginBottom: hs(12),
   },
   fieldLabel: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
-    marginBottom: 6,
+    marginBottom: hs(6),
   },
   formInput: {
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
-    minHeight: 46,
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.regular,
+    borderRadius: fs(10),
+    paddingHorizontal: ws(14),
+    paddingVertical: Platform.OS === 'ios' ? hs(10) : hs(8),
+    minHeight: hs(46),
+    fontSize: fs(14),
+    ...TYPOGRAPHY.regular,
     color: Colors.primaryFontColor,
     textAlignVertical: 'center',
   },
   commentTextArea: {
-    minHeight: 90,
-    paddingVertical: 10,
+    minHeight: hs(90),
+    paddingVertical: hs(10),
     textAlignVertical: 'top',
   },
   postCommentBtn: {
     width: '100%',
     backgroundColor: Colors.primaryColor,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: hs(14),
+    borderRadius: fs(12),
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: hs(6),
   },
   postCommentBtnDisabled: {
     backgroundColor: '#9CA3AF',
@@ -698,11 +699,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: ws(8),
   },
   postCommentBtnText: {
     color: Colors.white,
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
   },
 });

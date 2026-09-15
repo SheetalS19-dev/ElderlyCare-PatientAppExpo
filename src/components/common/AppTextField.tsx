@@ -1,6 +1,8 @@
 import React from 'react';
-import { View, Text, TextInput, StyleSheet, TextInputProps, ViewStyle } from 'react-native';
-import { Colors, Typography } from '../../constants';
+import { StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
+import { Colors } from '../../constants';
+import { fs, hs, ws } from '../../utils/metrics';
+import { TYPOGRAPHY } from '../../utils/typography';
 
 interface AppTextFieldProps extends TextInputProps {
   label?: string;
@@ -24,30 +26,33 @@ export const AppTextField: React.FC<AppTextFieldProps> = ({ label, error, contai
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 8,
+    marginVertical: hs(8),
   },
   label: {
-    fontSize: Typography?.fontSize?.sm || 12,
-    fontFamily: Typography?.fontFamily?.medium,
+    ...TYPOGRAPHY.medium,
+    fontSize: fs(12),
     color: Colors.primaryFontColor || '#000000',
-    marginBottom: 6,
+    marginBottom: hs(6),
   },
   input: {
     backgroundColor: Colors.inputTextBgColor || '#F7F8FA',
-    borderRadius: 8,
+    borderRadius: fs(8),
     borderWidth: 1,
     borderColor: Colors.border || '#E0E0E0',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: Typography?.fontSize?.base || 14,
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(10),
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(14),
     color: Colors.primaryFontColor || '#000000',
   },
   inputError: {
     borderColor: Colors.redColor || '#EE404C',
   },
   errorText: {
-    fontSize: Typography?.fontSize?.xs || 10,
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(10),
     color: Colors.redColor || '#EE404C',
-    marginTop: 4,
+    marginTop: hs(4),
   },
 });
+

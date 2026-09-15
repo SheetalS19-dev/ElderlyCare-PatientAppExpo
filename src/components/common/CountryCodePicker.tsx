@@ -2,7 +2,9 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { useMemo, useState } from 'react';
 import {
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -10,7 +12,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors, Typography } from '../../constants';
+import { Colors } from '../../constants';
+import { fs, hs, ws } from '../../utils/metrics';
+import { TYPOGRAPHY } from '../../utils/typography';
 
 export interface CountryCodeItem {
   name: string;
@@ -99,19 +103,22 @@ export const CountryCodePicker: React.FC<CountryCodePickerProps> = ({
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
         <SafeAreaView style={styles.sheetContainer}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Select Country</Text>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <MaterialIcons name="close" size={24} color="#4A5568" />
+              <MaterialIcons name="close" size={fs(24)} color="#4A5568" />
             </TouchableOpacity>
           </View>
 
           {/* Search Box */}
           <View style={styles.searchBox}>
-            <MaterialIcons name="search" size={20} color="#718096" style={styles.searchIcon} />
+            <MaterialIcons name="search" size={fs(20)} color="#718096" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search country or code"
@@ -122,7 +129,7 @@ export const CountryCodePicker: React.FC<CountryCodePickerProps> = ({
             />
             {search.length > 0 && (
               <TouchableOpacity onPress={() => setSearch('')}>
-                <MaterialIcons name="cancel" size={18} color="#A0AEC0" />
+                <MaterialIcons name="cancel" size={fs(18)} color="#A0AEC0" />
               </TouchableOpacity>
             )}
           </View>
@@ -153,14 +160,14 @@ export const CountryCodePicker: React.FC<CountryCodePickerProps> = ({
                     {item.dialCode}
                   </Text>
                   {isSelected && (
-                    <MaterialIcons name="check" size={20} color={Colors.primaryColor} style={styles.checkIcon} />
+                    <MaterialIcons name="check" size={fs(20)} color={Colors.primaryColor} style={styles.checkIcon} />
                   )}
                 </TouchableOpacity>
               );
             }}
           />
         </SafeAreaView>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -180,61 +187,64 @@ const styles = StyleSheet.create({
   },
   sheetContainer: {
     backgroundColor: Colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-    paddingBottom: 20,
+    borderTopLeftRadius: fs(20),
+    borderTopRightRadius: fs(20),
+    maxHeight: '85%',
+    flexShrink: 1,
+    paddingBottom: hs(20),
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 14,
+    paddingHorizontal: ws(20),
+    paddingTop: hs(18),
+    paddingBottom: hs(14),
     borderBottomWidth: 1,
     borderBottomColor: '#EDF2F7',
   },
   headerTitle: {
-    fontSize: 18,
-    fontFamily: Typography.fontFamily.bold,
+    flex: 1,
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(18),
     color: '#1A202C',
   },
   closeBtn: {
-    padding: 4,
+    padding: ws(4),
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F7FAFC',
-    borderRadius: 10,
+    borderRadius: fs(10),
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 8,
-    paddingHorizontal: 12,
-    height: 44,
+    marginHorizontal: ws(16),
+    marginTop: hs(12),
+    marginBottom: hs(8),
+    paddingHorizontal: ws(12),
+    height: hs(44),
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: ws(8),
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(14),
     color: '#1A202C',
     paddingVertical: 0,
   },
   listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 6,
+    paddingHorizontal: ws(16),
+    paddingTop: hs(6),
   },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingVertical: hs(14),
+    paddingHorizontal: ws(12),
+    borderRadius: fs(8),
     borderBottomWidth: 1,
     borderBottomColor: '#F7FAFC',
   },
@@ -242,30 +252,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#EFF6FF',
   },
   flagText: {
-    fontSize: 22,
-    marginRight: 12,
+    fontSize: fs(22),
+    marginRight: ws(12),
   },
   nameText: {
     flex: 1,
-    fontSize: 15,
-    fontFamily: Typography.fontFamily.medium,
+    ...TYPOGRAPHY.medium,
+    fontSize: fs(15),
     color: '#2D3748',
   },
   selectedText: {
     color: Colors.primaryColor,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
   },
   dialCodeText: {
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.medium,
+    ...TYPOGRAPHY.medium,
+    fontSize: fs(14),
     color: '#718096',
-    marginLeft: 8,
+    marginLeft: ws(8),
   },
   selectedDialCode: {
     color: Colors.primaryColor,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
   },
   checkIcon: {
-    marginLeft: 8,
+    marginLeft: ws(8),
   },
 });

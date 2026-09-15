@@ -4,9 +4,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { memo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Typography } from '../../constants';
+import { Colors } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
+import { fs, hs, ws } from '../../utils/metrics';
+import { TYPOGRAPHY } from '../../utils/typography';
 
 type RootNavigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -63,7 +65,7 @@ export const BottomTabBar: React.FC = memo(() => {
           activeOpacity={0.85}
           disabled
         >
-          <MaterialIcons name="home" size={26} color={Colors.white} />
+          <MaterialIcons name="home" size={fs(26)} color={Colors.white} />
         </TouchableOpacity>
       </View>
     </View>
@@ -89,7 +91,7 @@ const TabButton = memo(
     >
       <MaterialIcons
         name={icon as any}
-        size={22}
+        size={fs(22)}
         color={isActive ? Colors.primaryColor : '#64748B'}
       />
       <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{label}</Text>
@@ -97,8 +99,8 @@ const TabButton = memo(
   )
 );
 
-const BAR_HEIGHT = 62;
-const FAB_SIZE = 54;
+const BAR_HEIGHT = hs(62);
+const FAB_SIZE = ws(54);
 
 const styles = StyleSheet.create({
   wrapper: {
@@ -107,8 +109,8 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: Colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: fs(20),
+    borderTopRightRadius: fs(20),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,
@@ -121,28 +123,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     backgroundColor: Colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 8,
+    borderTopLeftRadius: fs(20),
+    borderTopRightRadius: fs(20),
+    paddingHorizontal: ws(8),
   },
   tabButton: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
+    paddingVertical: hs(4),
   },
   tabLabel: {
-    marginTop: 3,
-    fontSize: 10,
-    fontFamily: Typography.fontFamily.medium,
+    marginTop: hs(3),
+    fontSize: fs(10),
+    ...TYPOGRAPHY.medium,
     color: '#64748B',
   },
   tabLabelActive: {
     color: Colors.primaryColor,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
   },
   fabSpacer: {
-    width: FAB_SIZE + 16,
+    width: FAB_SIZE + ws(16),
   },
   fabContainer: {
     position: 'absolute',
@@ -167,3 +169,4 @@ const styles = StyleSheet.create({
     borderColor: Colors.white,
   },
 });
+

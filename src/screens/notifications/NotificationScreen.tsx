@@ -27,7 +27,7 @@ import {
 } from '../../redux/apis/userApi';
 import { storageService } from '../../services/storageService';
 import type { NotificationModel } from '../../types';
-import { DateTimeUtils } from '../../utils';
+import { DateTimeUtils, ws, hs, fs, TYPOGRAPHY } from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notification'>;
 
@@ -116,7 +116,7 @@ export const NotificationScreen = ({ navigation }: Props) => {
         <FlatList
           data={notifications}
           keyExtractor={(item, index) => `notify-${item.id ?? index}`}
-          contentContainerStyle={[styles.listContainer, { paddingBottom: Math.max(insets.bottom + 20, 30) }]}
+          contentContainerStyle={[styles.listContainer, { paddingBottom: Math.max(insets.bottom + hs(20), hs(30)) }]}
           showsVerticalScrollIndicator={false}
           refreshing={isFetching}
           onRefresh={refetch}
@@ -166,62 +166,66 @@ export const NotificationScreen = ({ navigation }: Props) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgColor },
-  listContainer: { flexGrow: 1, padding: 16 },
+  listContainer: { flexGrow: 1, padding: ws(16) },
   notificationCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: fs(16),
+    padding: ws(14),
+    marginBottom: hs(12),
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowRadius: fs(6),
     elevation: 2,
   },
   notificationImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: ws(48),
+    height: hs(48),
+    borderRadius: fs(12),
     backgroundColor: '#F1F5F9',
   },
   iconPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: ws(48),
+    height: ws(48),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
   },
   contentWrapper: {
     flex: 1,
-    marginLeft: 12,
-    marginRight: 8,
+    marginLeft: ws(12),
+    marginRight: ws(8),
   },
   title: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(Typography.fontSize.sm),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginBottom: 2,
+    marginBottom: hs(2),
   },
   body: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    lineHeight: 17,
+    lineHeight: hs(17),
   },
   date: {
-    fontSize: 10,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(10),
+    ...TYPOGRAPHY.medium,
     color: '#94A3B8',
-    marginTop: 4,
+    marginTop: hs(4),
   },
   chevronCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: ws(28),
+    height: ws(28),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',

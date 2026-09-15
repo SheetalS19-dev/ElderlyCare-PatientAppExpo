@@ -29,7 +29,7 @@ import { useGetUserProfileQuery } from '../../redux/apis/userApi';
 import { useAddWalletMoneyMutation } from '../../redux/apis/walletApi';
 import { storageService } from '../../services/storageService';
 import type { CouponModel, DoctorModel, DoctorReviewModel, FamilyMemberModel, UserModel } from '../../types';
-import { CalculationUtils, DateTimeUtils, formatDoctorName, getImageUrl, showToast } from '../../utils';
+import { CalculationUtils, DateTimeUtils, formatDoctorName, getImageUrl, showToast, ws, hs, fs, TYPOGRAPHY } from '../../utils';
 import { DateTimeSheet } from './components/DateTimeSheet';
 import { FamilyMemberSheet } from './components/FamilyMemberSheet';
 import { PaymentMethodChoice, PaymentSheet } from './components/PaymentSheet';
@@ -489,14 +489,16 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
 
           {/* Clinic Location Info */}
           {!!doctor.clinic_title && (
-            <AppCard style={{ marginTop: 10 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <MaterialIcons name="location-on" size={18} color={Colors.primaryColor} />
-                <Text style={styles.clinicTitle}>{doctor.clinic_title}</Text>
+            <AppCard style={{ marginTop: hs(10) }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ws(6) }}>
+                <MaterialIcons name="location-on" size={fs(18)} color={Colors.primaryColor} style={{ marginTop: hs(2) }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.clinicTitle}>{doctor.clinic_title}</Text>
+                  {!!doctor.clinics_address && (
+                    <Text style={[styles.clinicAddress, { marginLeft: 0 }]}>{doctor.clinics_address}</Text>
+                  )}
+                </View>
               </View>
-              {!!doctor.clinics_address && (
-                <Text style={styles.clinicAddress}>{doctor.clinics_address}</Text>
-              )}
             </AppCard>
           )}
 
@@ -604,7 +606,7 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
               <Text
                 style={[
                   styles.patientNameText,
-                  !selectedMember && { color: Colors.secondaryFontColor, fontFamily: Typography.fontFamily.medium },
+                  !selectedMember && { color: Colors.secondaryFontColor, ...TYPOGRAPHY.medium },
                 ]}
                 numberOfLines={1}
               >
@@ -714,6 +716,7 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
                         <Image
                           source={doc.image ? { uri: getImageUrl(doc.image) } : require('../../../assets/icons/user.png')}
                           style={styles.suggestedAvatarImg}
+                          resizeMode="cover"
                         />
                       </View>
                       <Text style={styles.suggestedCardName} numberOfLines={1}>
@@ -815,9 +818,9 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgColor },
   flexOne: { flex: 1 },
-  scrollContent: { padding: 14, paddingBottom: 110 },
+  scrollContent: { padding: ws(14), paddingBottom: hs(110) },
   doctorCard: {
-    padding: 12,
+    padding: ws(12),
   },
   doctorHeaderRow: {
     flexDirection: 'row',
@@ -825,96 +828,98 @@ const styles = StyleSheet.create({
   },
   avatarWrapper: {
     position: 'relative',
-    marginRight: 14,
+    marginRight: ws(14),
   },
   doctorAvatar: {
-    width: 80,
-    height: 90,
-    borderRadius: 8,
+    width: ws(80),
+    height: ws(80),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: '#E2E8F0',
   },
   onlineDotOuter: {
     position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    top: hs(4),
+    right: ws(4),
+    width: ws(14),
+    height: ws(14),
+    borderRadius: 999,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
   },
   onlineDotInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: ws(10),
+    height: ws(10),
+    borderRadius: 999,
     backgroundColor: '#16A34A',
   },
   doctorMetaColumn: {
     flex: 1,
   },
   doctorNameText: {
-    fontSize: 16,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
     color: '#1A202C',
   },
   doctorSpecializationText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: '#718096',
-    marginTop: 2,
+    marginTop: hs(2),
   },
   doctorRatingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
-    gap: 6,
+    marginTop: hs(4),
+    gap: ws(6),
   },
   doctorRatingCountText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: '#718096',
   },
   doctorDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    marginTop: 5,
+    gap: ws(5),
+    marginTop: hs(5),
   },
   doctorDetailText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: '#4A5568',
   },
   clinicTitle: {
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: '#1A202C',
   },
   clinicAddress: {
-    marginTop: 2,
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    marginTop: hs(2),
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: '#718096',
-    marginLeft: 24,
+    marginLeft: ws(24),
   },
   sectionTitle: {
-    marginTop: 16,
-    marginBottom: 8,
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.bold,
+    marginTop: hs(16),
+    marginBottom: hs(8),
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: '#1A202C',
   },
   typeCardsRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: ws(8),
   },
   typeCard: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 6,
+    borderRadius: fs(10),
+    paddingVertical: hs(12),
+    paddingHorizontal: ws(6),
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -926,135 +931,135 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryColor,
   },
   typeIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: ws(44),
+    height: ws(44),
+    borderRadius: 999,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: hs(6),
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: hs(1) },
     shadowOpacity: 0.08,
-    shadowRadius: 2,
+    shadowRadius: fs(2),
     elevation: 1,
   },
   typeCardAssetImg: {
-    width: 26,
-    height: 26,
+    width: ws(26),
+    height: hs(26),
   },
   typeCardTitle: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: '#2D3748',
     textAlign: 'center',
   },
   typeCardFee: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
-    marginTop: 2,
+    marginTop: hs(2),
     textAlign: 'center',
   },
   typeCardTextActive: {
     color: '#FFFFFF',
   },
   dateTimeContainer: {
-    marginTop: 12,
+    marginTop: hs(12),
   },
   dateTimeRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: ws(10),
   },
   dateTimeColumn: {
     flex: 1,
   },
   inputSubLabel: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: '#4A5568',
-    marginBottom: 4,
+    marginBottom: hs(4),
   },
   dateTimeTile: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: fs(8),
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingHorizontal: 12,
-    height: 48,
+    paddingHorizontal: ws(12),
+    height: hs(48),
   },
   dateTimeValueText: {
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.medium,
     color: '#1A202C',
     flex: 1,
   },
   tileIconBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
+    width: ws(28),
+    height: hs(28),
+    borderRadius: fs(6),
     backgroundColor: '#1A202C',
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 6,
+    marginLeft: ws(6),
   },
   patientCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    borderRadius: fs(10),
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    padding: 12,
+    padding: ws(12),
   },
   patientAvatarBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: ws(40),
+    height: ws(40),
+    borderRadius: 999,
     backgroundColor: '#EBF8FF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: ws(12),
   },
   patientInfoBox: {
     flex: 1,
   },
   patientNameText: {
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: '#1A202C',
   },
   patientPhoneText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: '#718096',
-    marginTop: 2,
+    marginTop: hs(2),
   },
   couponContainer: {
-    marginTop: 6,
+    marginTop: hs(6),
     width: '100%',
   },
   couponRow: {
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: ws(10),
   },
   couponTextInput: {
     flex: 1,
-    minHeight: 48,
-    height: 48,
+    minHeight: hs(48),
+    height: hs(48),
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: fs(8),
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.medium,
+    paddingHorizontal: ws(14),
+    paddingVertical: Platform.OS === 'ios' ? hs(10) : hs(6),
+    fontSize: fs(14),
+    ...TYPOGRAPHY.medium,
     color: '#1E293B',
     textAlignVertical: 'center',
   },
@@ -1062,12 +1067,12 @@ const styles = StyleSheet.create({
     borderColor: '#EF4444',
   },
   couponActionBtn: {
-    height: 48,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    height: hs(48),
+    paddingHorizontal: ws(20),
+    borderRadius: fs(8),
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 84,
+    minWidth: ws(84),
     flexShrink: 0,
   },
   couponApplyBtn: {
@@ -1077,47 +1082,47 @@ const styles = StyleSheet.create({
     backgroundColor: '#EF4444',
   },
   couponActionBtnText: {
-    fontSize: 14,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: '#FFFFFF',
   },
   couponErrorText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: '#EF4444',
-    marginTop: 6,
+    marginTop: hs(6),
   },
   couponSuccessBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 6,
-    paddingHorizontal: 2,
+    gap: ws(6),
+    marginTop: hs(6),
+    paddingHorizontal: ws(2),
   },
   couponSuccessText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: '#16A34A',
   },
-  reviewSection: { marginTop: 20, marginBottom: 8 },
-  patientReviewCard: { width: 280, backgroundColor: Colors.white, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, padding: 12, marginRight: 12 },
-  reviewUserHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  reviewerAvatarCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primaryColor, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  reviewSection: { marginTop: hs(20), marginBottom: hs(8) },
+  patientReviewCard: { width: ws(280), backgroundColor: Colors.white, borderRadius: fs(12), borderWidth: 1, borderColor: Colors.border, padding: ws(12), marginRight: ws(12) },
+  reviewUserHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: hs(8) },
+  reviewerAvatarCircle: { width: ws(36), height: ws(36), aspectRatio: 1, borderRadius: 999, overflow: 'hidden', backgroundColor: Colors.primaryColor, justifyContent: 'center', alignItems: 'center', marginRight: ws(10) },
   reviewerMeta: { flex: 1 },
-  reviewerName: { fontSize: Typography.fontSize.xs, fontFamily: Typography.fontFamily.bold, color: Colors.primaryFontColor },
-  reviewCommentText: { fontSize: Typography.fontSize.xs, fontFamily: Typography.fontFamily.regular, color: Colors.secondaryFontColor, fontStyle: 'italic', lineHeight: 18 },
-  suggestedSection: { marginTop: 24, marginBottom: 8 },
-  suggestedTitle: { fontSize: Typography.fontSize.md, fontFamily: Typography.fontFamily.bold, color: Colors.primaryFontColor, marginBottom: 12 },
+  reviewerName: { fontSize: fs(Typography.fontSize.xs), ...TYPOGRAPHY.bold, color: Colors.primaryFontColor },
+  reviewCommentText: { fontSize: fs(Typography.fontSize.xs), ...TYPOGRAPHY.regular, color: Colors.secondaryFontColor, fontStyle: 'italic', lineHeight: hs(18) },
+  suggestedSection: { marginTop: hs(24), marginBottom: hs(8) },
+  suggestedTitle: { fontSize: fs(Typography.fontSize.md), ...TYPOGRAPHY.bold, color: Colors.primaryFontColor, marginBottom: hs(12) },
   suggestedGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  suggestedGridCard: { width: '48%', backgroundColor: Colors.white, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, padding: 12, alignItems: 'center', marginBottom: 12 },
-  suggestedAvatarWrapper: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#EBF5FF', justifyContent: 'center', alignItems: 'center', marginBottom: 8, overflow: 'hidden' },
-  suggestedAvatarImg: { width: 64, height: 64, borderRadius: 32 },
-  suggestedCardName: { fontSize: Typography.fontSize.xs, fontFamily: Typography.fontFamily.bold, color: Colors.primaryFontColor, textAlign: 'center' },
-  suggestedCardDept: { marginTop: 3, fontSize: 10, color: Colors.secondaryFontColor, textAlign: 'center', lineHeight: 14 },
-  suggestedRatingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
-  suggestedRatingText: { marginLeft: 4, fontSize: 10, color: Colors.secondaryFontColor },
-  viewMoreToggleBtn: { alignSelf: 'flex-end', paddingVertical: 6, paddingHorizontal: 4 },
-  viewMoreToggleText: { fontSize: Typography.fontSize.xs, color: Colors.secondaryFontColor, fontFamily: Typography.fontFamily.medium },
-  bottomSpacer: { height: 20 },
-  reviewBar: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, backgroundColor: Colors.white, borderTopWidth: 1, borderTopColor: Colors.border },
+  suggestedGridCard: { width: '48%', backgroundColor: Colors.white, borderRadius: fs(12), borderWidth: 1, borderColor: Colors.border, padding: ws(12), alignItems: 'center', marginBottom: hs(12) },
+  suggestedAvatarWrapper: { width: ws(64), height: ws(64), aspectRatio: 1, borderRadius: 999, backgroundColor: '#EBF5FF', justifyContent: 'center', alignItems: 'center', marginBottom: hs(8), overflow: 'hidden' },
+  suggestedAvatarImg: { width: ws(64), height: ws(64), aspectRatio: 1, borderRadius: 999, overflow: 'hidden' },
+  suggestedCardName: { fontSize: fs(Typography.fontSize.xs), ...TYPOGRAPHY.bold, color: Colors.primaryFontColor, textAlign: 'center' },
+  suggestedCardDept: { marginTop: hs(3), fontSize: fs(10), color: Colors.secondaryFontColor, textAlign: 'center', lineHeight: hs(14) },
+  suggestedRatingRow: { flexDirection: 'row', alignItems: 'center', marginTop: hs(6) },
+  suggestedRatingText: { marginLeft: ws(4), fontSize: fs(10), color: Colors.secondaryFontColor },
+  viewMoreToggleBtn: { alignSelf: 'flex-end', paddingVertical: hs(6), paddingHorizontal: ws(4) },
+  viewMoreToggleText: { fontSize: fs(Typography.fontSize.xs), color: Colors.secondaryFontColor, ...TYPOGRAPHY.medium },
+  bottomSpacer: { height: hs(20) },
+  reviewBar: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: ws(16), backgroundColor: Colors.white, borderTopWidth: 1, borderTopColor: Colors.border },
 });

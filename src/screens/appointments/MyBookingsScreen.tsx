@@ -2,7 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useMemo, useState } from 'react';
-import { FlatList, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AppHeader,
@@ -16,9 +16,12 @@ import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
 import { useGetAppointmentsQuery } from '../../redux/apis/appointmentApi';
 import type { AppointmentModel } from '../../types';
+import { fs, hs, ws, TYPOGRAPHY } from '../../utils';
 
 type RootNavigation = NativeStackNavigationProp<RootStackParamList>;
 type TabKey = 'upcoming' | 'closed';
+
+const PAGE_SIZE = 10;
 
 export const MyBookingsScreen = () => {
   const insets = useSafeAreaInsets();
@@ -26,6 +29,9 @@ export const MyBookingsScreen = () => {
   const { isAuthenticated, user } = useAuth();
   const [tab, setTab] = useState<TabKey>('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const [displayedLimit, setDisplayedLimit] = useState(PAGE_SIZE);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const userId = String(user?.id ?? (user as any)?.user_id ?? '');
 
@@ -97,6 +103,29 @@ export const MyBookingsScreen = () => {
     });
   }, [currentList, searchQuery]);
 
+  const paginatedList = useMemo(() => {
+    return filteredList.slice(0, displayedLimit);
+  }, [filteredList, displayedLimit]);
+
+  const handleLoadMore = () => {
+    if (loadingMore || isFetching || displayedLimit >= filteredList.length) return;
+    setLoadingMore(true);
+    setTimeout(() => {
+      setDisplayedLimit((prev) => prev + PAGE_SIZE);
+      setLoadingMore(false);
+    }, 500);
+  };
+
+  const handleTabChange = (newTab: TabKey) => {
+    setTab(newTab);
+    setDisplayedLimit(PAGE_SIZE);
+  };
+
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    setDisplayedLimit(PAGE_SIZE);
+  };
+
   if (!isAuthenticated) {
     return (
       <View style={styles.container}>
@@ -119,7 +148,7 @@ export const MyBookingsScreen = () => {
           <TouchableOpacity
             style={[styles.segmentBtn, tab === 'upcoming' && styles.segmentBtnActive]}
             activeOpacity={0.8}
-            onPress={() => setTab('upcoming')}
+            onPress={() => handleTabChange('upcoming')}
           >
             <MaterialIcons
               name="event-available"
@@ -134,7 +163,7 @@ export const MyBookingsScreen = () => {
           <TouchableOpacity
             style={[styles.segmentBtn, tab === 'closed' && styles.segmentBtnActive]}
             activeOpacity={0.8}
-            onPress={() => setTab('closed')}
+            onPress={() => handleTabChange('closed')}
           >
             <MaterialIcons
               name="history"
@@ -156,13 +185,13 @@ export const MyBookingsScreen = () => {
           placeholder="Search by patient, doctor, phone, dept..."
           placeholderTextColor={Colors.secondaryFontColor}
           value={searchQuery}
-          onChangeText={setSearchQuery}
+          onChangeText={handleSearchChange}
           autoCapitalize="none"
           autoCorrect={false}
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity
-            onPress={() => setSearchQuery('')}
+            onPress={() => handleSearchChange('')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <MaterialIcons name="close" size={18} color={Colors.secondaryFontColor} />
@@ -176,11 +205,24 @@ export const MyBookingsScreen = () => {
         <ErrorState message="Couldn't load your appointments" onRetry={refetch} />
       ) : (
         <FlatList
-          data={filteredList}
+          data={paginatedList}
           keyExtractor={(item: AppointmentModel, index: number) => `appt-${item.id ?? index}`}
           contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + 20, 40) }]}
           refreshing={isFetching}
-          onRefresh={refetch}
+          onRefresh={async () => {
+            setDisplayedLimit(PAGE_SIZE);
+            await refetch();
+          }}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.footerLoaderContainer}>
+                <ActivityIndicator size="small" color={Colors.primaryColor} />
+                <Text style={styles.footerLoaderText}>Loading more appointments...</Text>
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <EmptyState
@@ -235,8 +277,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgColor,
   },
   segmentedContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: ws(16),
+    paddingVertical: hs(12),
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
@@ -244,93 +286,105 @@ const styles = StyleSheet.create({
   segmentedControl: {
     flexDirection: 'row',
     backgroundColor: '#F1F5F9',
-    borderRadius: 14,
-    padding: 4,
+    borderRadius: fs(14),
+    padding: ws(4),
   },
   segmentBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
-    gap: 6,
+    paddingVertical: hs(10),
+    borderRadius: fs(10),
+    gap: ws(6),
   },
   segmentBtnActive: {
     backgroundColor: Colors.primaryColor,
     shadowColor: Colors.primaryColor,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.2,
-    shadowRadius: 4,
+    shadowRadius: fs(4),
     elevation: 3,
   },
   segmentText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
   },
   segmentTextActive: {
     color: Colors.white,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
   },
   searchBarWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: 12,
+    borderRadius: fs(12),
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 4,
-    paddingHorizontal: 12,
-    minHeight: 48,
-    height: 48,
+    marginHorizontal: ws(16),
+    marginTop: hs(12),
+    marginBottom: hs(4),
+    paddingHorizontal: ws(12),
+    minHeight: hs(48),
+    height: hs(48),
     shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: hs(1) },
     shadowOpacity: 0.02,
-    shadowRadius: 3,
+    shadowRadius: fs(3),
     elevation: 1,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: ws(8),
   },
   searchInput: {
     flex: 1,
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+    paddingVertical: Platform.OS === 'ios' ? hs(10) : hs(6),
     textAlignVertical: 'center',
   },
   listContent: {
     flexGrow: 1,
-    padding: 16,
+    padding: ws(16),
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: hs(20),
   },
   bookNowBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.primaryColor,
-    paddingHorizontal: 20,
-    paddingVertical: 11,
-    borderRadius: 14,
-    marginTop: 12,
-    gap: 6,
+    paddingHorizontal: ws(20),
+    paddingVertical: hs(11),
+    borderRadius: fs(14),
+    marginTop: hs(12),
+    gap: ws(6),
     shadowColor: Colors.primaryColor,
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: hs(3) },
     shadowOpacity: 0.25,
-    shadowRadius: 6,
+    shadowRadius: fs(6),
     elevation: 3,
   },
   bookNowText: {
     color: Colors.white,
-    fontSize: 13,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
+  },
+  footerLoaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: hs(14),
+    gap: ws(8),
+  },
+  footerLoaderText: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
+    color: Colors.secondaryFontColor,
   },
 });

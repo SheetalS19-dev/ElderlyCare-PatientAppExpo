@@ -19,7 +19,7 @@ import {
   ErrorState,
   LoadingIndicator,
 } from '../../components';
-import { Colors, Typography } from '../../constants';
+import { Colors } from '../../constants';
 import type { RootStackParamList } from '../../navigation/types';
 import {
   useGetBlogCategoriesQuery,
@@ -28,7 +28,7 @@ import {
   type BlogCategoryModel,
   type BlogModel,
 } from '../../redux/apis/blogApi';
-import { DateTimeUtils, getImageUrl } from '../../utils';
+import { DateTimeUtils, fs, getImageUrl, hs, TYPOGRAPHY, ws } from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BlogList'>;
 
@@ -167,14 +167,14 @@ export const BlogListScreen = ({ navigation }: Props) => {
         <FlatList
           data={filteredBlogs}
           keyExtractor={(item: BlogModel, index: number) => `blog-${item.id ?? index}`}
-          contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + 20, 32) }]}
+          contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + hs(20), hs(32)) }]}
           onRefresh={handleRefresh}
           refreshing={isBlogsFetching}
           ListHeaderComponent={
             <>
               {/* Search Bar */}
               <View style={styles.searchContainer}>
-                <MaterialIcons name="search" size={20} color={Colors.primaryColor} style={styles.searchIcon} />
+                <MaterialIcons name="search" size={fs(20)} color={Colors.primaryColor} style={styles.searchIcon} />
                 <TextInput
                   style={styles.searchInput}
                   placeholder="Search health articles, topics..."
@@ -185,7 +185,7 @@ export const BlogListScreen = ({ navigation }: Props) => {
                 />
                 {!!searchQuery && (
                   <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <MaterialIcons name="cancel" size={18} color={Colors.secondaryFontColor} />
+                    <MaterialIcons name="cancel" size={fs(18)} color={Colors.secondaryFontColor} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -272,9 +272,9 @@ export const BlogListScreen = ({ navigation }: Props) => {
                         >
                           <MaterialIcons
                             name="local-offer"
-                            size={12}
+                            size={fs(12)}
                             color={isSelected ? Colors.white : Colors.primaryColor}
-                            style={{ marginRight: 4 }}
+                            style={{ marginRight: ws(4) }}
                           />
                           <Text
                             style={[
@@ -393,7 +393,7 @@ export const BlogListScreen = ({ navigation }: Props) => {
                     <View style={styles.cardFooter}>
                       <View style={styles.authorRow}>
                         <View style={styles.authorAvatar}>
-                          <MaterialIcons name="person" size={14} color={Colors.primaryColor} />
+                          <MaterialIcons name="person" size={fs(14)} color={Colors.primaryColor} />
                         </View>
                         <Text style={styles.authorName} numberOfLines={1}>
                           {item.author_name || 'Medical Specialist'}
@@ -403,7 +403,7 @@ export const BlogListScreen = ({ navigation }: Props) => {
                       <View style={styles.metaRight}>
                         {item.comment_count != null && (
                           <View style={styles.commentBadge}>
-                            <MaterialIcons name="chat-bubble-outline" size={12} color={Colors.secondaryFontColor} />
+                            <MaterialIcons name="chat-bubble-outline" size={fs(12)} color={Colors.secondaryFontColor} />
                             <Text style={styles.commentText}>{item.comment_count}</Text>
                           </View>
                         )}
@@ -430,18 +430,18 @@ const styles = StyleSheet.create({
   },
   listContent: {
     flexGrow: 1,
-    padding: 16,
+    padding: ws(16),
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 46,
+    borderRadius: fs(14),
+    paddingHorizontal: ws(14),
+    height: hs(46),
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    marginBottom: 16,
+    marginBottom: hs(16),
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -449,12 +449,12 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: ws(8),
   },
   searchInput: {
     flex: 1,
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
     paddingVertical: 0,
   },
@@ -462,26 +462,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: hs(10),
   },
   sectionTitle: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   clearLink: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryColor,
   },
   chipsScrollContainer: {
-    gap: 8,
-    paddingBottom: 14,
+    gap: ws(8),
+    paddingBottom: hs(14),
   },
   categoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(8),
+    borderRadius: fs(12),
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -491,20 +491,20 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryColor,
   },
   categoryChipText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
   },
   categoryChipTextActive: {
     color: Colors.white,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
   },
   tagChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(6),
+    borderRadius: fs(16),
     backgroundColor: '#EFF6FF',
     borderWidth: 1,
     borderColor: '#DBEAFE',
@@ -514,46 +514,46 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryColor,
   },
   tagChipText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryColor,
   },
   tagChipTextActive: {
     color: Colors.white,
-    fontFamily: Typography.fontFamily.bold,
+    ...TYPOGRAPHY.bold,
   },
   articlesHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 6,
-    marginBottom: 12,
+    marginTop: hs(6),
+    marginBottom: hs(12),
   },
   articlesHeaderTitle: {
-    fontSize: Typography.fontSize.md,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   articlesCountBadge: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
     backgroundColor: '#F1F5F9',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+    paddingHorizontal: ws(8),
+    paddingVertical: hs(3),
+    borderRadius: fs(10),
   },
   blogCard: {
-    marginBottom: 16,
+    marginBottom: hs(16),
     padding: 0,
     overflow: 'hidden',
-    borderRadius: 18,
+    borderRadius: fs(18),
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   imageContainer: {
     width: '100%',
-    height: 180,
+    height: hs(180),
     position: 'relative',
     backgroundColor: '#F1F5F9',
   },
@@ -563,77 +563,78 @@ const styles = StyleSheet.create({
   },
   categoryPill: {
     position: 'absolute',
-    top: 12,
-    left: 12,
+    top: hs(12),
+    left: ws(12),
     backgroundColor: Colors.primaryColor,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: ws(10),
+    paddingVertical: hs(4),
+    borderRadius: fs(8),
   },
   categoryPillText: {
     color: Colors.white,
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.bold,
   },
   inlineCategoryPill: {
     alignSelf: 'flex-start',
     backgroundColor: '#EFF6FF',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginBottom: 8,
+    paddingHorizontal: ws(10),
+    paddingVertical: hs(4),
+    borderRadius: fs(8),
+    marginBottom: hs(8),
   },
   inlineCategoryPillText: {
     color: Colors.primaryColor,
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.bold,
   },
   cardBody: {
-    padding: 16,
+    padding: ws(16),
   },
   blogTitle: {
-    fontSize: Typography.fontSize.base,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    lineHeight: 22,
-    marginBottom: 6,
+    lineHeight: fs(22),
+    marginBottom: hs(6),
   },
   blogExcerpt: {
-    fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    lineHeight: 18,
-    marginBottom: 10,
+    lineHeight: fs(18),
+    marginBottom: hs(10),
   },
   cardTagsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 12,
+    gap: ws(6),
+    marginBottom: hs(12),
   },
   cardTagPill: {
     backgroundColor: '#F8FAFC',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingHorizontal: ws(8),
+    paddingVertical: hs(2),
+    borderRadius: fs(6),
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   cardTagText: {
-    fontSize: 10,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(10),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
   },
   moreTagsText: {
-    fontSize: 10,
+    fontSize: fs(10),
     color: Colors.secondaryFontColor,
+    ...TYPOGRAPHY.regular,
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 10,
+    paddingTop: hs(10),
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
@@ -641,58 +642,58 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 8,
+    marginRight: ws(8),
   },
   authorAvatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: ws(24),
+    height: hs(24),
+    borderRadius: fs(12),
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 6,
+    marginRight: ws(6),
   },
   authorName: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
   },
   metaRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: ws(8),
   },
   commentBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: ws(3),
   },
   commentText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
   },
   dateText: {
-    fontSize: 11,
-    fontFamily: Typography.fontFamily.regular,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: hs(20),
   },
   clearFiltersBtn: {
-    marginTop: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 10,
+    marginTop: hs(12),
+    paddingHorizontal: ws(16),
+    paddingVertical: hs(8),
+    borderRadius: fs(10),
     backgroundColor: '#EFF6FF',
     borderWidth: 1,
     borderColor: Colors.primaryColor,
   },
   clearFiltersBtnText: {
-    fontSize: 12,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
 });
