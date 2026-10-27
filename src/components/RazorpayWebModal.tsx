@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { useRef } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Linking, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { Colors } from '../constants';
@@ -31,21 +31,8 @@ export interface RazorpayWebModalProps {
   orderId?: string;
 }
 
-// --- TEMP: force test mode -------------------------------------------------
-// Flip this to false once the live/backend gateway key is confirmed working.
-// While true, RazorpayWebModal ALWAYS uses TEST_KEY_ID below, no matter what
-// `keyId` prop (e.g. from the backend gateway API) is passed in.
-const FORCE_TEST_MODE = true;
-
-// Replace this with YOUR real Razorpay TEST key id from
-// Dashboard > Settings > API Keys (it must start with "rzp_test_").
-// The previous fallback key baked into this file/razorpayService.ts was a
-// generic placeholder that isn't tied to your account — using a key that
-// doesn't belong to (or isn't active on) your account is exactly what makes
-// the Razorpay checkout page show "Something went wrong, please try again
-// after some time." immediately on open.
+// Fallback test key ID if no key is provided by backend
 const TEST_KEY_ID = 'rzp_test_R6kmrnO91ID9yH';
-// -----------------------------------------------------------------------
 
 export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
   visible,
@@ -66,7 +53,7 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
   const webviewRef = useRef<WebView>(null);
 
   const providedKey = keyId && keyId.trim().length > 5 ? keyId.trim() : '';
-  const activeKey = FORCE_TEST_MODE ? TEST_KEY_ID : providedKey || TEST_KEY_ID;
+  const activeKey = providedKey || TEST_KEY_ID;
 
   const numAmount = Number(amount);
   const rawPaise = amountInPaise ?? (isNaN(numAmount) ? NaN : Math.round(numAmount * 100));
@@ -88,10 +75,6 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
   }
 
   // Build the options as a real JS object and serialize with JSON.stringify
-  // instead of hand-interpolating strings into the HTML template. The old
-  // approach only escaped double quotes, so a name/description containing a
-  // backslash, single quote, newline, or other special character could
-  // produce invalid JS inside the WebView and silently break checkout.
   const razorpayOptions: Record<string, any> = {
     key: activeKey,
     amount: String(finalPaise),
@@ -110,30 +93,44 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
   }
   const razorpayOptionsJson = JSON.stringify(razorpayOptions);
 
-  // Net Banking (and some Card 3DS) flows redirect the user to the bank's
-  // login page via `window.open(...)` in a *new* popup window, then that
-  // popup redirects back to Razorpay's callback URL once auth is done.
-  // `react-native-webview` doesn't render real popup windows even with
-  // `setSupportMultipleWindows`, so that call silently does nothing and
-  // Razorpay's own JS then shows "Something went wrong, please try again"
-  // or "please use another payment method" because it never sees the bank
-  // page load. UPI doesn't hit this path (it just shows a QR / intent link
-  // in the same page), which is why UPI works but Net Banking doesn't.
-  //
-  // Fix: override `window.open` (and give it back a window-like stub so
-  // Razorpay's own code doesn't throw) so that instead of opening a real
-  // popup, it just navigates the *same* WebView to that URL. This lets the
-  // bank login page and its redirect back to Razorpay's callback happen
-  // in-place, inside the one WebView we control.
+  // Overriding `window.open` with a full location getter/setter stub so that
+  // when Razorpay or bank auth popups call `win = window.open(...)` and then
+  // set `win.location.href = bankUrl`, the WebView navigates in-place.
   const openOverrideScript = `
     (function () {
+      if (window.__rzp_override_done) return;
+      window.__rzp_override_done = true;
+
       window.open = function (url) {
-        if (url) {
+        if (url && url !== 'about:blank' && url !== 'about:blank#') {
           window.location.href = url;
         }
-        // Return a minimal fake window object so code that calls
-        // methods on the returned value (e.g. win.close()) doesn't throw.
-        return { close: function () {}, focus: function () {}, location: { href: url || '' } };
+        var fakeWin = {
+          close: function () {},
+          focus: function () {},
+          blur: function () {},
+          postMessage: function () {},
+        };
+        Object.defineProperty(fakeWin, 'location', {
+          get: function () {
+            return {
+              get href() { return window.location.href; },
+              set href(val) {
+                if (val && val !== 'about:blank' && val !== 'about:blank#') {
+                  window.location.href = val;
+                }
+              },
+              assign: function (val) { window.location.href = val; },
+              replace: function (val) { window.location.replace(val); }
+            };
+          },
+          set: function (val) {
+            if (typeof val === 'string' && val && val !== 'about:blank' && val !== 'about:blank#') {
+              window.location.href = val;
+            }
+          }
+        });
+        return fakeWin;
       };
     })();
     true;
@@ -187,7 +184,7 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
 <body>
   <div class="spinner"></div>
   <div class="title">Opening Razorpay Checkout...</div>
-  <div class="subtitle">Please complete your payment in the popup window.</div>
+  <div class="subtitle">Please complete your payment below</div>
 
   <script>
     function sendMessage(data) {
@@ -196,9 +193,6 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
       }
     }
 
-    // Surface any uncaught script error (e.g. checkout.js failing to load,
-    // a malformed options object, etc.) back to the app instead of leaving
-    // Razorpay's own generic "Something went wrong" as the only signal.
     window.onerror = function (message, source, lineno, colno, err) {
       sendMessage({ status: 'error', error: 'Checkout script error: ' + message });
       return true;
@@ -238,7 +232,6 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
         window.onload = function () {
           rzp.open();
         };
-        // In case window.onload already fired before this script ran.
         if (document.readyState === 'complete') {
           rzp.open();
         }
@@ -266,17 +259,48 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
     }
   };
 
-  // Android fallback: some devices still fire a native "open window" event
-  // instead of running our overridden `window.open`. When that happens,
-  // load the target URL into the SAME webview instead of letting it be
-  // dropped silently (which is what caused the "please try again"/"use
-  // another method" errors for Net Banking).
+  const handleShouldStartLoadWithRequest = (request: any) => {
+    const url = request?.url;
+    if (!url) return true;
+
+    // Detect deep link / custom scheme URLs (UPI, Intent, Bank app links)
+    const isStandardUrl =
+      url.startsWith('http://') ||
+      url.startsWith('https://') ||
+      url.startsWith('about:') ||
+      url.startsWith('data:');
+
+    if (!isStandardUrl) {
+      // Launch native UPI app (GPay, PhonePe, Paytm, BHIM, etc.) or Intent
+      Linking.canOpenURL(url)
+        .then((supported) => {
+          if (supported) {
+            Linking.openURL(url).catch(() => {});
+          } else if (url.startsWith('intent://')) {
+            Linking.openURL(url).catch(() => {});
+          }
+        })
+        .catch(() => {});
+      return false; // Prevent WebView from trying to navigate to custom scheme
+    }
+    return true;
+  };
+
   const handleOpenWindow = (event: { nativeEvent: { targetUrl?: string } }) => {
     const targetUrl = event.nativeEvent?.targetUrl;
     if (targetUrl && webviewRef.current) {
-      webviewRef.current.injectJavaScript(
-        `window.location.href = ${JSON.stringify(targetUrl)}; true;`
-      );
+      if (
+        !targetUrl.startsWith('http://') &&
+        !targetUrl.startsWith('https://') &&
+        !targetUrl.startsWith('about:') &&
+        !targetUrl.startsWith('data:')
+      ) {
+        Linking.openURL(targetUrl).catch(() => {});
+      } else {
+        webviewRef.current.injectJavaScript(
+          `window.location.href = ${JSON.stringify(targetUrl)}; true;`
+        );
+      }
     }
   };
 
@@ -297,6 +321,7 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
           originWhitelist={['*']}
           source={{ html: htmlContent, baseUrl: 'https://new.elderlycare.life' }}
           onMessage={handleMessage}
+          onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
           javaScriptEnabled={true}
           domStorageEnabled={true}
           startInLoadingState={true}
@@ -306,26 +331,28 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
           javaScriptCanOpenWindowsAutomatically={true}
           setSupportMultipleWindows={true}
           onOpenWindow={handleOpenWindow}
-          // Runs before any page script (including checkout.js), so our
-          // window.open override is in place before Razorpay ever calls it.
           injectedJavaScriptBeforeContentLoaded={openOverrideScript}
-          // Also re-inject after each navigation (e.g. once we've
-          // navigated into the bank's own page) so a same-window redirect
-          // chain doesn't lose the override partway through.
           onLoadEnd={() => {
             webviewRef.current?.injectJavaScript(openOverrideScript);
           }}
-          onError={(syntheticEvent) => {
+          onError={(syntheticEvent: any) => {
             const { nativeEvent } = syntheticEvent;
             console.warn('RazorpayWebModal WebView error:', nativeEvent);
+            const errUrl = nativeEvent?.url || '';
+            const errDesc = nativeEvent?.description || '';
+            if (
+              errDesc.includes('ERR_UNKNOWN_URL_SCHEME') ||
+              (!errUrl.startsWith('http://') && !errUrl.startsWith('https://') && !errUrl.startsWith('about:') && errUrl.length > 0)
+            ) {
+              return;
+            }
             onFailure('Could not load the payment page. Please check your connection and try again.');
           }}
-          onHttpError={(syntheticEvent) => {
+          onHttpError={(syntheticEvent: any) => {
             console.warn('RazorpayWebModal WebView HTTP error:', syntheticEvent.nativeEvent);
           }}
           style={styles.webview}
         />
-        {/* ^ rendered as AnyWebView above; closing tag name doesn't need to match in JSX */}
       </View>
     </Modal>
   );

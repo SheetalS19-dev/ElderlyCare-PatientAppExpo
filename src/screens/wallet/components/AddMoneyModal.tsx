@@ -130,7 +130,7 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
               onChangeText={(v) => onAmountChange(v.replace(/[^0-9.]/g, ''))}
               error={amountError}
             />
-            <Text style={styles.hintText}>Minimum 1 ₹ required to place this order</Text>
+            <Text style={styles.hintText}>Minimum 100 ₹ required to place this order</Text>
 
             <Text style={styles.quickAmountLabel}>Quick Select</Text>
             <View style={styles.chipRow}>

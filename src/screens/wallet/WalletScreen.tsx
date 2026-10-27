@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { memo, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -43,7 +43,7 @@ import { DateTimeUtils, fs, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
 type RootNavigation = NativeStackNavigationProp<RootStackParamList>;
 
 const QUICK_AMOUNTS = [250, 500, 1000, 1500, 2000];
-const MIN_AMOUNT = 1;
+const MIN_AMOUNT = 100;
 const MAX_AMOUNT = 5000;
 
 type PaymentMethodOption = 'Net Banking' | 'UPI / GPay / PhonePe' | 'Card' | 'Wallet';
@@ -69,12 +69,30 @@ export const WalletScreen = () => {
     refetch,
   } = useGetWalletTransactionsQuery(uid, {
     skip: !isAuthenticated || !uid,
+    refetchOnMountOrArgChange: true,
   });
 
   const { data: gateway } = useGetActivePaymentGatewayQuery();
   const [createRzOrder] = useCreateRzOrderMutation();
   const [addWalletMoney] = useAddWalletMoneyMutation();
-  const { refetch: refetchProfile } = useGetUserProfileQuery(uid, { skip: !uid });
+  const {
+    data: profileResponse,
+    refetch: refetchProfile,
+  } = useGetUserProfileQuery(uid, {
+    skip: !uid,
+    refetchOnMountOrArgChange: true,
+  });
+
+  const freshProfileData = useMemo(() => {
+    if (!profileResponse) return null;
+    return (profileResponse as any)?.data ?? profileResponse;
+  }, [profileResponse]);
+
+  useEffect(() => {
+    if (freshProfileData && typeof freshProfileData === 'object' && freshProfileData.id) {
+      updateUser({ ...(user || {}), ...freshProfileData });
+    }
+  }, [freshProfileData]);
 
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethodOption>('Net Banking');
@@ -94,8 +112,6 @@ export const WalletScreen = () => {
   const PAGE_SIZE = 10;
   const [displayedLimit, setDisplayedLimit] = useState(PAGE_SIZE);
   const [loadingMore, setLoadingMore] = useState(false);
-
-  const walletBalance = Number(user?.wallet_amount ?? (user as any)?.wallet_balance ?? 0);
 
   const txnList: TxnModel[] = useMemo(() => {
     if (Array.isArray(transactions)) return transactions;
@@ -153,8 +169,7 @@ export const WalletScreen = () => {
   }, [txnList]);
 
   const totalSpent = useMemo(() => {
-    // Calculate actual Wallet Spent matching Web dashboard (Total Credited - Current Balance, or only is_wallet_txn debits)
-    const walletOnlyDebits = txnList.reduce((acc, item: any) => {
+    const debits = txnList.reduce((acc, item: any) => {
       const type = (item.transaction_type || item.type || '').toLowerCase();
       const isDebited = type === 'debited' || type === 'debit';
       const isWalletTxn =
@@ -165,10 +180,23 @@ export const WalletScreen = () => {
       }
       return acc;
     }, 0);
+    return debits;
+  }, [txnList]);
 
-    if (walletOnlyDebits > 0) return walletOnlyDebits;
-    return Math.max(0, totalCredited - walletBalance);
-  }, [txnList, totalCredited, walletBalance]);
+  const walletBalance = useMemo(() => {
+    const rawVal =
+      freshProfileData?.wallet_amount ??
+      freshProfileData?.wallet_balance ??
+      freshProfileData?.wallet ??
+      user?.wallet_amount ??
+      (user as any)?.wallet_balance;
+
+    if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
+      return Number(rawVal) || 0;
+    }
+
+    return Math.max(0, totalCredited - totalSpent);
+  }, [freshProfileData, user, totalCredited, totalSpent]);
 
   const handleLoadMore = () => {
     if (loadingMore || isFetching || displayedLimit >= txnList.length) return;
@@ -181,10 +209,10 @@ export const WalletScreen = () => {
 
   const handleRefresh = async () => {
     setDisplayedLimit(PAGE_SIZE);
-    await refetch();
+    await Promise.all([refetch(), refetchProfile()]);
   };
 
-  const handleProcess = () => {
+  const handleProcess = async () => {
     const numeric = Number(amount);
     if (!amount || isNaN(numeric) || numeric < MIN_AMOUNT || numeric > MAX_AMOUNT) {
       setAmountError(
@@ -202,10 +230,28 @@ export const WalletScreen = () => {
     else if (selectedMethod === 'Wallet') methodParam = 'Wallet';
     else if (selectedMethod === 'UPI / GPay / PhonePe') methodParam = 'UPI';
 
+    let orderId: string | undefined = undefined;
+    try {
+      setProcessing(true);
+      const orderRes = await createRzOrder({
+        amount: String(numeric),
+        type: 'Wallet',
+        user_id: uid,
+      }).unwrap();
+      if (orderRes) {
+        orderId = orderRes.id || orderRes.order_id || (orderRes as any)?.data?.id || (orderRes as any)?.data?.order_id;
+      }
+    } catch (err) {
+      console.warn('Could not pre-create Razorpay order, falling back to standard checkout:', err);
+    } finally {
+      setProcessing(false);
+    }
+
     setPendingPaymentInfo({
       numericAmount: numeric,
       description: `Wallet top-up via ${selectedMethod}`,
       methodParam,
+      orderId,
     });
     setShowRazorpayWebModal(true);
   };
@@ -447,7 +493,7 @@ export const WalletScreen = () => {
                 onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ''))}
                 error={amountError}
               />
-              <Text style={styles.hintText}>Minimum 1 ₹ required to place this order</Text>
+              <Text style={styles.hintText}>Minimum 100 ₹ required to place this order</Text>
 
               <Text style={styles.quickAmountLabel}>Quick Select</Text>
               <View style={styles.chipRow}>
@@ -523,6 +569,7 @@ export const WalletScreen = () => {
         prefillEmail={(user as any)?.email || ''}
         prefillPhone={(user as any)?.phone || (user as any)?.mobile || ''}
         prefillName={`${(user as any)?.first_name ?? (user as any)?.f_name ?? ''} ${(user as any)?.last_name ?? (user as any)?.l_name ?? ''}`.trim() || 'Patient'}
+        orderId={pendingPaymentInfo?.orderId || ''}
       />
     </View>
   );

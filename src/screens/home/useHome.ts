@@ -27,7 +27,7 @@ export type RootNavigation = NativeStackNavigationProp<RootStackParamList>;
 
 export const useHome = () => {
   const navigation = useNavigation<RootNavigation>();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, updateUser } = useAuth();
 
   const [deleteVital] = useDeleteVitalMutation();
 
@@ -182,7 +182,20 @@ export const useHome = () => {
   const { data: clinicsData, isLoading: clinicsLoading } = useGetClinicsQuery({ cityId: activeCityId });
 
   const userIdStr = user?.id ? String(user.id) : '';
-  const { data: userProfileData } = useGetUserProfileQuery(userIdStr, { skip: !userIdStr });
+  const { data: userProfileData } = useGetUserProfileQuery(userIdStr, {
+    skip: !userIdStr,
+    refetchOnMountOrArgChange: true,
+  });
+
+  useEffect(() => {
+    if (userProfileData) {
+      const freshUser = (userProfileData as any)?.data ?? userProfileData;
+      if (freshUser && typeof freshUser === 'object' && freshUser.id) {
+        updateUser({ ...(user || {}), ...freshUser });
+      }
+    }
+  }, [userProfileData]);
+
   const { data: familyMembersData } = useGetFamilyMembersQuery(userIdStr, { skip: !userIdStr });
   const { data: vitalsData, isLoading: vitalsLoading } = useGetVitalsQuery(userIdStr, { skip: !userIdStr });
 
