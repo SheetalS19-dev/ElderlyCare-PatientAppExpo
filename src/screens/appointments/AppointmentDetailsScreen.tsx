@@ -459,14 +459,14 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
             (appointment as any).phone ||
             doctorData?.phone ||
             doctorData?.mobile ||
-            '9876543126';
+            '';
 
           const docEmail =
             (appointment as any).doct_email ||
             (appointment as any).doctor_email ||
             (appointment as any).email ||
             doctorData?.email ||
-            'rita@yopmail.com';
+            '';
 
           const clinicName =
             appointment.clinic_title ||
@@ -474,80 +474,84 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
             (appointment as any).clinicName ||
             doctorData?.clinic_title ||
             doctorData?.clinic_name ||
-            'Max Super Specialty';
+            '';
 
           const rawAddress =
             (appointment as any).clinic_address ||
             (appointment as any).clinics_address ||
             doctorData?.clinic_address ||
             doctorData?.address ||
-            'Gomti Nagar, Lucknow, Uttar Pradesh 226010';
+            '';
 
           const clinicAddr =
-            clinicName && !rawAddress.toLowerCase().includes(clinicName.toLowerCase())
+            clinicName && rawAddress && !rawAddress.toLowerCase().includes(clinicName.toLowerCase())
               ? `${clinicName}, ${rawAddress}`
-              : rawAddress;
+              : rawAddress || clinicName;
+
+          if (!docPhone && !docEmail && !clinicAddr) {
+            return null;
+          }
 
           return (
             <AppCard style={styles.contactUsCard}>
               <Text style={styles.contactUsTitle}>Contact Us</Text>
 
               {/* Phone Row */}
-              <TouchableOpacity
-                style={styles.contactRow}
-                activeOpacity={0.75}
-                onPress={() => {
-                  if (docPhone) {
+              {!!docPhone && (
+                <TouchableOpacity
+                  style={styles.contactRow}
+                  activeOpacity={0.75}
+                  onPress={() => {
                     Linking.openURL(`tel:${docPhone}`).catch(() => showToast('Could not initiate call'));
-                  }
-                }}
-              >
-                <View style={styles.contactIconCircle}>
-                  <Ionicons name="call-outline" size={fs(18)} color="#2563EB" />
-                </View>
-                <View style={styles.contactTextGroup}>
-                  <Text style={styles.contactLabel}>Phone</Text>
-                  <Text style={styles.contactValue}>{docPhone}</Text>
-                </View>
-              </TouchableOpacity>
+                  }}
+                >
+                  <View style={styles.contactIconCircle}>
+                    <Ionicons name="call-outline" size={fs(18)} color="#2563EB" />
+                  </View>
+                  <View style={styles.contactTextGroup}>
+                    <Text style={styles.contactLabel}>Phone</Text>
+                    <Text style={styles.contactValue}>{docPhone}</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
 
               {/* Email Row */}
-              <TouchableOpacity
-                style={styles.contactRow}
-                activeOpacity={0.75}
-                onPress={() => {
-                  if (docEmail) {
+              {!!docEmail && (
+                <TouchableOpacity
+                  style={styles.contactRow}
+                  activeOpacity={0.75}
+                  onPress={() => {
                     Linking.openURL(`mailto:${docEmail}`).catch(() => showToast('Could not open mail app'));
-                  }
-                }}
-              >
-                <View style={styles.contactIconCircle}>
-                  <Ionicons name="mail-outline" size={fs(18)} color="#2563EB" />
-                </View>
-                <View style={styles.contactTextGroup}>
-                  <Text style={styles.contactLabel}>Email</Text>
-                  <Text style={styles.contactValue}>{docEmail}</Text>
-                </View>
-              </TouchableOpacity>
+                  }}
+                >
+                  <View style={styles.contactIconCircle}>
+                    <Ionicons name="mail-outline" size={fs(18)} color="#2563EB" />
+                  </View>
+                  <View style={styles.contactTextGroup}>
+                    <Text style={styles.contactLabel}>Email</Text>
+                    <Text style={styles.contactValue}>{docEmail}</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
 
               {/* Clinic Address Row */}
-              <TouchableOpacity
-                style={[styles.contactRow, { marginBottom: 0 }]}
-                activeOpacity={0.75}
-                onPress={() => {
-                  if (clinicAddr) {
+              {!!clinicAddr && (
+                <TouchableOpacity
+                  style={[styles.contactRow, { marginBottom: 0 }]}
+                  activeOpacity={0.75}
+                  onPress={() => {
                     Linking.openURL(`http://maps.google.com/maps?q=${encodeURIComponent(clinicAddr)}`).catch(() => showToast('Could not open map'));
-                  }
-                }}
-              >
-                <View style={styles.contactIconCircle}>
-                  <Ionicons name="location-outline" size={fs(18)} color="#2563EB" />
-                </View>
-                <View style={styles.contactTextGroup}>
-                  <Text style={styles.contactLabel}>Clinic Address</Text>
-                  <Text style={styles.contactValue} numberOfLines={3}>{clinicAddr}</Text>
-                </View>
-              </TouchableOpacity>
+                  }}
+                >
+                  <View style={styles.contactIconCircle}>
+                    <Ionicons name="location-outline" size={fs(18)} color="#2563EB" />
+                  </View>
+                  <View style={styles.contactTextGroup}>
+                    <Text style={styles.contactLabel}>Clinic Address</Text>
+                    <Text style={styles.contactValue} numberOfLines={3}>{clinicAddr}</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
             </AppCard>
           );
         })()}
@@ -698,7 +702,7 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
                 <View style={styles.qrDetailCard}>
                   <Text style={styles.qrDetailLabel}>Doctor</Text>
                   <Text style={styles.qrDetailValue}>
-                    {formatDoctorName(appointment.doct_f_name, appointment.doct_l_name) || appointment.doctor_name || 'Dr. Rita Bishwash'}
+                    {formatDoctorName(appointment.doct_f_name, appointment.doct_l_name) || appointment.doctor_name || '--'}
                   </Text>
                 </View>
 
@@ -746,9 +750,9 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
                     return DateTimeUtils.formatTimeToAmPm(str) || str;
                   };
 
-                  const dateStr = formatDisplayDate(rawDateVal) || '09/09/2026';
-                  const timeStr = formatDisplayTime(rawTimeVal) || '10:00 AM';
-                  const dateTimeStr = `${dateStr} | ${timeStr}`;
+                  const dateStr = formatDisplayDate(rawDateVal);
+                  const timeStr = formatDisplayTime(rawTimeVal);
+                  const dateTimeStr = [dateStr, timeStr].filter(Boolean).join(' | ') || '--';
 
                   return (
                     <View style={styles.qrDetailCard}>
@@ -767,7 +771,7 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
                       (appointment as any).patientName ||
                       (user as any)?.name ||
                       user?.f_name ||
-                      'Amit Singh'}
+                      '--'}
                   </Text>
                 </View>
               </View>

@@ -48,16 +48,16 @@ const parseAppointmentDate = (rawDate?: string) => {
 const getStatusBadge = (status?: string) => {
   const s = (status || '').toLowerCase().trim();
   if (s === 'pending') {
-    return { bg: '#EFF6FF', color: '#2563EB', label: 'Pending' };
+    return { bg: '#FEF3C7', color: '#D97706', label: 'Pending' };
   }
   if (s === 'rescheduled') {
-    return { bg: '#DBEAFE', color: '#EA580C', label: 'Rescheduled' };
+    return { bg: '#FFEDD5', color: '#EA580C', label: 'Rescheduled' };
   }
   if (s === 'rejected' || s === 'cancelled' || s === 'canceled') {
     return { bg: '#FEE2E2', color: '#DC2626', label: 'Cancelled' };
   }
   if (s === 'confirmed') {
-    return { bg: '#ECFDF5', color: '#059669', label: 'Confirmed' };
+    return { bg: '#DCFCE7', color: '#15803D', label: 'Confirmed' };
   }
   if (s === 'completed' || s === 'visited') {
     return { bg: '#EFF6FF', color: '#2563EB', label: 'Completed' };

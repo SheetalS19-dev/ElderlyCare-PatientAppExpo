@@ -130,7 +130,7 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
     const authorName = commentName.trim() || (user
       ? `${user.f_name ?? ''} ${user.l_name ?? ''}`.trim() || 'Patient'
       : 'Guest User');
-    const authorEmail = commentEmail.trim() || user?.email || 'user@yopmail.com';
+    const authorEmail = commentEmail.trim() || user?.email || '';
 
     setCommentText('');
     Keyboard.dismiss();

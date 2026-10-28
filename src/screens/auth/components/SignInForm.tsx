@@ -157,7 +157,7 @@ export const SignInForm: React.FC<SignInFormProps> = ({
         {busy ? (
           <ActivityIndicator color={Colors.white} size="small" />
         ) : (
-          <Text style={styles.submitButtonText}>Sign In</Text>
+          <Text style={styles.submitButtonText}>Login</Text>
         )}
       </TouchableOpacity>
 

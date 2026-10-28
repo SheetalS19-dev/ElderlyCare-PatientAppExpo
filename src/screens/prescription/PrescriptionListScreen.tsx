@@ -374,13 +374,13 @@ export const PrescriptionListScreen = ({ navigation, route }: Props) => {
               (item as any).patient_name ||
               (item as any).patientName ||
               user?.f_name ||
-              'Amit Singh';
+              '';
 
             const displayId = item.id ? `#${item.id}` : (item as any).prescription_id ? `#${(item as any).prescription_id}` : '';
             const doctName =
               formatDoctorName(item.doctor_f_name, item.doctor_l_name) ||
               (item as any).doctor_name ||
-              'Dr. Doctor';
+              '';
 
             const formattedDateTime = formatRxDateTime(item.created_at || (item as any).date);
 

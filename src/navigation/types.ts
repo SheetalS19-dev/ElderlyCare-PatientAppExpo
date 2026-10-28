@@ -2,6 +2,7 @@ export type RootStackParamList = {
   Main: undefined;
   Login: { redirectTo?: string; redirectParams?: any } | undefined;
   Home: undefined;
+  Menu: undefined;
   Search: { searchQuery?: string; initialTab?: 'doctors' | 'clinics'; selectedDeptId?: string; selectedDeptTitle?: string } | undefined;
   DoctorList: { categoryId?: string; search?: string; selectedDeptId?: string; selectedDeptTitle?: string; searchQuery?: string } | undefined;
   DoctorDetails: { doctorId?: string | number; doctId?: string | number };

@@ -77,15 +77,56 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
       sourceList = (rawData as any).response;
     }
 
-    return sourceList.filter((m) => {
+    const selfFName = (user?.f_name || '').trim();
+    const selfLName = (user?.l_name || '').trim();
+    const selfPhone = (user?.phone || '').trim();
+    const selfId = user?.id ? String(user.id) : uid;
+
+    const existingSelf = sourceList.find((m) => {
+      return (
+        (m as any).is_self === true ||
+        (m.relationship || '').toLowerCase() === 'self' ||
+        (selfId && String(m.id) === selfId) ||
+        (selfFName && m.f_name?.trim().toLowerCase() === selfFName.toLowerCase() && m.phone === selfPhone)
+      );
+    });
+
+    const selfMember: FamilyMemberModel = existingSelf
+      ? {
+        ...existingSelf,
+        id: existingSelf.id ?? selfId,
+        user_id: existingSelf.user_id ?? selfId,
+        f_name: existingSelf.f_name || selfFName || 'Self',
+        l_name: existingSelf.l_name || selfLName || '',
+        relationship: 'Self',
+      }
+      : {
+        id: selfId || 'SELF',
+        user_id: selfId,
+        f_name: selfFName || 'Self',
+        l_name: selfLName || '',
+        phone: selfPhone || '',
+        gender: user?.gender || 'Male',
+        dob: user?.dob || '',
+        isd_code: user?.isd_code || '+91',
+        relationship: 'Self',
+      };
+    (selfMember as any).is_self = true;
+
+    const otherMembers = sourceList.filter((m) => {
       const isSelf =
         (m as any).is_self === true ||
         (m.relationship || '').toLowerCase() === 'self' ||
-        String(m.id) === String(user?.id) ||
-        (m.f_name === user?.f_name && m.phone === user?.phone);
+        (selfId && String(m.id) === selfId) ||
+        (selfFName &&
+          m.f_name?.trim().toLowerCase() === selfFName.toLowerCase() &&
+          (m.l_name?.trim().toLowerCase() === selfLName.toLowerCase() || !m.l_name) &&
+          (m.phone === selfPhone || !m.phone));
       return !isSelf;
     });
-  }, [rawData, user]);
+
+    return [selfMember, ...otherMembers];
+  }, [rawData, user, uid]);
 
   const resetForm = () => {
     setFirstName('');

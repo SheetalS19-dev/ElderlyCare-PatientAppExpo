@@ -93,7 +93,7 @@ export const OtpVerifyForm: React.FC<OtpVerifyFormProps> = ({
         {busy ? (
           <ActivityIndicator color={Colors.white} size="small" />
         ) : (
-          <Text style={styles.submitButtonText}>Verify & Sign In</Text>
+          <Text style={styles.submitButtonText}>Verify & Login</Text>
         )}
       </TouchableOpacity>
 

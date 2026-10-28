@@ -558,11 +558,23 @@ export const WalletScreen = () => {
         // Once you've confirmed the gateway-provided key works reliably,
         // flip FORCE_TEST_MODE to false in RazorpayWebModal.tsx to go live.
         keyId={
-          (gateway as any)?.razorpay_key ||
-          (gateway as any)?.key_id ||
-          (gateway as any)?.key ||
-          (gateway as any)?.razorpay_key_id ||
-          'rzp_test_R6kmrnO91ID9yH'
+          (() => {
+            const raw =
+              (gateway as any)?.razorpay_key ||
+              (gateway as any)?.key_id ||
+              (gateway as any)?.key ||
+              (gateway as any)?.razorpay_key_id;
+            if (
+              raw &&
+              typeof raw === 'string' &&
+              (raw.startsWith('rzp_test_') || raw.startsWith('rzp_live_')) &&
+              !raw.includes('xxxx') &&
+              !raw.includes('XXXX')
+            ) {
+              return raw.trim();
+            }
+            return 'rzp_test_R6kmrnO91ID9yH';
+          })()
         }
         amount={pendingPaymentInfo?.numericAmount || 0}
         description={pendingPaymentInfo?.description || 'Wallet Top-up'}

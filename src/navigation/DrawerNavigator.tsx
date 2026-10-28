@@ -13,6 +13,7 @@ export const DrawerNavigator = () => {
       drawerContent={(props) => <DrawerContent {...props} />}
       screenOptions={{
         headerShown: false,
+        drawerType: 'front',
         drawerStyle: {
           width: '84%',
           maxWidth: 340,
@@ -22,6 +23,7 @@ export const DrawerNavigator = () => {
           overflow: 'hidden',
         },
         overlayColor: 'rgba(0, 0, 0, 0.45)',
+        swipeEnabled: true,
       }}
     >
       <Drawer.Screen name="Home" component={HomeScreen} />

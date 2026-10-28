@@ -227,7 +227,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
       <Text style={styles.switchAuthRow}>
         <Text style={styles.switchAuthPrompt}>Already have an account? </Text>
         <Text style={styles.switchAuthLink} onPress={onSwitchToLogin}>
-          Sign In
+          Login
         </Text>
       </Text>
     </View>

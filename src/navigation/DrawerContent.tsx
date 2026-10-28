@@ -132,7 +132,7 @@ export const DrawerContent: React.FC<DrawerContentComponentProps> = memo((props)
 
             <View style={styles.profileActionPill}>
               <Text style={styles.profileActionText}>
-                {isAuthenticated ? 'View Profile' : 'Sign In / Register'}
+                {isAuthenticated ? 'View Profile' : 'Login / Register'}
               </Text>
               <MaterialIcons name="chevron-right" size={14} color={Colors.primaryColor} />
             </View>
@@ -184,7 +184,7 @@ export const DrawerContent: React.FC<DrawerContentComponentProps> = memo((props)
               color={isAuthenticated ? Colors.redColor : Colors.primaryColor}
             />
             <Text style={[styles.authButtonText, isAuthenticated && styles.logoutButtonText]}>
-              {isAuthenticated ? 'Sign Out' : 'Sign In / Register'}
+              {isAuthenticated ? 'Logout' : 'Login / Register'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -374,3 +374,6 @@ const styles = StyleSheet.create({
     marginTop: hs(2),
   },
 });
+
+export const MenuScreen = DrawerContent;
+export default DrawerContent;

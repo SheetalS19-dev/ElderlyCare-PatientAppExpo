@@ -29,7 +29,7 @@ import { useGetUserProfileQuery } from '../../redux/apis/userApi';
 import { useAddWalletMoneyMutation } from '../../redux/apis/walletApi';
 import { storageService } from '../../services/storageService';
 import type { CouponModel, DoctorModel, DoctorReviewModel, FamilyMemberModel, UserModel } from '../../types';
-import { CalculationUtils, DateTimeUtils, formatDoctorName, getImageUrl, showToast, ws, hs, fs, TYPOGRAPHY } from '../../utils';
+import { CalculationUtils, DateTimeUtils, formatDoctorName, fs, getImageUrl, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
 import { DateTimeSheet } from './components/DateTimeSheet';
 import { FamilyMemberSheet } from './components/FamilyMemberSheet';
 import { PaymentMethodChoice, PaymentSheet } from './components/PaymentSheet';
@@ -90,6 +90,24 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
   const [selectedMember, setSelectedMember] = useState<FamilyMemberModel | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTimeStart, setSelectedTimeStart] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (user && !selectedMember) {
+      const selfMember: FamilyMemberModel = {
+        id: user.id,
+        user_id: user.id,
+        f_name: user.f_name || 'Self',
+        l_name: user.l_name || '',
+        phone: user.phone || '',
+        gender: user.gender || '',
+        dob: user.dob || '',
+        isd_code: user.isd_code || '+91',
+        relationship: 'Self',
+      };
+      (selfMember as any).is_self = true;
+      setSelectedMember(selfMember);
+    }
+  }, [user, selectedMember]);
 
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<CouponModel | null>(null);
@@ -766,6 +784,7 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
         visible={showFamilySheet}
         onClose={() => setShowFamilySheet(false)}
         onSelect={setSelectedMember}
+        selectedMemberId={selectedMember?.id}
       />
 
       {selectedType && (

@@ -144,61 +144,61 @@ export const StaticColors = {
 // ─────────────────────────────────────────────────────────────────────────────
 const LightTheme = {
   // Backgrounds
-  screenBg: Palette.gray_F3F6FC,
+  screenBg: '#F4F7FB',
   cardBg: Palette.white,
-  cardBgSecondary: Palette.gray_F8FAFC,
-  cardBgTertiary: Palette.blue_EEF0FF,
+  cardBgSecondary: '#F8FAFC',
+  cardBgTertiary: '#EFF6FF',
 
   // Modal & bottom-sheet surfaces
   modalBg: Palette.white,
-  modalBgSecondary: Palette.gray_F3F6FC,
-  modalHandle: Palette.gray_D9D9D9,
+  modalBgSecondary: '#F8FAFC',
+  modalHandle: '#CBD5E1',
   modalOverlay: Palette.black_00000099_light,
 
   // Dropdown / picker
   dropdownBg: Palette.white,
   dropdownOptionBg: Palette.blue_232347,
-  dropdownOptionSelectedBg: Palette.blue_EEF0FF,
-  dropdownBorder: Palette.gray_DBDEE7,
-  dropdownSearchBg: Palette.gray_F3F6FC,
+  dropdownOptionSelectedBg: '#EFF6FF',
+  dropdownBorder: '#E2E8F0',
+  dropdownSearchBg: '#F8FAFC',
 
   // Input fields
-  inputBg: Palette.gray_F3F6FC,
-  inputBorder: Palette.gray_DBDEE7,
+  inputBg: '#F8FAFC',
+  inputBorder: '#E2E8F0',
   inputBorderFocused: Palette.primary,
-  inputText: Palette.blue_1C1E40,
-  inputPlaceholder: Palette.gray_9FA7BC,
-  inputIconTint: Palette.gray_526286,
+  inputText: '#0F172A',
+  inputPlaceholder: '#94A3B8',
+  inputIconTint: '#64748B',
 
   // Text
-  textPrimary: Palette.blue_1C1E40,
-  textSecondary: Palette.gray_526286,
-  textMuted: Palette.gray_9098AF,
+  textPrimary: '#0F172A',
+  textSecondary: '#475569',
+  textMuted: '#94A3B8',
   textLink: Palette.primary,
   textOnAccent: Palette.white,
 
   // Borders / dividers
-  border: Palette.gray_DBDEE7,
-  divider: Palette.gray_E5E7EB,
+  border: '#E2E8F0',
+  divider: '#E2E8F0',
 
   // Skeleton / shimmer
-  skeletonBase: Palette.gray_DBDEE7,
-  skeletonHighlight: Palette.gray_F3F6FC,
+  skeletonBase: '#E2E8F0',
+  skeletonHighlight: '#F1F5F9',
 
   // Icon tints (non-header)
-  iconPrimary: Palette.blue_1C1E40,
-  iconMuted: Palette.gray_9098AF,
+  iconPrimary: '#0F172A',
+  iconMuted: '#94A3B8',
 
-  // Status pills & badges
-  successBg: Palette.green_F0FBF4,
-  successText: Palette.green_1B8A3E,
-  successBorder: Palette.green_49B68D,
-  warningBg: Palette.yellow_FEF3C7,
-  warningText: Palette.yellow_D97706,
-  errorBg: Palette.red_FFE8E8,
-  errorText: Palette.red_C0392B,
-  infoBg: Palette.blue_EDF5FF,
-  infoText: Palette.blue_3978CD,
+  // Status pills & badges (aligned with web Tailwind badges)
+  successBg: '#DCFCE7',
+  successText: '#15803D',
+  successBorder: '#86EFAC',
+  warningBg: '#FEF3C7',
+  warningText: '#D97706',
+  errorBg: '#FEE2E2',
+  errorText: '#DC2626',
+  infoBg: '#EFF6FF',
+  infoText: Palette.primary,
 
   // Floating action button
   fabBg: Palette.primary,
@@ -206,30 +206,30 @@ const LightTheme = {
 
   // Bottom tab bar
   tabBarBg: Palette.white,
-  tabBarBorder: Palette.gray_DBDEE7,
+  tabBarBorder: '#E2E8F0',
   tabBarActive: Palette.primary,
-  tabBarInactive: Palette.gray_9098AF,
+  tabBarInactive: '#94A3B8',
 
   // Drawer
   drawerBg: Palette.white,
-  drawerItemActive: Palette.blue_EEF0FF,
-  drawerItemText: Palette.blue_1C1E40,
+  drawerItemActive: '#EFF6FF',
+  drawerItemText: '#0F172A',
 
   // Chat bubbles
   chatBubbleSentBg: Palette.primary,
   chatBubbleSentText: Palette.white,
   chatBubbleReceivedBg: Palette.white,
-  chatBubbleReceivedText: Palette.blue_1C1E40,
-  chatBubbleBorder: Palette.gray_DBDEE7,
+  chatBubbleReceivedText: '#0F172A',
+  chatBubbleBorder: '#E2E8F0',
 
   // Cards with accent left-border (e.g. checklist, journal)
-  accentCard: Palette.blue_EEF0FF,
-  accentBrandBorder: Palette.purple_E2E4FF,
-  accentWarmBorder: Palette.orange_FFE3D3,
+  accentCard: '#EFF6FF',
+  accentBrandBorder: '#BFDBFE',
+  accentWarmBorder: '#FED7AA',
 
   // Switch
   switchTrackOn: Palette.primary,
-  switchTrackOff: Palette.gray_D9D9D9,
+  switchTrackOff: '#CBD5E1',
   switchThumb: Palette.white,
 };
 
@@ -356,16 +356,20 @@ export const AppColors = {
   shadow: Palette.blue_151835,
 
   // Backgrounds & Containers
-  bgColor: Palette.gray_F3F6FC,
-  inputTextBgColor: Palette.gray_F3F6FC,
-  containerBgColor: Palette.gray_F3F6FC,
+  bgColor: '#F4F7FB',
+  inputTextBgColor: '#F8FAFC',
+  containerBgColor: '#F4F7FB',
   cardBgColor: Palette.white,
-  borderColor: Palette.gray_DBDEE7,
-  border: Palette.gray_DBDEE7,
-  lightBlueTint: Palette.blue_EEF0FF,
-  lightBlueBorder: Palette.blue_DBEDFF,
+  borderColor: '#E2E8F0',
+  border: '#E2E8F0',
+  lightBlueTint: '#EFF6FF',
+  lightBlueBorder: '#BFDBFE',
   transparent: 'transparent',
   appBarColor: Palette.primary,
+  dashboardNavy: '#0A122C',
+  dashboardCardBg: '#0A122C',
+  badgeSuccessBg: '#DCFCE7',
+  badgeSuccessText: '#15803D',
 
   // Charts
   contentColorCyan: Palette.blue_3AB0FF,

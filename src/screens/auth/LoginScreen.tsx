@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -392,7 +392,7 @@ export const LoginScreen = ({ navigation, route }: Props) => {
     <View style={styles.container}>
       {/* Top Header Bar matching AppHeader */}
       <AppHeader
-        title={step === 'register' ? 'Create Account' : step === 'otp_verify' ? 'OTP Verification' : 'Sign In'}
+        title={step === 'register' ? 'Create Account' : step === 'otp_verify' ? 'OTP Verification' : 'Login'}
         onBackPress={handleBack}
       />
 
@@ -418,14 +418,14 @@ export const LoginScreen = ({ navigation, route }: Props) => {
 
             {/* Title & Subtitle */}
             <Text style={styles.cardTitle}>
-              {step === 'register' ? 'Create Account' : step === 'otp_verify' ? 'OTP Verification' : 'Sign In to Your Account'}
+              {step === 'register' ? 'Create Account' : step === 'otp_verify' ? 'OTP Verification' : 'Login to Your Account'}
             </Text>
             <Text style={styles.cardSubtitle}>
               {step === 'register'
                 ? 'Fill in your details to register as a new patient'
                 : step === 'otp_verify'
-                ? `Enter 6-digit OTP sent to ${fullPhoneNumber}`
-                : 'Enter your phone number and password to access your account'}
+                  ? `Enter 6-digit OTP sent to ${fullPhoneNumber}`
+                  : 'Enter your phone number and password to access your account'}
             </Text>
 
             {/* Mode Switcher Tabs */}
@@ -436,7 +436,7 @@ export const LoginScreen = ({ navigation, route }: Props) => {
                   onPress={() => setStep('form')}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.tabText, step === 'form' && styles.tabTextActive]}>Sign In</Text>
+                  <Text style={[styles.tabText, step === 'form' && styles.tabTextActive]}>Login</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.tabButton, step === 'register' && styles.tabButtonActive]}
@@ -567,7 +567,7 @@ export const LoginScreen = ({ navigation, route }: Props) => {
                     }}
                   >
                     <Text style={styles.toggleModeText}>
-                      {loginMode === 'otp' ? 'Sign in with Password' : 'Sign in with OTP'}
+                      {loginMode === 'otp' ? 'Login with Password' : 'Login with OTP'}
                     </Text>
                   </TouchableOpacity>
                   */}
@@ -583,7 +583,7 @@ export const LoginScreen = ({ navigation, route }: Props) => {
                   {busy ? (
                     <ActivityIndicator color={Colors.white} size="small" />
                   ) : (
-                    <Text style={styles.submitButtonText}>Sign In</Text>
+                    <Text style={styles.submitButtonText}>Login</Text>
                   )}
                 </TouchableOpacity>
 
@@ -665,7 +665,7 @@ export const LoginScreen = ({ navigation, route }: Props) => {
                   {busy ? (
                     <ActivityIndicator color={Colors.white} size="small" />
                   ) : (
-                    <Text style={styles.submitButtonText}>Verify & Sign In</Text>
+                    <Text style={styles.submitButtonText}>Verify & Login</Text>
                   )}
                 </TouchableOpacity>
 
@@ -854,12 +854,12 @@ export const LoginScreen = ({ navigation, route }: Props) => {
                   )}
                 </TouchableOpacity>
 
-                {/* Switch to Sign In */}
+                {/* Switch to Login */}
                 <View style={styles.switchAuthRow}>
                   <Text style={styles.switchAuthPrompt}>
                     Already have an account?{' '}
                     <Text style={styles.switchAuthLink} onPress={() => setStep('form')}>
-                      Sign In
+                      Login
                     </Text>
                   </Text>
                 </View>
@@ -1476,23 +1476,23 @@ const styles = StyleSheet.create({
     paddingVertical: hs(10),
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: fs(9),
+    borderRadius: fs(10),
   },
   tabButtonActive: {
-    backgroundColor: Colors.white,
-    shadowColor: '#000',
+    backgroundColor: Colors.primaryColor,
+    shadowColor: Colors.primaryColor,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
   },
   tabText: {
     fontSize: fs(14),
     ...TYPOGRAPHY.medium,
-    color: '#64748B',
+    color: '#475569',
   },
   tabTextActive: {
     ...TYPOGRAPHY.bold,
-    color: Colors.primaryColor,
+    color: Colors.white,
   },
 });

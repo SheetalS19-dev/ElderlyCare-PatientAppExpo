@@ -16,6 +16,7 @@ import {
   FamilyMemberListScreen,
   FaqScreen,
   FullScreenImageViewerScreen,
+  HomeScreen,
   LoginScreen,
   MyBookingsScreen,
   NotificationDetailsScreen,

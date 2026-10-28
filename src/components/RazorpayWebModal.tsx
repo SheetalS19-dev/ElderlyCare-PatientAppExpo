@@ -52,7 +52,17 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
   const insets = useSafeAreaInsets();
   const webviewRef = useRef<WebView>(null);
 
-  const providedKey = keyId && keyId.trim().length > 5 ? keyId.trim() : '';
+  const isValidRzpKey = (k?: string): boolean => {
+    if (!k || typeof k !== 'string') return false;
+    const trimmed = k.trim();
+    return (
+      (trimmed.startsWith('rzp_test_') || trimmed.startsWith('rzp_live_')) &&
+      !trimmed.includes('xxxx') &&
+      !trimmed.includes('XXXX')
+    );
+  };
+
+  const providedKey = isValidRzpKey(keyId) ? keyId!.trim() : '';
   const activeKey = providedKey || TEST_KEY_ID;
 
   const numAmount = Number(amount);
@@ -77,7 +87,7 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
   // Build the options as a real JS object and serialize with JSON.stringify
   const razorpayOptions: Record<string, any> = {
     key: activeKey,
-    amount: String(finalPaise),
+    amount: finalPaise,
     currency: 'INR',
     name,
     description,
@@ -88,8 +98,8 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
     },
     theme: { color: '#2563EB' },
   };
-  if (orderId) {
-    razorpayOptions.order_id = orderId;
+  if (orderId && typeof orderId === 'string' && orderId.trim().length > 0) {
+    razorpayOptions.order_id = orderId.trim();
   }
   const razorpayOptionsJson = JSON.stringify(razorpayOptions);
 
@@ -229,11 +239,15 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
           });
         });
 
-        window.onload = function () {
+        var isOpened = false;
+        function doOpen() {
+          if (isOpened) return;
+          isOpened = true;
           rzp.open();
-        };
-        if (document.readyState === 'complete') {
-          rzp.open();
+        }
+        window.onload = doOpen;
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+          doOpen();
         }
       } catch (e) {
         sendMessage({ status: 'error', error: e.message });

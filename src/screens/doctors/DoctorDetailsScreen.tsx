@@ -182,71 +182,89 @@ export const DoctorDetailsScreen = ({ navigation, route }: Props) => {
         )}
 
         {/* Clinic & Contact Details Section (Web Compatible) */}
-        <Text style={styles.sectionTitle}>Clinic Contact & Location</Text>
-        <AppCard style={styles.clinicContactCard}>
-          <View style={styles.clinicHeaderRow}>
-            <View style={styles.clinicIconCircle}>
-              {clinicImgUrl ? (
-                <Image
-                  source={{ uri: clinicImgUrl }}
-                  style={styles.clinicLogoImg}
-                  resizeMode="cover"
-                />
-              ) : (
-                <MaterialIcons name="local-hospital" size={24} color={Colors.primaryColor} />
-              )}
-            </View>
-            <View style={styles.clinicInfoText}>
-              <Text style={styles.clinicTitle}>
-                {doctor.clinic_title || doctor.clinic_name || (doctor as any).clinics_name || 'Jagrani Hospital Lucknow'}
-              </Text>
-              <Text style={styles.clinicSubtitle}>Primary Consulting Clinic</Text>
-            </View>
-          </View>
+        {(() => {
+          const clinicTitle = doctor.clinic_title || doctor.clinic_name || (doctor as any).clinics_name || '';
+          const clinicPhone = (doctor as any).clinic_phone || doctor.phone || (doctor as any).clinics_phone || '';
+          const clinicEmail = (doctor as any).clinic_email || doctor.email || (doctor as any).clinics_email || '';
+          const clinicAddress = doctor.clinics_address || doctor.clinic_address || '';
 
-          <View style={styles.contactDivider} />
+          if (!clinicTitle && !clinicPhone && !clinicEmail && !clinicAddress) {
+            return null;
+          }
 
-          <View style={styles.contactDetailsList}>
-            {/* Phone */}
-            <View style={styles.contactRowItem}>
-              <View style={styles.contactIconCircle}>
-                <MaterialIcons name="phone" size={18} color={Colors.primaryColor} />
-              </View>
-              <View style={styles.contactMeta}>
-                <Text style={styles.contactLabel}>Phone</Text>
-                <Text style={styles.contactValue}>
-                  {(doctor as any).clinic_phone || doctor.phone || (doctor as any).clinics_phone || '9876543227'}
-                </Text>
-              </View>
-            </View>
+          return (
+            <>
+              <Text style={styles.sectionTitle}>Clinic Contact & Location</Text>
+              <AppCard style={styles.clinicContactCard}>
+                <View style={styles.clinicHeaderRow}>
+                  <View style={styles.clinicIconCircle}>
+                    {clinicImgUrl ? (
+                      <Image
+                        source={{ uri: clinicImgUrl }}
+                        style={styles.clinicLogoImg}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <MaterialIcons name="local-hospital" size={24} color={Colors.primaryColor} />
+                    )}
+                  </View>
+                  <View style={styles.clinicInfoText}>
+                    <Text style={styles.clinicTitle}>
+                      {clinicTitle || 'Consulting Clinic'}
+                    </Text>
+                    <Text style={styles.clinicSubtitle}>Primary Consulting Clinic</Text>
+                  </View>
+                </View>
 
-            {/* Email */}
-            <View style={styles.contactRowItem}>
-              <View style={styles.contactIconCircle}>
-                <MaterialIcons name="email" size={18} color={Colors.primaryColor} />
-              </View>
-              <View style={styles.contactMeta}>
-                <Text style={styles.contactLabel}>Email</Text>
-                <Text style={styles.contactValue}>
-                  {(doctor as any).clinic_email || doctor.email || (doctor as any).clinics_email || 'amit@gmail.com'}
-                </Text>
-              </View>
-            </View>
+                {(!!clinicPhone || !!clinicEmail || !!clinicAddress) && (
+                  <>
+                    <View style={styles.contactDivider} />
+                    <View style={styles.contactDetailsList}>
+                      {/* Phone */}
+                      {!!clinicPhone && (
+                        <View style={styles.contactRowItem}>
+                          <View style={styles.contactIconCircle}>
+                            <MaterialIcons name="phone" size={18} color={Colors.primaryColor} />
+                          </View>
+                          <View style={styles.contactMeta}>
+                            <Text style={styles.contactLabel}>Phone</Text>
+                            <Text style={styles.contactValue}>{clinicPhone}</Text>
+                          </View>
+                        </View>
+                      )}
 
-            {/* Address */}
-            <View style={styles.contactRowItem}>
-              <View style={styles.contactIconCircle}>
-                <MaterialIcons name="location-on" size={18} color={Colors.primaryColor} />
-              </View>
-              <View style={styles.contactMeta}>
-                <Text style={styles.contactLabel}>Clinic Address</Text>
-                <Text style={styles.contactValue}>
-                  {doctor.clinics_address || doctor.clinic_address || 'Jagrani Hospital Lucknow, Lucknow'}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </AppCard>
+                      {/* Email */}
+                      {!!clinicEmail && (
+                        <View style={styles.contactRowItem}>
+                          <View style={styles.contactIconCircle}>
+                            <MaterialIcons name="email" size={18} color={Colors.primaryColor} />
+                          </View>
+                          <View style={styles.contactMeta}>
+                            <Text style={styles.contactLabel}>Email</Text>
+                            <Text style={styles.contactValue}>{clinicEmail}</Text>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Address */}
+                      {!!clinicAddress && (
+                        <View style={styles.contactRowItem}>
+                          <View style={styles.contactIconCircle}>
+                            <MaterialIcons name="location-on" size={18} color={Colors.primaryColor} />
+                          </View>
+                          <View style={styles.contactMeta}>
+                            <Text style={styles.contactLabel}>Clinic Address</Text>
+                            <Text style={styles.contactValue}>{clinicAddress}</Text>
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  </>
+                )}
+              </AppCard>
+            </>
+          );
+        })()}
 
 
 

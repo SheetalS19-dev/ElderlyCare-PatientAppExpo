@@ -1693,7 +1693,7 @@ export const HomeScreen: React.FC = () => {
                 {latestFiles.length > 0 ? (
                   latestFiles.map((file: any, idx: number) => {
                     const fileName = file.title || file.name || file.file_name || `Report #${idx + 1}`;
-                    const fileDate = file.created_at ? String(file.created_at).split('T')[0] : 'Aug-20, 2026';
+                    const fileDate = file.created_at ? String(file.created_at).split('T')[0] : '';
                     const fileSource = file.file_url || file.file || file.url || file.document;
                     const downloadUrl = fileSource ? (String(fileSource).startsWith('http') ? fileSource : getImageUrl(fileSource)) : null;
 
@@ -1770,7 +1770,7 @@ export const HomeScreen: React.FC = () => {
                       <View style={styles.promoCardGradient}>
                         <View style={styles.promoCardTextGroup}>
                           <Text style={styles.promoBadge}>SPECIAL CARE</Text>
-                          <Text style={styles.promoHeading}>{banner.title || 'Comprehensive Elderly Healthcare'}</Text>
+                          <Text style={styles.promoHeading}>{banner.title || ''}</Text>
                           <Text style={styles.promoSubtext}>Book appointments with top specialists near you</Text>
                         </View>
                         <MaterialIcons name="health-and-safety" size={48} color="rgba(255, 255, 255, 0.8)" style={styles.promoIcon} />
@@ -2112,7 +2112,7 @@ const DepartmentCard = memo(({ item, onPress }: { item: DepartmentModel; onPress
 const DoctorSpotlightCard = memo(
   ({ doctor, onBook }: { doctor: DoctorModel; onBook: () => void }) => {
     const displayName = formatDoctorName(doctor.f_name || doctor.name, doctor.l_name);
-    const specialty = doctor.specialization || (doctor as any).dept_title || 'Specialist';
+    const specialty = doctor.specialization || (doctor as any).dept_title || '';
     const rating = Number(doctor.average_rating ?? 0);
     const reviews = doctor.number_of_reviews ?? 0;
     const experience = doctor.ex_year ?? doctor.experience;
@@ -2135,7 +2135,7 @@ const DoctorSpotlightCard = memo(
 
           <View style={styles.ratingBadge}>
             <MaterialIcons name="star" size={13} color="#F59E0B" />
-            <Text style={styles.ratingBadgeText}>{rating > 0 ? rating.toFixed(1) : '4.8'}</Text>
+            <Text style={styles.ratingBadgeText}>{rating > 0 ? rating.toFixed(1) : '0.0'}</Text>
           </View>
         </View>
 
@@ -2200,7 +2200,7 @@ const ClinicFeatureCard = memo(
           <View style={styles.clinicAddressRow}>
             <MaterialIcons name="location-on" size={14} color={Colors.primaryColor} style={{ marginTop: 1 }} />
             <Text style={styles.clinicAddressText} numberOfLines={2}>
-              {clinic.address || 'Medical Facility'}
+              {clinic.address || ''}
             </Text>
           </View>
         </View>
