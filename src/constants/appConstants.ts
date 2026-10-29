@@ -8,8 +8,8 @@ export const AppConstants = {
     helplinePhone: '+91 88406 22729',
     helplineFormattedPhone: '+918840 622 729',
     helplineRawPhone: '+918840622729',
-    supportEmail: 'praveen@elderlycare.life',
-    infoEmail: 'praveen@elderlycare.life',
+    supportEmail: 'support@elderlycare.life',
+    infoEmail: 'info@elderlycare.life',
     address: 'L-3/141, Vinay Khand, Gomti Nagar, Lucknow 226010',
   },
   storageKeys: {

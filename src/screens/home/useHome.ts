@@ -54,7 +54,9 @@ export const useHome = () => {
         const savedData = await AsyncStorage.getItem(SAVED_LOCATION_KEY);
         if (savedData) {
           const parsed = JSON.parse(savedData);
-          if (parsed !== undefined) {
+          if (parsed?.title?.toLowerCase().includes('lucknow')) {
+            await AsyncStorage.removeItem(SAVED_LOCATION_KEY);
+          } else if (parsed !== undefined) {
             setSelectedCity(parsed);
           }
         }
@@ -141,14 +143,14 @@ export const useHome = () => {
         if (matched) return matched;
       }
       const defaultCity = citiesList.find(
-        (c: CityModel) => (c as any).default_city === 1 || c.title?.toLowerCase().includes('lucknow')
+        (c: CityModel) => (c as any).default_city === 1
       );
       if (defaultCity) return defaultCity;
     }
     return null;
   }, [selectedCity, citiesList, deviceLocationCity]);
 
-  const activeCityName = activeCity ? activeCity.title : (deviceLocationCity || 'Lucknow');
+  const activeCityName = activeCity ? activeCity.title : (deviceLocationCity || 'All Cities');
   const activeCityId = activeCity?.id != null && String(activeCity.id) !== 'ALL' ? String(activeCity.id) : undefined;
 
   const handleCitySelect = async (city: CityModel | null | undefined) => {
@@ -163,18 +165,8 @@ export const useHome = () => {
     } else if (city === null) {
       const allCitiesObj = { id: 'ALL', title: 'All Cities' } as CityModel;
       setSelectedCity(allCitiesObj);
-      try {
-        await AsyncStorage.setItem(SAVED_LOCATION_KEY, JSON.stringify(allCitiesObj));
-      } catch (err) {
-        console.log(err);
-      }
     } else {
       setSelectedCity(city);
-      try {
-        await AsyncStorage.setItem(SAVED_LOCATION_KEY, JSON.stringify(city));
-      } catch (err) {
-        console.log(err);
-      }
     }
   };
 

@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
   FlatList,
   Image,
@@ -54,7 +55,7 @@ import { useGetPatientFilesQuery } from '../../redux/apis/patientFilesApi';
 import { useGetUserProfileQuery } from '../../redux/apis/userApi';
 import { useDeleteVitalMutation, useGetVitalsQuery, useUpdateVitalMutation } from '../../redux/apis/vitalsApi';
 import { getUserFullName, type FamilyMemberModel, type NotificationModel } from '../../types';
-import { DateTimeUtils, downloadAndSaveFile, formatDoctorName, getImageUrl, isWithinLast7Days, showToast, ws, hs, fs, TYPOGRAPHY } from '../../utils';
+import { DateTimeUtils, downloadAndSaveFile, formatDoctorName, fs, getImageUrl, hs, isWithinLast7Days, showToast, TYPOGRAPHY, ws } from '../../utils';
 
 
 
@@ -62,6 +63,7 @@ import { DateTimeUtils, downloadAndSaveFile, formatDoctorName, getImageUrl, isWi
 
 type RootNavigation = NativeStackNavigationProp<RootStackParamList>;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const DOCTOR_CARD_WIDTH = Math.floor((SCREEN_WIDTH - ws(32) - ws(10)) / 2);
 
 interface QuickAction {
   id: string;
@@ -688,7 +690,9 @@ export const HomeScreen: React.FC = () => {
         const savedData = await AsyncStorage.getItem(SAVED_LOCATION_KEY);
         if (savedData) {
           const parsed = JSON.parse(savedData);
-          if (parsed !== undefined) {
+          if (parsed?.title?.toLowerCase().includes('lucknow')) {
+            await AsyncStorage.removeItem(SAVED_LOCATION_KEY);
+          } else if (parsed !== undefined) {
             setSelectedCity(parsed);
           }
         }
@@ -786,7 +790,7 @@ export const HomeScreen: React.FC = () => {
         if (matched) return matched;
       }
       const defaultCity = citiesList.find(
-        (c: CityModel) => (c as any).default_city === 1 || c.title?.toLowerCase().includes('lucknow')
+        (c: CityModel) => (c as any).default_city === 1
       );
       if (defaultCity) return defaultCity;
     }
@@ -795,14 +799,14 @@ export const HomeScreen: React.FC = () => {
 
   const activeCityName = activeCity
     ? activeCity.title
-    : (deviceLocationCity || 'Lucknow');
+    : (deviceLocationCity || 'All Cities');
 
   const activeCityId =
     activeCity?.id != null && String(activeCity.id) !== 'ALL' && String(activeCity.id) !== ''
       ? String(activeCity.id)
       : undefined;
 
-  // Handle selecting city from modal dropdown & persisting to AsyncStorage
+  // Handle selecting city from modal dropdown without auto-saving to persistent storage
   const handleCitySelect = async (city: CityModel | null | undefined) => {
     if (city === undefined) {
       // User tapped "Use Current Location"
@@ -817,19 +821,9 @@ export const HomeScreen: React.FC = () => {
       // User tapped "All Cities"
       const allCitiesObj = { id: 'ALL', title: 'All Cities' } as CityModel;
       setSelectedCity(allCitiesObj);
-      try {
-        await AsyncStorage.setItem(SAVED_LOCATION_KEY, JSON.stringify(allCitiesObj));
-      } catch (err) {
-        console.log('Error saving location:', err);
-      }
     } else {
       // User tapped a specific city from dropdown
       setSelectedCity(city);
-      try {
-        await AsyncStorage.setItem(SAVED_LOCATION_KEY, JSON.stringify(city));
-      } catch (err) {
-        console.log('Error saving location:', err);
-      }
     }
   };
 
@@ -854,6 +848,8 @@ export const HomeScreen: React.FC = () => {
   // Family Members Query & Active Patient Context (Web Dashboard Compatible)
   const { data: familyMembersData } = useGetFamilyMembersQuery(userIdStr, { skip: !userIdStr });
   const [selectedMemberId, setSelectedMemberId] = useState<string>('SELF');
+  const [showMemberDropdown, setShowMemberDropdown] = useState<boolean>(false);
+  const [downloadingFileId, setDownloadingFileId] = useState<string | number | null>(null);
 
   const familyMembersList: FamilyMemberModel[] = useMemo(() => {
     if (Array.isArray(familyMembersData)) return familyMembersData;
@@ -881,6 +877,24 @@ export const HomeScreen: React.FC = () => {
       return !isSelf;
     });
   }, [familyMembersList, user, userProfileData, userIdStr]);
+
+  const selfFullName = useMemo(() => {
+    const fName = user?.f_name || (userProfileData as any)?.data?.f_name || '';
+    const lName = user?.l_name || (userProfileData as any)?.data?.l_name || '';
+    const full = `${fName} ${lName}`.trim();
+    return full || 'Patient';
+  }, [user, userProfileData]);
+
+  const selectedMemberDisplayName = useMemo(() => {
+    if (selectedMemberId === 'SELF') {
+      return selfFullName;
+    }
+    const mem = familyMembersList.find((m) => String(m.id) === String(selectedMemberId));
+    if (mem) {
+      return `${mem.f_name || ''} ${mem.l_name || ''}`.trim() || 'Member';
+    }
+    return selfFullName;
+  }, [selectedMemberId, selfFullName, familyMembersList]);
 
   // Fetch Appointments & Medical Files for Dashboard Widgets
   const { data: rawAppointmentsData } = useGetAppointmentsQuery(userIdStr, { skip: !userIdStr });
@@ -1417,48 +1431,85 @@ export const HomeScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
 
-            {/* Clean Member Filter Pills */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.memberPillsScroll}
-            >
+            {/* Member Section Inline Dropdown  */}
+            <View style={styles.memberDropdownContainer}>
               <TouchableOpacity
-                style={[styles.memberPill, selectedMemberId === 'SELF' && styles.memberPillActive]}
-                onPress={() => setSelectedMemberId('SELF')}
-                activeOpacity={0.8}
+                style={[
+                  styles.memberDropdownField,
+                  showMemberDropdown && styles.memberDropdownFieldOpen,
+                ]}
+                activeOpacity={0.85}
+                onPress={() => setShowMemberDropdown((prev) => !prev)}
               >
-                <Text style={[styles.memberPillText, selectedMemberId === 'SELF' && styles.memberPillTextActive]}>
-                  Self ({user?.f_name || 'Patient'})
+                <Text style={styles.memberDropdownFieldText} numberOfLines={1}>
+                  {selectedMemberDisplayName}
                 </Text>
+                <MaterialIcons
+                  name={showMemberDropdown ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                  size={fs(20)}
+                  color={Colors.primaryColor}
+                />
               </TouchableOpacity>
 
-              {filteredFamilyMembersList.map((m) => {
-                const memberId = String(m.id);
-                const isSelected = selectedMemberId === memberId;
-                return (
+              {/* Dropdown Items Below Field */}
+              {showMemberDropdown && (
+                <View style={styles.memberDropdownMenuCard}>
+                  {/* Self Option - Name Only */}
                   <TouchableOpacity
-                    key={`member-pill-${memberId}`}
-                    style={[styles.memberPill, isSelected && styles.memberPillActive]}
-                    onPress={() => setSelectedMemberId(memberId)}
-                    activeOpacity={0.8}
+                    style={[
+                      styles.memberDropdownMenuItem,
+                      selectedMemberId === 'SELF' && styles.memberDropdownMenuItemActive,
+                    ]}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setSelectedMemberId('SELF');
+                      setShowMemberDropdown(false);
+                    }}
                   >
-                    <Text style={[styles.memberPillText, isSelected && styles.memberPillTextActive]}>
-                      {m.f_name} {m.l_name}
+                    <Text
+                      style={[
+                        styles.memberDropdownMenuItemText,
+                        selectedMemberId === 'SELF' && styles.memberDropdownMenuItemTextActive,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {selfFullName}
                     </Text>
                   </TouchableOpacity>
-                );
-              })}
 
-              {/* + Add Member Pill at the end */}
-              <TouchableOpacity
-                style={[styles.memberPill, styles.addMemberPill]}
-                onPress={() => navigation.navigate('FamilyMemberList')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.addMemberPillText}>+ Add Member</Text>
-              </TouchableOpacity>
-            </ScrollView>
+                  {/* Family Member Options - Names Only */}
+                  {filteredFamilyMembersList.map((m) => {
+                    const memberId = String(m.id);
+                    const isSelected = selectedMemberId === memberId;
+                    const memberFullName = `${m.f_name || ''} ${m.l_name || ''}`.trim() || 'Family Member';
+                    return (
+                      <TouchableOpacity
+                        key={`inline-member-${memberId}`}
+                        style={[
+                          styles.memberDropdownMenuItem,
+                          isSelected && styles.memberDropdownMenuItemActive,
+                        ]}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          setSelectedMemberId(memberId);
+                          setShowMemberDropdown(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.memberDropdownMenuItemText,
+                            isSelected && styles.memberDropdownMenuItemTextActive,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {memberFullName}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
 
             {/* Patient Profile Card (#06123A) - Exact Layout from SS (5 Data Items, NO chevron) */}
             <View style={styles.webNavyBannerCard}>
@@ -1716,15 +1767,26 @@ export const HomeScreen: React.FC = () => {
                         <TouchableOpacity
                           style={styles.openFileBtn}
                           activeOpacity={0.8}
-                          onPress={() => {
+                          disabled={downloadingFileId === (file.id ?? fileName)}
+                          onPress={async () => {
                             if (downloadUrl) {
-                              downloadAndSaveFile(downloadUrl, fileName);
+                              const targetId = file.id ?? fileName;
+                              try {
+                                setDownloadingFileId(targetId);
+                                await downloadAndSaveFile(downloadUrl, fileName);
+                              } finally {
+                                setDownloadingFileId(null);
+                              }
                             } else {
                               navigation.navigate('PatientFile');
                             }
                           }}
                         >
-                          <MaterialIcons name="file-download" size={18} color={Colors.primaryColor} />
+                          {downloadingFileId === (file.id ?? fileName) ? (
+                            <ActivityIndicator size="small" color={Colors.primaryColor} />
+                          ) : (
+                            <MaterialIcons name="file-download" size={18} color={Colors.primaryColor} />
+                          )}
                         </TouchableOpacity>
                       </View>
                     );
@@ -1868,6 +1930,7 @@ export const HomeScreen: React.FC = () => {
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item: DoctorModel, index: number) => `doc-${item.user_id ?? item.id ?? index}`}
             contentContainerStyle={styles.doctorsListContainer}
+            ItemSeparatorComponent={() => <View style={{ width: ws(10) }} />}
             renderItem={({ item }: { item: DoctorModel }) => (
               <DoctorSpotlightCard doctor={item} onBook={() => handleDoctorClick(item)} />
             )}
@@ -1922,15 +1985,20 @@ export const HomeScreen: React.FC = () => {
             <Text style={styles.emptyCardSubtitle}>Check nearby cities or explore all clinics.</Text>
           </View>
         ) : (
-          <View style={styles.clinicStack}>
-            {clinicList.slice(0, 3).map((clinic: any, idx: number) => (
+          <FlatList
+            data={clinicList}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(clinic: any, idx: number) => `clinic-${clinic.id ?? idx}`}
+            contentContainerStyle={styles.clinicsListContainer}
+            ItemSeparatorComponent={() => <View style={{ width: ws(10) }} />}
+            renderItem={({ item }: { item: any }) => (
               <ClinicFeatureCard
-                key={`clinic-${clinic.id ?? idx}`}
-                clinic={clinic}
-                onPress={() => navigation.navigate('Clinic', { clinicId: String(clinic.id) })}
+                clinic={item}
+                onPress={() => navigation.navigate('Clinic', { clinicId: String(item.id) })}
               />
-            ))}
-          </View>
+            )}
+          />
         )}
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -1947,6 +2015,8 @@ export const HomeScreen: React.FC = () => {
         currentCityName={deviceLocationCity || undefined}
         onSelectCity={handleCitySelect}
       />
+
+
 
       {/* Update Vital Bottom Sheet Modal */}
       <Modal
@@ -2119,7 +2189,11 @@ const DoctorSpotlightCard = memo(
     const imageUrl = getImageUrl(doctor.image);
 
     return (
-      <View style={styles.doctorCard}>
+      <TouchableOpacity
+        style={styles.doctorCard}
+        activeOpacity={0.88}
+        onPress={onBook}
+      >
         {/* Top Avatar & Online Indicator */}
         <View style={styles.doctorHeader}>
           <View style={styles.docAvatarContainer}>
@@ -2127,14 +2201,14 @@ const DoctorSpotlightCard = memo(
               <Image source={{ uri: imageUrl }} style={styles.docAvatar} resizeMode="cover" />
             ) : (
               <View style={styles.docAvatarFallback}>
-                <MaterialIcons name="person" size={28} color={Colors.primaryColor} />
+                <MaterialIcons name="person" size={24} color={Colors.primaryColor} />
               </View>
             )}
             <View style={styles.doctorOnlineDot} />
           </View>
 
           <View style={styles.ratingBadge}>
-            <MaterialIcons name="star" size={13} color="#F59E0B" />
+            <MaterialIcons name="star" size={12} color={Colors.yellow_F59E0B} />
             <Text style={styles.ratingBadgeText}>{rating > 0 ? rating.toFixed(1) : '0.0'}</Text>
           </View>
         </View>
@@ -2144,31 +2218,27 @@ const DoctorSpotlightCard = memo(
           <Text style={styles.doctorName} numberOfLines={1}>
             {displayName}
           </Text>
-          <View style={styles.specialtyPill}>
-            <Text style={styles.specialtyPillText} numberOfLines={1}>
-              {specialty}
-            </Text>
-          </View>
+          {specialty ? (
+            <View style={styles.specialtyPill}>
+              <Text style={styles.specialtyPillText} numberOfLines={1}>
+                {specialty}
+              </Text>
+            </View>
+          ) : null}
 
           <View style={styles.doctorMetaDetails}>
-            {experience ? (
-              <Text style={styles.doctorDetailText}>
-                {experience} Yrs Exp • {reviews} review{reviews === 1 ? '' : 's'}
-              </Text>
-            ) : (
-              <Text style={styles.doctorDetailText}>
-                {reviews} review{reviews === 1 ? '' : 's'}
-              </Text>
-            )}
+            <Text style={styles.doctorDetailText} numberOfLines={1}>
+              {experience ? `${experience} Yrs Exp • ` : ''}{reviews} review{reviews === 1 ? '' : 's'}
+            </Text>
           </View>
         </View>
 
         {/* Book Action */}
         <TouchableOpacity style={styles.doctorBookBtn} activeOpacity={0.85} onPress={onBook}>
           <Text style={styles.doctorBookBtnText}>Book Now</Text>
-          <MaterialIcons name="event" size={14} color={Colors.white} />
+          <MaterialIcons name="event" size={13} color={Colors.white} />
         </TouchableOpacity>
-      </View>
+      </TouchableOpacity>
     );
   }
 );
@@ -2177,37 +2247,42 @@ const ClinicFeatureCard = memo(
   ({ clinic, onPress }: { clinic: any; onPress: () => void }) => {
     const imageUrl = getImageUrl(clinic.image);
     return (
-      <TouchableOpacity style={styles.clinicCard} activeOpacity={0.85} onPress={onPress}>
-        <View style={styles.clinicImageContainer}>
-          {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.clinicImg} resizeMode="cover" />
-          ) : (
-            <View style={styles.clinicImgFallback}>
-              <MaterialIcons name="local-hospital" size={26} color={Colors.primaryColor} />
-            </View>
-          )}
+      <TouchableOpacity style={styles.clinicCard} activeOpacity={0.88} onPress={onPress}>
+        {/* Top Image & Verified Badge */}
+        <View style={styles.clinicHeader}>
+          <View style={styles.clinicImageContainer}>
+            {imageUrl ? (
+              <Image source={{ uri: imageUrl }} style={styles.clinicImg} resizeMode="cover" />
+            ) : (
+              <View style={styles.clinicImgFallback}>
+                <MaterialIcons name="local-hospital" size={26} color={Colors.primaryColor} />
+              </View>
+            )}
+          </View>
+          <View style={styles.clinicVerifiedBadge}>
+            <MaterialIcons name="verified" size={11} color={Colors.green_10B981} />
+            <Text style={styles.clinicVerifiedText}>Verified</Text>
+          </View>
         </View>
 
-        <View style={styles.clinicInfo}>
-          <View style={styles.clinicTitleRow}>
-            <Text style={styles.clinicTitle} numberOfLines={1}>
-              {clinic.title}
-            </Text>
-            <View style={styles.verifiedBadge}>
-              <MaterialIcons name="verified" size={14} color="#10B981" />
-            </View>
-          </View>
+        {/* Clinic Meta Info */}
+        <View style={styles.clinicBody}>
+          <Text style={styles.clinicTitle} numberOfLines={1}>
+            {clinic.title}
+          </Text>
           <View style={styles.clinicAddressRow}>
-            <MaterialIcons name="location-on" size={14} color={Colors.primaryColor} style={{ marginTop: 1 }} />
-            <Text style={styles.clinicAddressText} numberOfLines={2}>
-              {clinic.address || ''}
+            <MaterialIcons name="location-on" size={12} color={Colors.primaryColor} />
+            <Text style={styles.clinicAddressText} numberOfLines={1}>
+              {clinic.address || 'Medical Center'}
             </Text>
           </View>
         </View>
 
-        <View style={styles.clinicArrowWrap}>
-          <MaterialIcons name="chevron-right" size={22} color={Colors.primaryColor} />
-        </View>
+        {/* View Clinic Action Button */}
+        <TouchableOpacity style={styles.clinicBookBtn} activeOpacity={0.85} onPress={onPress}>
+          <Text style={styles.clinicBookBtnText}>View Clinic</Text>
+          <MaterialIcons name="arrow-forward" size={12} color={Colors.white} />
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   }
@@ -2644,21 +2719,21 @@ const styles = StyleSheet.create({
   /* Doctors List */
   doctorsListContainer: {
     paddingHorizontal: ws(16),
-    paddingBottom: hs(6),
+    paddingVertical: hs(6),
   },
   doctorCard: {
-    width: ws(190),
+    width: DOCTOR_CARD_WIDTH,
     backgroundColor: Colors.white,
-    borderRadius: fs(18),
-    padding: ws(12),
-    marginRight: ws(14),
+    borderRadius: fs(16),
+    padding: ws(10),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.borderColor,
     shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: hs(3) },
+    shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.05,
-    shadowRadius: fs(6),
-    elevation: 3,
+    shadowRadius: fs(5),
+    elevation: 2,
+    justifyContent: 'space-between',
   },
   doctorHeader: {
     flexDirection: 'row',
@@ -2667,41 +2742,41 @@ const styles = StyleSheet.create({
     marginBottom: hs(8),
   },
   docAvatarContainer: {
-    width: ws(52),
-    height: ws(52),
+    width: ws(44),
+    height: ws(44),
     aspectRatio: 1,
     borderRadius: 999,
     position: 'relative',
   },
   docAvatar: {
-    width: ws(52),
-    height: ws(52),
+    width: ws(44),
+    height: ws(44),
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
   },
   docAvatarFallback: {
-    width: ws(52),
-    height: ws(52),
+    width: ws(44),
+    height: ws(44),
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.lightBlueTint,
     justifyContent: 'center',
     alignItems: 'center',
   },
   doctorOnlineDot: {
-    width: ws(12),
-    height: ws(12),
+    width: ws(10),
+    height: ws(10),
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#10B981',
+    backgroundColor: Colors.green_10B981,
     position: 'absolute',
     bottom: 0,
     right: 0,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: Colors.white,
   },
   ratingBadge: {
@@ -2709,9 +2784,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#EFF6FF',
     paddingHorizontal: ws(6),
-    paddingVertical: hs(3),
+    paddingVertical: hs(2.5),
     borderRadius: fs(8),
-    gap: ws(3),
+    gap: ws(2),
   },
   ratingBadgeText: {
     fontSize: fs(10),
@@ -2720,9 +2795,10 @@ const styles = StyleSheet.create({
   },
   doctorBody: {
     flex: 1,
+    marginBottom: hs(8),
   },
   doctorName: {
-    fontSize: fs(13),
+    fontSize: fs(12.5),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
@@ -2732,20 +2808,20 @@ const styles = StyleSheet.create({
     paddingVertical: hs(2),
     borderRadius: fs(6),
     alignSelf: 'flex-start',
-    marginTop: hs(4),
-    marginBottom: hs(4),
+    marginTop: hs(3),
+    marginBottom: hs(3),
+    maxWidth: '100%',
   },
   specialtyPillText: {
-    fontSize: fs(10),
+    fontSize: fs(9.5),
     ...TYPOGRAPHY.medium,
     color: Colors.primaryColor,
   },
   doctorMetaDetails: {
-    marginTop: hs(2),
-    marginBottom: hs(8),
+    marginTop: hs(1),
   },
   doctorDetailText: {
-    fontSize: fs(10),
+    fontSize: fs(9.5),
     ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
   },
@@ -2857,32 +2933,35 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
 
-  /* Clinics Stack */
-  clinicStack: {
+  /* Clinics Horizontal Row */
+  clinicsListContainer: {
     paddingHorizontal: ws(16),
-    gap: hs(10),
+    paddingVertical: hs(6),
   },
   clinicCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: DOCTOR_CARD_WIDTH,
     backgroundColor: Colors.white,
     borderRadius: fs(16),
-    padding: ws(12),
+    padding: ws(10),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.borderColor,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: hs(2) },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.05,
     shadowRadius: fs(5),
     elevation: 2,
+    justifyContent: 'space-between',
+  },
+  clinicHeader: {
+    position: 'relative',
+    marginBottom: hs(8),
   },
   clinicImageContainer: {
-    width: ws(56),
-    height: hs(56),
+    width: '100%',
+    height: hs(84),
     borderRadius: fs(12),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     overflow: 'hidden',
-    marginRight: ws(12),
   },
   clinicImg: {
     width: '100%',
@@ -2892,40 +2971,64 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.lightBlueTint,
   },
-  clinicInfo: {
-    flex: 1,
-  },
-  clinicTitleRow: {
+  clinicVerifiedBadge: {
+    position: 'absolute',
+    top: hs(6),
+    right: ws(6),
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(4),
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    paddingHorizontal: ws(6),
+    paddingVertical: hs(2),
+    borderRadius: fs(8),
+    gap: ws(3),
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  clinicVerifiedText: {
+    fontSize: fs(9),
+    ...TYPOGRAPHY.bold,
+    color: Colors.green_065F46,
+  },
+  clinicBody: {
+    marginBottom: hs(8),
   },
   clinicTitle: {
-    fontSize: fs(13),
+    fontSize: fs(12.5),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    flexShrink: 1,
-  },
-  verifiedBadge: {
-    justifyContent: 'center',
+    marginBottom: hs(3),
   },
   clinicAddressRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: ws(3),
-    marginTop: hs(4),
+    alignItems: 'center',
+    gap: ws(2),
   },
   clinicAddressText: {
-    fontSize: fs(11.5),
+    fontSize: fs(10.5),
     ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
     flex: 1,
-    lineHeight: hs(16),
   },
-  clinicArrowWrap: {
-    paddingLeft: ws(6),
+  clinicBookBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primaryColor,
+    borderRadius: fs(10),
+    paddingVertical: hs(6.5),
+    paddingHorizontal: ws(8),
+    gap: ws(4),
+  },
+  clinicBookBtnText: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.bold,
+    color: Colors.white,
   },
 
   /* Location Bottom Sheet Modal */
@@ -3072,6 +3175,74 @@ const styles = StyleSheet.create({
     paddingRight: ws(10),
     marginBottom: hs(12),
   },
+  /* Member Dropdown Below Field (Matches User Reference Image) */
+  memberDropdownContainer: {
+    marginBottom: hs(14),
+    position: 'relative',
+    zIndex: 1000,
+  },
+  memberDropdownField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.white,
+    borderRadius: fs(10),
+    borderWidth: 1.5,
+    borderColor: Colors.blue_3B82F6,
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(10),
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: hs(1) },
+    shadowOpacity: 0.05,
+    shadowRadius: fs(3),
+    elevation: 2,
+  },
+  memberDropdownFieldOpen: {
+    borderColor: Colors.primaryColor,
+  },
+  memberDropdownFieldText: {
+    fontSize: fs(13.5),
+    ...TYPOGRAPHY.medium,
+    color: Colors.primaryFontColor,
+    flex: 1,
+    marginRight: ws(8),
+  },
+  memberDropdownMenuCard: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: hs(4),
+    backgroundColor: Colors.white,
+    borderRadius: fs(12),
+    borderWidth: 1,
+    borderColor: Colors.borderColor,
+    padding: ws(6),
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: hs(4) },
+    shadowOpacity: 0.15,
+    shadowRadius: fs(10),
+    elevation: 10,
+    zIndex: 1000,
+  },
+  memberDropdownMenuItem: {
+    paddingVertical: hs(10),
+    paddingHorizontal: ws(12),
+    borderRadius: fs(8),
+    marginBottom: hs(2),
+  },
+  memberDropdownMenuItemActive: {
+    backgroundColor: Colors.primaryColor,
+  },
+  memberDropdownMenuItemText: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.medium,
+    color: Colors.slate_1E293B,
+  },
+  memberDropdownMenuItemTextActive: {
+    ...TYPOGRAPHY.bold,
+    color: Colors.white,
+  },
   memberPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3179,6 +3350,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(16),
     marginTop: hs(12),
     marginBottom: 0,
+    position: 'relative',
+    zIndex: 100,
   },
   newServicesSection: {
     marginHorizontal: ws(16),

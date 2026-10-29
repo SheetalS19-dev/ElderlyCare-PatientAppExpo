@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useMemo, useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AppCard,
@@ -72,6 +72,7 @@ export const PrescriptionListScreen = ({ navigation, route }: Props) => {
     }
   }, [route.params?.familyMemberId]);
   const [search, setSearch] = useState('');
+  const [downloadingId, setDownloadingId] = useState<number | string | null>(null);
   const debouncedSearch = useDebounce(search, 300);
 
   const { data: familyData } = useGetFamilyMembersQuery(uid, {
@@ -261,6 +262,7 @@ export const PrescriptionListScreen = ({ navigation, route }: Props) => {
     if (!target) return;
 
     try {
+      setDownloadingId(target.id);
       setIsProcessing(true);
       setProcessingMsg('Generating prescription PDF...');
       const { prescription, info } = await fetchPrescriptionData(target);
@@ -268,12 +270,15 @@ export const PrescriptionListScreen = ({ navigation, route }: Props) => {
       setIsActionModalVisible(false);
       if (res?.success) {
         showToast('Prescription downloaded successfully!');
+      } else {
+        showToast('Could not save prescription to Downloads');
       }
     } catch (error) {
       console.error('Download prescription error:', error);
       showToast('Could not download prescription PDF');
     } finally {
       setIsProcessing(false);
+      setDownloadingId(null);
     }
   };
 
@@ -299,54 +304,12 @@ export const PrescriptionListScreen = ({ navigation, route }: Props) => {
     <View style={styles.container}>
       <AppHeader title="Digital Prescriptions" onBackPress={() => navigation.goBack()} />
 
-      {/* Family Member Filter Bar */}
-      <View style={styles.filterSection}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-          <TouchableOpacity
-            style={[styles.filterChip, selectedFamilyId === '' && styles.filterChipActive]}
-            onPress={() => setSelectedFamilyId('')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.filterChipText, selectedFamilyId === '' && styles.filterChipTextActive]}>
-              All
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.filterChip, selectedFamilyId === '0' && styles.filterChipActive]}
-            onPress={() => setSelectedFamilyId('0')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.filterChipText, selectedFamilyId === '0' && styles.filterChipTextActive]}>
-              Self ({user?.f_name || 'Me'})
-            </Text>
-          </TouchableOpacity>
-
-          {filteredFamilyList.map((m) => {
-            const memberId = String(m.id);
-            const isSelected = selectedFamilyId === memberId;
-            return (
-              <TouchableOpacity
-                key={`fam-rx-${memberId}`}
-                style={[styles.filterChip, isSelected && styles.filterChipActive]}
-                onPress={() => setSelectedFamilyId(memberId)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
-                  {m.f_name} {m.l_name}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-
       {/* Search Input Bar */}
       <View style={styles.searchWrapper}>
         <SearchBox
           value={search}
           onChangeText={setSearch}
-          placeholder="Search doctor, patient, clinic or ID..."
+          placeholder="Search doctor, clinic or ID..."
         />
       </View>
 
@@ -369,13 +332,6 @@ export const PrescriptionListScreen = ({ navigation, route }: Props) => {
             />
           }
           renderItem={({ item }) => {
-            const patientFullName =
-              `${item.patient_f_name ?? ''} ${item.patient_l_name ?? ''}`.trim() ||
-              (item as any).patient_name ||
-              (item as any).patientName ||
-              user?.f_name ||
-              '';
-
             const displayId = item.id ? `#${item.id}` : (item as any).prescription_id ? `#${(item as any).prescription_id}` : '';
             const doctName =
               formatDoctorName(item.doctor_f_name, item.doctor_l_name) ||
@@ -394,7 +350,7 @@ export const PrescriptionListScreen = ({ navigation, route }: Props) => {
                   {/* Prescription Info */}
                   <View style={styles.info}>
                     <Text style={styles.cardTitle} numberOfLines={1}>
-                      {patientFullName} {displayId}
+                      Prescription {displayId}
                     </Text>
                     <Text style={styles.cardMetaText} numberOfLines={1}>
                       Doctor: {doctName}
@@ -412,7 +368,7 @@ export const PrescriptionListScreen = ({ navigation, route }: Props) => {
                       onPress={() => handleView(item)}
                       activeOpacity={0.8}
                     >
-                      <MaterialIcons name="visibility" size={18} color="#2563EB" />
+                      <MaterialIcons name="visibility" size={18} color={Colors.primaryColor} />
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -420,8 +376,13 @@ export const PrescriptionListScreen = ({ navigation, route }: Props) => {
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       onPress={() => handleDownload(item)}
                       activeOpacity={0.8}
+                      disabled={downloadingId === item.id}
                     >
-                      <MaterialIcons name="file-download" size={18} color={Colors.primaryColor} />
+                      {downloadingId === item.id ? (
+                        <ActivityIndicator size="small" color={Colors.primaryColor} />
+                      ) : (
+                        <MaterialIcons name="file-download" size={18} color={Colors.primaryColor} />
+                      )}
                     </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
@@ -461,7 +422,7 @@ const styles = StyleSheet.create({
     marginBottom: hs(16),
     backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.borderColor,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -473,12 +434,12 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.lightBlueTint,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: ws(14),
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: Colors.lightBlueBorder,
   },
   summaryInfo: {
     flex: 1,
@@ -509,12 +470,12 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.lightBlueTint,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: ws(12),
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: Colors.lightBlueBorder,
   },
   rxTag: {
     fontSize: fs(16),
@@ -528,13 +489,13 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: fs(15),
     ...TYPOGRAPHY.bold,
-    color: '#0F172A',
+    color: Colors.primaryFontColor,
     marginBottom: hs(4),
   },
   cardMetaText: {
     fontSize: fs(13),
     ...TYPOGRAPHY.medium,
-    color: '#64748B',
+    color: Colors.secondaryFontColor,
     marginBottom: hs(2),
   },
   doctorHeaderRow: {
@@ -550,7 +511,7 @@ const styles = StyleSheet.create({
     color: Colors.primaryFontColor,
   },
   rxIdBadge: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     paddingHorizontal: ws(8),
     paddingVertical: hs(2),
     borderRadius: fs(8),
@@ -574,7 +535,7 @@ const styles = StyleSheet.create({
     marginTop: hs(4),
     fontSize: fs(11),
     ...TYPOGRAPHY.regular,
-    color: '#94A3B8',
+    color: Colors.slate_64748B,
   },
   actionRow: {
     flexDirection: 'row',
@@ -587,7 +548,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.lightBlueTint,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -597,7 +558,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.lightBlueTint,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -610,7 +571,7 @@ const styles = StyleSheet.create({
     paddingVertical: hs(10),
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: Colors.borderColor,
   },
   filterScroll: {
     paddingHorizontal: ws(16),
@@ -623,9 +584,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(14),
     paddingVertical: hs(7),
     borderRadius: fs(20),
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.inputTextBgColor,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.borderColor,
   },
   filterChipActive: {
     backgroundColor: Colors.primaryColor,

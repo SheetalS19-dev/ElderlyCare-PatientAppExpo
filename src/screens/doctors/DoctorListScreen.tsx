@@ -219,23 +219,7 @@ export const DoctorListScreen = ({ navigation, route }: Props) => {
         </View>
       )}
 
-      {/* Selected department filter indicator matching Flutter */}
-      {!!selectedDeptTitle && (
-        <View style={styles.filterBanner}>
-          <Text style={styles.filterText}>
-            Showing doctors from{' '}
-            <Text style={styles.filterHighlight}>{selectedDeptTitle}</Text>{' '}
-            department
-          </Text>
-          <TouchableOpacity
-            onPress={handleClearDepartment}
-            style={styles.clearDeptBtn}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="close-circle" size={20} color={Colors.primaryColor} />
-          </TouchableOpacity>
-        </View>
-      )}
+
 
       {isDoctorsLoading && doctorsList.length === 0 ? (
         <LoadingIndicator />
@@ -308,7 +292,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(20),
     backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.borderColor,
     marginRight: ws(8),
   },
   deptChipActive: {
@@ -330,9 +314,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: ws(16),
     paddingVertical: hs(8),
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.lightBlueTint,
     borderBottomWidth: 1,
-    borderBottomColor: '#DBEAFE',
+    borderBottomColor: Colors.lightBlueBorder,
   },
   filterText: {
     flex: 1,

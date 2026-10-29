@@ -39,8 +39,8 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'AppointmentDetails'>;
 
 const STATUS_COLORS: Record<string, string> = {
-  Pending: '#F5C518',
-  Rescheduled: '#FF9800',
+  Pending: Colors.yellow_F5C518,
+  Rescheduled: Colors.orange_FF9800,
   Rejected: Colors.redColor,
   Confirmed: Colors.greenFontColor,
   Completed: Colors.greenFontColor,
@@ -226,6 +226,8 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
       setIsInvoiceModalVisible(false);
       if (res?.success) {
         showToast('Invoice downloaded successfully!');
+      } else {
+        showToast('Could not save invoice to Downloads');
       }
     } catch (error) {
       console.error('Download invoice error:', error);
@@ -309,8 +311,8 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
 
           <View style={styles.infoGridContainer}>
             <View style={styles.infoItemRow}>
-              <View style={[styles.infoIconBox, { backgroundColor: '#EFF6FF' }]}>
-                <MaterialIcons name="event" size={18} color="#2563EB" />
+              <View style={[styles.infoIconBox, { backgroundColor: Colors.lightBlueTint }]}>
+                <MaterialIcons name="event" size={18} color={Colors.primaryColor} />
               </View>
               <View style={styles.infoItemMeta}>
                 <Text style={styles.infoItemLabel}>Date</Text>
@@ -321,8 +323,8 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
             <View style={styles.infoDivider} />
 
             <View style={styles.infoItemRow}>
-              <View style={[styles.infoIconBox, { backgroundColor: '#F0FDF4' }]}>
-                <MaterialIcons name="access-time" size={18} color="#16A34A" />
+              <View style={[styles.infoIconBox, { backgroundColor: Colors.green_F0FDF4 }]}>
+                <MaterialIcons name="access-time" size={18} color={Colors.green_16A34A} />
               </View>
               <View style={styles.infoItemMeta}>
                 <Text style={styles.infoItemLabel}>Time</Text>
@@ -339,7 +341,7 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
             <View style={styles.infoDivider} />
 
             <View style={styles.infoItemRow}>
-              <View style={[styles.infoIconBox, { backgroundColor: '#EFF6FF' }]}>
+              <View style={[styles.infoIconBox, { backgroundColor: Colors.lightBlueTint }]}>
                 <MaterialIcons
                   name={isVideoCall ? 'videocam' : 'local-hospital'}
                   size={18}
@@ -355,8 +357,8 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
             <View style={styles.infoDivider} />
 
             <View style={styles.infoItemRow}>
-              <View style={[styles.infoIconBox, { backgroundColor: '#F3E8FF' }]}>
-                <MaterialIcons name="medical-services" size={18} color="#9333EA" />
+              <View style={[styles.infoIconBox, { backgroundColor: Colors.purple_F3E8FF }]}>
+                <MaterialIcons name="medical-services" size={18} color={Colors.purple_9333EA} />
               </View>
               <View style={styles.infoItemMeta}>
                 <Text style={styles.infoItemLabel}>Department</Text>
@@ -367,8 +369,8 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
             <View style={styles.infoDivider} />
 
             <View style={styles.infoItemRow}>
-              <View style={[styles.infoIconBox, { backgroundColor: '#EFF6FF' }]}>
-                <MaterialIcons name="person" size={18} color="#2563EB" />
+              <View style={[styles.infoIconBox, { backgroundColor: Colors.lightBlueTint }]}>
+                <MaterialIcons name="person" size={18} color={Colors.primaryColor} />
               </View>
               <View style={styles.infoItemMeta}>
                 <Text style={styles.infoItemLabel}>Patient Name</Text>
@@ -384,7 +386,7 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
         {isVideoCall && appointment.status === 'Confirmed' && !!appointment.meeting_link && (
           <View style={styles.videoBanner}>
             <View style={styles.videoBannerInfo}>
-              <MaterialIcons name="videocam" size={24} color="#FFFFFF" />
+              <MaterialIcons name="videocam" size={24} color={Colors.white} />
               <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={styles.videoBannerTitle}>Video Consultation Ready</Text>
                 <Text style={styles.videoBannerSub}>Tap to join doctor on video call</Text>
@@ -506,7 +508,7 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
                   }}
                 >
                   <View style={styles.contactIconCircle}>
-                    <Ionicons name="call-outline" size={fs(18)} color="#2563EB" />
+                    <Ionicons name="call-outline" size={fs(18)} color={Colors.primaryColor} />
                   </View>
                   <View style={styles.contactTextGroup}>
                     <Text style={styles.contactLabel}>Phone</Text>
@@ -525,7 +527,7 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
                   }}
                 >
                   <View style={styles.contactIconCircle}>
-                    <Ionicons name="mail-outline" size={fs(18)} color="#2563EB" />
+                    <Ionicons name="mail-outline" size={fs(18)} color={Colors.primaryColor} />
                   </View>
                   <View style={styles.contactTextGroup}>
                     <Text style={styles.contactLabel}>Email</Text>
@@ -544,7 +546,7 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
                   }}
                 >
                   <View style={styles.contactIconCircle}>
-                    <Ionicons name="location-outline" size={fs(18)} color="#2563EB" />
+                    <Ionicons name="location-outline" size={fs(18)} color={Colors.primaryColor} />
                   </View>
                   <View style={styles.contactTextGroup}>
                     <Text style={styles.contactLabel}>Clinic Address</Text>
@@ -561,13 +563,13 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
         {canReview && (
           <TouchableOpacity style={styles.reviewCard} activeOpacity={0.85} onPress={() => setShowReviewModal(true)}>
             <View style={styles.reviewIconCircle}>
-              <MaterialIcons name="star-outline" size={22} color="#2563EB" />
+              <MaterialIcons name="star-outline" size={22} color={Colors.primaryColor} />
             </View>
             <View style={styles.reviewMeta}>
               <Text style={styles.reviewTitle}>Rate & Review Doctor</Text>
               <Text style={styles.reviewSubtitle}>Share your feedback to help others</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={22} color="#2563EB" />
+            <MaterialIcons name="chevron-right" size={22} color={Colors.primaryColor} />
           </TouchableOpacity>
         )}
 
@@ -576,7 +578,7 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
           <View style={styles.cancelSection}>
             {activeCancelReq ? (
               <TouchableOpacity style={styles.cancelBannerPending} onPress={handleWithdrawCancel} disabled={isWithdrawing}>
-                <MaterialIcons name="hourglass-empty" size={18} color="#2563EB" />
+                <MaterialIcons name="hourglass-empty" size={18} color={Colors.primaryColor} />
                 <Text style={styles.withdrawText}>
                   {isWithdrawing ? 'Withdrawing request…' : 'Cancellation requested — tap to withdraw'}
                 </Text>
@@ -651,7 +653,7 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
             <View style={styles.qrModalHeader}>
               <Text style={styles.qrModalTitle}>Appointment Status</Text>
               <TouchableOpacity onPress={() => setShowQrModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <MaterialIcons name="close" size={fs(22)} color="#1E293B" />
+                <MaterialIcons name="close" size={fs(22)} color={Colors.slate_1E293B} />
               </TouchableOpacity>
             </View>
 
@@ -659,7 +661,7 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
               {/* Top Verified & ID */}
               <View style={styles.qrTopSection}>
                 <View style={styles.qrVerifiedIconBox}>
-                  <MaterialIcons name="verified" size={fs(32)} color="#2563EB" />
+                  <MaterialIcons name="verified" size={fs(32)} color={Colors.primaryColor} />
                 </View>
                 <Text style={styles.qrApptIdText}>Appointment ID: #{appointment.id}</Text>
                 <View style={styles.qrTypePill}>
@@ -683,8 +685,8 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
                     <QRCode
                       value={qrPayload || `APPOINTMENT_${appointment.id}`}
                       size={fs(140)}
-                      color="#000000"
-                      backgroundColor="#FFFFFF"
+                      color={Colors.black}
+                      backgroundColor={Colors.white}
                     />
                   );
                 })()}
@@ -780,12 +782,12 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
               <View style={styles.qrDivider} />
               <View style={styles.qrCalendarRow}>
                 <TouchableOpacity style={styles.qrCalBtn} onPress={handleAddToGoogleCalendar} activeOpacity={0.8}>
-                  <Ionicons name="logo-google" size={fs(14)} color="#4285F4" />
+                  <Ionicons name="logo-google" size={fs(14)} color={Colors.blue_4285F4} />
                   <Text style={styles.qrCalBtnText}>Add to Calender</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.qrCalBtn} onPress={handleAddToGoogleCalendar} activeOpacity={0.8}>
-                  <Ionicons name="logo-apple" size={fs(14)} color="#000000" />
+                  <Ionicons name="logo-apple" size={fs(14)} color={Colors.black} />
                   <Text style={styles.qrCalBtnText}>Add to Calender</Text>
                 </TouchableOpacity>
               </View>
@@ -831,7 +833,7 @@ const styles = StyleSheet.create({
     paddingVertical: hs(12),
     marginBottom: hs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.borderColor,
   },
   headerStatusLeft: {
     justifyContent: 'center',
@@ -898,7 +900,7 @@ const styles = StyleSheet.create({
   doctorName: { fontSize: fs(Typography.fontSize.base), ...TYPOGRAPHY.bold, color: Colors.primaryFontColor },
   specBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.lightBlueTint,
     paddingHorizontal: ws(8),
     paddingVertical: hs(2),
     borderRadius: fs(6),
@@ -945,7 +947,7 @@ const styles = StyleSheet.create({
   },
   infoDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     marginVertical: hs(2),
   },
   videoBanner: {
@@ -962,7 +964,7 @@ const styles = StyleSheet.create({
   videoBannerTitle: {
     fontSize: fs(15),
     ...TYPOGRAPHY.bold,
-    color: '#FFFFFF',
+    color: Colors.white,
   },
   videoBannerSub: {
     fontSize: fs(12),
@@ -971,7 +973,7 @@ const styles = StyleSheet.create({
     marginTop: hs(2),
   },
   videoBannerBtn: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.white,
     borderRadius: fs(10),
   },
   invoiceCard: {
@@ -982,7 +984,7 @@ const styles = StyleSheet.create({
     padding: ws(14),
     marginBottom: hs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.borderColor,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.04,
@@ -995,7 +997,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.lightBlueTint,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: ws(12),
@@ -1022,7 +1024,7 @@ const styles = StyleSheet.create({
     padding: ws(14),
     marginBottom: hs(12),
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: Colors.lightBlueBorder,
   },
   reviewIconCircle: {
     width: ws(42),
@@ -1030,7 +1032,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.lightBlueTint,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: ws(12),
@@ -1043,7 +1045,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: ws(6),
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.lightBlueTint,
     paddingHorizontal: ws(14),
     paddingVertical: hs(10),
     borderRadius: fs(10),
@@ -1056,21 +1058,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(16),
   },
   cancelText: { fontSize: fs(13), ...TYPOGRAPHY.bold, color: Colors.redColor },
-  withdrawText: { fontSize: fs(13), ...TYPOGRAPHY.medium, color: '#2563EB' },
+  withdrawText: { fontSize: fs(13), ...TYPOGRAPHY.medium, color: Colors.primaryColor },
   bottomSpacer: { height: hs(20) },
-  dialogOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: ws(24) },
+  dialogOverlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'center', padding: ws(24) },
   dialogBox: { backgroundColor: Colors.white, borderRadius: fs(16), padding: ws(20) },
   dialogHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: ws(10), marginBottom: hs(8) },
-  dialogIconBox: { width: ws(36), height: ws(36), aspectRatio: 1, borderRadius: 999, overflow: 'hidden', backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center' },
+  dialogIconBox: { width: ws(36), height: ws(36), aspectRatio: 1, borderRadius: 999, overflow: 'hidden', backgroundColor: Colors.red_FEE2E2, justifyContent: 'center', alignItems: 'center' },
   dialogTitle: { fontSize: fs(Typography.fontSize.md), ...TYPOGRAPHY.bold, color: Colors.primaryFontColor },
   dialogMessage: { marginTop: hs(4), fontSize: fs(Typography.fontSize.sm), color: Colors.secondaryFontColor, lineHeight: hs(20) },
   reviewStarsRow: { marginVertical: hs(14), alignItems: 'center' },
   dialogActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: hs(20), gap: ws(10) },
-  dialogBtnCancel: { paddingHorizontal: ws(16), paddingVertical: hs(10), borderRadius: fs(8), backgroundColor: '#F1F5F9' },
+  dialogBtnCancel: { paddingHorizontal: ws(16), paddingVertical: hs(10), borderRadius: fs(8), backgroundColor: Colors.slate_F1F5F9 },
   dialogBtnConfirm: { paddingHorizontal: ws(16), paddingVertical: hs(10), borderRadius: fs(8), backgroundColor: Colors.primaryColor },
-  dialogBtnTextConfirm: { fontSize: fs(Typography.fontSize.sm), ...TYPOGRAPHY.bold, color: '#FFFFFF' },
+  dialogBtnTextConfirm: { fontSize: fs(Typography.fontSize.sm), ...TYPOGRAPHY.bold, color: Colors.white },
   dialogBtnTextMuted: { fontSize: fs(Typography.fontSize.sm), ...TYPOGRAPHY.medium, color: Colors.secondaryFontColor },
-  infoBtnTextConfirm: { fontSize: fs(Typography.fontSize.sm), ...TYPOGRAPHY.bold, color: '#FFFFFF' },
+  infoBtnTextConfirm: { fontSize: fs(Typography.fontSize.sm), ...TYPOGRAPHY.bold, color: Colors.white },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: hs(6) },
   infoLabel: { fontSize: fs(Typography.fontSize.sm), color: Colors.secondaryFontColor },
   infoValue: { fontSize: fs(Typography.fontSize.sm), ...TYPOGRAPHY.medium, color: Colors.primaryFontColor },
@@ -1079,12 +1081,12 @@ const styles = StyleSheet.create({
   qrCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.lightBlueTint,
     borderRadius: fs(16),
     padding: ws(14),
     marginBottom: hs(12),
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: Colors.lightBlueBorder,
   },
   qrIconCircle: {
     width: ws(42),
@@ -1113,7 +1115,7 @@ const styles = StyleSheet.create({
   },
   qrModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: Colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: ws(16),
@@ -1124,7 +1126,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: fs(20),
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: hs(4) },
     shadowOpacity: 0.2,
     shadowRadius: fs(10),
@@ -1137,12 +1139,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(18),
     paddingVertical: hs(14),
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: Colors.borderColor,
   },
   qrModalTitle: {
     fontSize: fs(16),
     ...TYPOGRAPHY.bold,
-    color: '#0F172A',
+    color: Colors.slate_0F172A,
   },
   qrModalScrollContent: {
     padding: ws(18),
@@ -1158,11 +1160,11 @@ const styles = StyleSheet.create({
   qrApptIdText: {
     fontSize: fs(15),
     ...TYPOGRAPHY.bold,
-    color: '#0F172A',
+    color: Colors.slate_0F172A,
     marginBottom: hs(6),
   },
   qrTypePill: {
-    backgroundColor: '#00C853',
+    backgroundColor: Colors.green_00C853,
     paddingHorizontal: ws(10),
     paddingVertical: hs(4),
     borderRadius: fs(6),
@@ -1178,7 +1180,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: fs(16),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.borderColor,
     backgroundColor: Colors.white,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1187,14 +1189,14 @@ const styles = StyleSheet.create({
   qrSuccessTitle: {
     fontSize: fs(16),
     ...TYPOGRAPHY.bold,
-    color: '#0F172A',
+    color: Colors.slate_0F172A,
     textAlign: 'center',
     marginTop: hs(4),
   },
   qrSuccessSub: {
     fontSize: fs(12),
     ...TYPOGRAPHY.regular,
-    color: '#64748B',
+    color: Colors.slate_64748B,
     textAlign: 'center',
     marginTop: hs(6),
     marginBottom: hs(16),
@@ -1213,19 +1215,19 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: fs(10),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.borderColor,
     paddingHorizontal: ws(14),
     paddingVertical: hs(12),
   },
   qrDetailLabel: {
     fontSize: fs(12),
     ...TYPOGRAPHY.medium,
-    color: '#64748B',
+    color: Colors.slate_64748B,
   },
   qrDetailValue: {
     fontSize: fs(13),
     ...TYPOGRAPHY.bold,
-    color: '#0F172A',
+    color: Colors.slate_0F172A,
   },
   qrDateTimeValGroup: {
     flexDirection: 'row',
@@ -1234,7 +1236,7 @@ const styles = StyleSheet.create({
   qrDivider: {
     width: '100%',
     height: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: Colors.borderColor,
     marginVertical: hs(12),
   },
   qrCalendarRow: {
@@ -1248,17 +1250,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: ws(6),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     paddingHorizontal: ws(12),
     paddingVertical: hs(8),
     borderRadius: fs(8),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.borderColor,
   },
   qrCalBtnText: {
     fontSize: fs(11),
     ...TYPOGRAPHY.bold,
-    color: '#0F172A',
+    color: Colors.slate_0F172A,
   },
   contactUsCard: {
     backgroundColor: Colors.white,
@@ -1266,7 +1268,7 @@ const styles = StyleSheet.create({
     padding: ws(18),
     marginBottom: hs(14),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.borderColor,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.04,
@@ -1276,7 +1278,7 @@ const styles = StyleSheet.create({
   contactUsTitle: {
     fontSize: fs(16),
     ...TYPOGRAPHY.bold,
-    color: '#0F172A',
+    color: Colors.slate_0F172A,
     marginBottom: hs(16),
   },
   contactRow: {
@@ -1290,7 +1292,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.lightBlueTint,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: ws(14),
@@ -1301,13 +1303,13 @@ const styles = StyleSheet.create({
   contactLabel: {
     fontSize: fs(12),
     ...TYPOGRAPHY.medium,
-    color: '#64748B',
+    color: Colors.slate_64748B,
     marginBottom: hs(2),
   },
   contactValue: {
     fontSize: fs(14),
     ...TYPOGRAPHY.bold,
-    color: '#0F172A',
+    color: Colors.slate_0F172A,
     lineHeight: hs(20),
   },
   callClinicBtnText: {

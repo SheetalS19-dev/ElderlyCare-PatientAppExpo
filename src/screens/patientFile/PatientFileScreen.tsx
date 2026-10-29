@@ -2,6 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Linking,
   ScrollView,
@@ -18,14 +19,14 @@ import {
   LoadingIndicator,
   SearchBox,
 } from '../../components';
-import { Colors, Typography } from '../../constants';
+import { Colors } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import { useDebounce } from '../../hooks';
 import type { RootStackParamList } from '../../navigation/types';
 import { useGetFamilyMembersQuery } from '../../redux/apis/bookingApi';
 import { useGetPatientFilesQuery } from '../../redux/apis/patientFilesApi';
 import type { FamilyMemberModel, PatientFileModel } from '../../types';
-import { DateTimeUtils, downloadAndSaveFile, getImageUrl, showToast, ws, hs, fs, TYPOGRAPHY } from '../../utils';
+import { DateTimeUtils, downloadAndSaveFile, fs, getImageUrl, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PatientFile'>;
 
@@ -36,6 +37,8 @@ export const PatientFileScreen = ({ navigation, route }: Props) => {
   const initialMemberId = route.params?.familyMemberId ? String(route.params.familyMemberId) : 'all';
   const [search, setSearch] = useState('');
   const [selectedMemberId, setSelectedMemberId] = useState<string>(initialMemberId);
+  const [showMemberDropdown, setShowMemberDropdown] = useState<boolean>(false);
+  const [downloadingId, setDownloadingId] = useState<string | number | null>(null);
   const debouncedSearch = useDebounce(search, 400);
 
   const { data: familyData } = useGetFamilyMembersQuery(uid, {
@@ -72,6 +75,26 @@ export const PatientFileScreen = ({ navigation, route }: Props) => {
     }
     return list;
   }, [familyData, user]);
+
+  const getMemberDisplayName = (mem: FamilyMemberModel) => {
+    const fullName = `${mem.f_name ?? ''} ${mem.l_name ?? ''}`.trim();
+    if (fullName) return fullName;
+    if (mem.name && mem.name !== 'Self') return mem.name;
+    const userFullName = `${user?.f_name ?? ''} ${user?.l_name ?? ''}`.trim();
+    if (userFullName) return userFullName;
+    return 'Self';
+  };
+
+  const selectedMemberDisplayName = useMemo(() => {
+    if (selectedMemberId === 'all') {
+      return 'All Members';
+    }
+    const mem = familyList.find((m) => String(m.id) === String(selectedMemberId));
+    if (mem) {
+      return getMemberDisplayName(mem);
+    }
+    return 'All Members';
+  }, [selectedMemberId, familyList, user]);
 
   const {
     data: rawData,
@@ -155,7 +178,7 @@ export const PatientFileScreen = ({ navigation, route }: Props) => {
     });
   }, [rawData, selectedMemberId, familyList, user]);
 
-  const handleDownload = (item: any) => {
+  const handleDownload = async (item: any) => {
     const fileSource =
       item.file_url ||
       item.file ||
@@ -168,7 +191,13 @@ export const PatientFileScreen = ({ navigation, route }: Props) => {
     if (fileSource) {
       const url = fileSource.startsWith('http') ? fileSource : getImageUrl(fileSource);
       const title = item.title || item.file_name || item.name || 'document';
-      downloadAndSaveFile(url, title);
+      const targetId = item.id ?? title;
+      try {
+        setDownloadingId(targetId);
+        await downloadAndSaveFile(url, title);
+      } finally {
+        setDownloadingId(null);
+      }
     } else {
       showToast('File attachment not found');
     }
@@ -237,49 +266,92 @@ export const PatientFileScreen = ({ navigation, route }: Props) => {
     <View style={styles.container}>
       <AppHeader title="Patient Files" onBackPress={() => navigation.goBack()} />
 
-      {/* Member Filter Chips */}
+      {/* Member Filter Dropdown */}
       <View style={styles.memberFilterSection}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.memberScroll}
-        >
+        <Text style={styles.dropdownLabel}>Select Member</Text>
+        <View style={styles.memberDropdownContainer}>
           <TouchableOpacity
-            style={[styles.memberChip, selectedMemberId === 'all' && styles.memberChipSelected]}
-            onPress={() => setSelectedMemberId('all')}
-            activeOpacity={0.8}
+            style={[
+              styles.memberDropdownField,
+              showMemberDropdown && styles.memberDropdownFieldOpen,
+            ]}
+            activeOpacity={0.85}
+            onPress={() => setShowMemberDropdown((prev) => !prev)}
           >
-            <Text
-              style={[
-                styles.memberChipText,
-                selectedMemberId === 'all' && styles.memberChipTextSelected,
-              ]}
-            >
-              All Members
+            <Text style={styles.memberDropdownFieldText} numberOfLines={1}>
+              {selectedMemberDisplayName}
             </Text>
+            <MaterialIcons
+              name={showMemberDropdown ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+              size={fs(20)}
+              color={Colors.primaryColor}
+            />
           </TouchableOpacity>
 
-          {familyList.map((mem) => {
-            const isSelected = String(mem.id) === selectedMemberId;
-            const displayName =
-              mem.name ||
-              `${mem.f_name ?? ''} ${mem.l_name ?? ''}`.trim() ||
-              (String(mem.id) === String(user?.id) ? 'Self' : 'Member');
-
-            return (
-              <TouchableOpacity
-                key={mem.id}
-                style={[styles.memberChip, isSelected && styles.memberChipSelected]}
-                onPress={() => setSelectedMemberId(String(mem.id))}
-                activeOpacity={0.8}
+          {showMemberDropdown && (
+            <View style={styles.memberDropdownMenuCard}>
+              <ScrollView
+                nestedScrollEnabled
+                bounces={false}
+                showsVerticalScrollIndicator={false}
+                style={{ maxHeight: hs(220) }}
               >
-                <Text style={[styles.memberChipText, isSelected && styles.memberChipTextSelected]}>
-                  {displayName}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+                {/* All Members Option */}
+                <TouchableOpacity
+                  style={[
+                    styles.memberDropdownMenuItem,
+                    selectedMemberId === 'all' && styles.memberDropdownMenuItemActive,
+                  ]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setSelectedMemberId('all');
+                    setShowMemberDropdown(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.memberDropdownMenuItemText,
+                      selectedMemberId === 'all' && styles.memberDropdownMenuItemTextActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    All Members
+                  </Text>
+                </TouchableOpacity>
+
+                {familyList.map((mem) => {
+                  const isSelected = String(mem.id) === selectedMemberId;
+                  const displayName = getMemberDisplayName(mem);
+
+                  return (
+                    <TouchableOpacity
+                      key={`member-opt-${mem.id}`}
+                      style={[
+                        styles.memberDropdownMenuItem,
+                        isSelected && styles.memberDropdownMenuItemActive,
+                      ]}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        setSelectedMemberId(String(mem.id));
+                        setShowMemberDropdown(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.memberDropdownMenuItemText,
+                          isSelected && styles.memberDropdownMenuItemTextActive,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {displayName}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Search Input */}
@@ -328,7 +400,7 @@ export const PatientFileScreen = ({ navigation, route }: Props) => {
                       onPress={() => handleOpenFile(item)}
                       activeOpacity={0.8}
                     >
-                      <MaterialIcons name="visibility" size={18} color="#2563EB" />
+                      <MaterialIcons name="visibility" size={18} color={Colors.primaryColor} />
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -336,8 +408,13 @@ export const PatientFileScreen = ({ navigation, route }: Props) => {
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       onPress={() => handleDownload(item)}
                       activeOpacity={0.8}
+                      disabled={downloadingId === (item.id ?? title)}
                     >
-                      <MaterialIcons name="file-download" size={18} color={Colors.primaryColor} />
+                      {downloadingId === (item.id ?? title) ? (
+                        <ActivityIndicator size="small" color={Colors.primaryColor} />
+                      ) : (
+                        <MaterialIcons name="file-download" size={18} color={Colors.primaryColor} />
+                      )}
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -353,36 +430,89 @@ export const PatientFileScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.bgColor,
   },
   memberFilterSection: {
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  memberScroll: {
+    backgroundColor: Colors.white,
     paddingHorizontal: ws(16),
-    paddingVertical: hs(10),
-    gap: ws(8),
+    paddingTop: hs(12),
+    paddingBottom: hs(12),
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderColor,
+    position: 'relative',
+    zIndex: 1000,
   },
-  memberChip: {
+  dropdownLabel: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
+    color: Colors.primaryFontColor,
+    marginBottom: hs(6),
+  },
+  memberDropdownContainer: {
+    position: 'relative',
+    zIndex: 1000,
+  },
+  memberDropdownField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.white,
+    borderRadius: fs(10),
+    borderWidth: 1.5,
+    borderColor: Colors.blue_3B82F6,
     paddingHorizontal: ws(14),
-    paddingVertical: hs(7),
-    borderRadius: fs(20),
-    backgroundColor: '#F1F5F9',
-    marginRight: ws(6),
+    paddingVertical: hs(10),
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: hs(1) },
+    shadowOpacity: 0.05,
+    shadowRadius: fs(3),
+    elevation: 2,
   },
-  memberChipSelected: {
+  memberDropdownFieldOpen: {
+    borderColor: Colors.primaryColor,
+  },
+  memberDropdownFieldText: {
+    fontSize: fs(13.5),
+    ...TYPOGRAPHY.medium,
+    color: Colors.primaryFontColor,
+    flex: 1,
+    marginRight: ws(8),
+  },
+  memberDropdownMenuCard: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: hs(4),
+    backgroundColor: Colors.white,
+    borderRadius: fs(12),
+    borderWidth: 1,
+    borderColor: Colors.borderColor,
+    padding: ws(6),
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: hs(4) },
+    shadowOpacity: 0.15,
+    shadowRadius: fs(10),
+    elevation: 10,
+    zIndex: 1000,
+  },
+  memberDropdownMenuItem: {
+    paddingVertical: hs(10),
+    paddingHorizontal: ws(12),
+    borderRadius: fs(8),
+    marginBottom: hs(2),
+  },
+  memberDropdownMenuItemActive: {
     backgroundColor: Colors.primaryColor,
   },
-  memberChipText: {
+  memberDropdownMenuItemText: {
     fontSize: fs(13),
     ...TYPOGRAPHY.medium,
-    color: '#475569',
+    color: Colors.slate_1E293B,
   },
-  memberChipTextSelected: {
-    color: '#FFFFFF',
+  memberDropdownMenuItemTextActive: {
     ...TYPOGRAPHY.bold,
+    color: Colors.white,
   },
   searchWrapper: {
     paddingHorizontal: ws(16),
@@ -397,9 +527,9 @@ const styles = StyleSheet.create({
   fileCard: {
     marginBottom: hs(12),
     borderRadius: fs(12),
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.borderColor,
     padding: ws(14),
   },
   row: {
@@ -410,7 +540,7 @@ const styles = StyleSheet.create({
     width: ws(46),
     height: hs(46),
     borderRadius: fs(10),
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.lightBlueTint,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: ws(12),
@@ -421,19 +551,19 @@ const styles = StyleSheet.create({
   fileTitle: {
     fontSize: fs(15),
     ...TYPOGRAPHY.bold,
-    color: '#1E293B',
+    color: Colors.slate_1E293B,
     marginBottom: hs(3),
   },
   patientSubtext: {
     fontSize: fs(13),
     ...TYPOGRAPHY.regular,
-    color: '#64748B',
+    color: Colors.slate_64748B,
     marginBottom: hs(2),
   },
   dateSubtext: {
     fontSize: fs(13),
     ...TYPOGRAPHY.regular,
-    color: '#64748B',
+    color: Colors.slate_64748B,
   },
   actionGroup: {
     flexDirection: 'row',
@@ -447,7 +577,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.lightBlueTint,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -457,7 +587,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.lightBlueTint,
     justifyContent: 'center',
     alignItems: 'center',
   },

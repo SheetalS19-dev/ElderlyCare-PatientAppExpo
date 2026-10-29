@@ -1,6 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React from 'react';
 import {
   ImageBackground,
   Linking,
@@ -85,66 +84,90 @@ export const ContactUsScreen = ({ navigation }: Props) => {
           </View>
         </ImageBackground>
 
-        {/* Section Title */}
-        <Text style={styles.sectionTitle}>Get in Touch</Text>
+        {/* Section Title & Subtitle */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Get in Touch</Text>
+          <Text style={styles.sectionSubtitle}>We're here to help. Reach out to us anytime.</Text>
+        </View>
 
         {/* Phone Support / Emergency Line */}
         <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handlePhoneCall}>
-          <View style={[styles.iconCircle, { backgroundColor: '#EFF6FF' }]}>
-            <MaterialIcons name="phone" size={fs(22)} color="#2563EB" />
+          <View style={[styles.iconCircle, { backgroundColor: Colors.lightBlueTint }]}>
+            <MaterialIcons name="phone" size={fs(22)} color={Colors.primaryColor} />
           </View>
           <View style={styles.info}>
-            <Text style={styles.label}>Emergency Line / Helpline</Text>
+            <Text style={styles.label}>EMERGENCY LINE / HELPLINE</Text>
             <Text style={styles.value}>{AppConstants.support.helplineFormattedPhone}</Text>
+            <Text style={styles.subLabel}>Available 24/7 for urgent support</Text>
           </View>
-          <View style={styles.actionPill}>
-            <Text style={styles.actionPillText}>Call Now</Text>
+          <View style={[styles.actionPill, { backgroundColor: Colors.lightBlueTint }]}>
+            <Text style={[styles.actionPillText, { color: Colors.primaryColor }]}>Call Now</Text>
+            <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.primaryColor} />
           </View>
         </TouchableOpacity>
 
         {/* Support Email */}
         <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleSupportEmail}>
-          <View style={[styles.iconCircle, { backgroundColor: '#EFF6FF' }]}>
-            <MaterialIcons name="email" size={fs(22)} color={Colors.primaryColor} />
+          <View style={[styles.iconCircle, { backgroundColor: Colors.blue_EEF2FF }]}>
+            <MaterialIcons name="email" size={fs(22)} color={Colors.blue_6366F1} />
           </View>
           <View style={styles.info}>
-            <Text style={styles.label}>Support Email</Text>
+            <Text style={styles.label}>SUPPORT EMAIL</Text>
             <Text style={styles.value}>{AppConstants.support.supportEmail}</Text>
+            <Text style={styles.subLabel}>For general support and queries</Text>
           </View>
-          <View style={styles.actionPill}>
-            <Text style={styles.actionPillText}>Write</Text>
+          <View style={[styles.actionPill, { backgroundColor: Colors.blue_EEF2FF }]}>
+            <MaterialIcons name="mail-outline" size={fs(13)} color={Colors.blue_6366F1} style={{ marginRight: ws(3) }} />
+            <Text style={[styles.actionPillText, { color: Colors.blue_6366F1 }]}>Write</Text>
+            <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.blue_6366F1} />
           </View>
         </TouchableOpacity>
 
         {/* Info Email */}
         <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleInfoEmail}>
-          <View style={[styles.iconCircle, { backgroundColor: '#F0FDF4' }]}>
-            <MaterialIcons name="mail-outline" size={fs(22)} color="#16A34A" />
+          <View style={[styles.iconCircle, { backgroundColor: Colors.green_ECFDF5 }]}>
+            <MaterialIcons name="mail-outline" size={fs(22)} color={Colors.green_10B981} />
           </View>
           <View style={styles.info}>
-            <Text style={styles.label}>General Info</Text>
+            <Text style={styles.label}>GENERAL INFO</Text>
             <Text style={styles.value}>{AppConstants.support.infoEmail}</Text>
+            <Text style={styles.subLabel}>For information, feedback and more</Text>
           </View>
-          <View style={[styles.actionPill, { backgroundColor: '#F0FDF4' }]}>
-            <Text style={[styles.actionPillText, { color: '#16A34A' }]}>Write</Text>
+          <View style={[styles.actionPill, { backgroundColor: Colors.green_ECFDF5 }]}>
+            <MaterialIcons name="mail-outline" size={fs(13)} color={Colors.green_10B981} style={{ marginRight: ws(3) }} />
+            <Text style={[styles.actionPillText, { color: Colors.green_10B981 }]}>Write</Text>
+            <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.green_10B981} />
           </View>
         </TouchableOpacity>
 
         {/* Address / Visit Us On */}
         <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleOpenMap}>
-          <View style={[styles.iconCircle, { backgroundColor: '#FEF3C7' }]}>
-            <MaterialIcons name="location-on" size={fs(22)} color="#D97706" />
+          <View style={[styles.iconCircle, { backgroundColor: Colors.yellow_FEF3C7 }]}>
+            <MaterialIcons name="location-on" size={fs(22)} color={Colors.yellow_F59E0B} />
           </View>
           <View style={styles.info}>
-            <Text style={styles.label}>Visit Us On</Text>
+            <Text style={styles.label}>VISIT US ON</Text>
             <Text style={[styles.value, { fontSize: fs(13), lineHeight: fs(18) }]} numberOfLines={2}>
               {AppConstants.support.address}
             </Text>
           </View>
-          <View style={[styles.actionPill, { backgroundColor: '#FEF3C7' }]}>
-            <Text style={[styles.actionPillText, { color: '#D97706' }]}>Locate</Text>
+          <View style={[styles.actionPill, { backgroundColor: Colors.yellow_FEF3C7 }]}>
+            <Text style={[styles.actionPillText, { color: Colors.yellow_D97706 }]}>Locate</Text>
+            <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.yellow_D97706} />
           </View>
         </TouchableOpacity>
+
+        {/* Bottom Banner Card - Your well-being matters */}
+        <View style={styles.wellbeingCard}>
+          <View style={styles.wellbeingIconBox}>
+            <MaterialIcons name="security" size={fs(24)} color={Colors.primaryColor} />
+          </View>
+          <View style={styles.wellbeingMeta}>
+            <Text style={styles.wellbeingTitle}>Your well-being matters</Text>
+            <Text style={styles.wellbeingSubtitle}>Our team is always ready to support you.</Text>
+          </View>
+          <MaterialIcons name="favorite-border" size={fs(22)} color={Colors.blue_60A5FA} />
+        </View>
       </ScrollView>
     </View>
   );
@@ -203,11 +226,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  sectionHeader: {
+    marginBottom: hs(14),
+  },
   sectionTitle: {
-    fontSize: fs(14),
+    fontSize: fs(15),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginBottom: hs(12),
+  },
+  sectionSubtitle: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
+    color: Colors.secondaryFontColor,
+    marginTop: hs(2),
   },
   card: {
     flexDirection: 'row',
@@ -217,7 +248,7 @@ const styles = StyleSheet.create({
     padding: ws(14),
     marginBottom: hs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.borderColor,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -234,6 +265,7 @@ const styles = StyleSheet.create({
   },
   info: {
     flex: 1,
+    paddingRight: ws(8),
   },
   label: {
     fontSize: fs(10),
@@ -243,31 +275,74 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   value: {
-    fontSize: fs(14),
+    fontSize: fs(13.5),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
     marginTop: hs(2),
   },
+  subLabel: {
+    fontSize: fs(10.5),
+    ...TYPOGRAPHY.regular,
+    color: Colors.secondaryFontColor,
+    marginTop: hs(2),
+  },
   actionPill: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: ws(12),
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.lightBlueTint,
+    paddingHorizontal: ws(10),
     paddingVertical: hs(6),
-    borderRadius: fs(8),
+    borderRadius: fs(10),
+    gap: ws(2),
   },
   actionPillText: {
     fontSize: fs(11),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
+  wellbeingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.lightBlueTint,
+    borderRadius: fs(16),
+    padding: ws(16),
+    marginTop: hs(12),
+    borderWidth: 1,
+    borderColor: Colors.lightBlueBorder,
+  },
+  wellbeingIconBox: {
+    width: ws(40),
+    height: hs(40),
+    borderRadius: fs(20),
+    backgroundColor: Colors.lightBlueBorder,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: ws(12),
+  },
+  wellbeingMeta: {
+    flex: 1,
+    paddingRight: ws(8),
+  },
+  wellbeingTitle: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
+    color: Colors.blue_1E3A8A,
+  },
+  wellbeingSubtitle: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.regular,
+    color: Colors.blue_3B82F6,
+    marginTop: hs(2),
+  },
   faqCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.lightBlueTint,
     borderRadius: fs(16),
     padding: ws(14),
     marginTop: hs(6),
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: Colors.lightBlueBorder,
   },
   faqIconCircle: {
     width: ws(44),

@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -35,7 +35,7 @@ import {
   useUpdateVitalMutation,
 } from '../../redux/apis/vitalsApi';
 import type { FamilyMemberModel, VitalModel } from '../../types';
-import { DateTimeUtils, showToast, ws, hs, fs, TYPOGRAPHY } from '../../utils';
+import { DateTimeUtils, fs, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
 import { validateVitalMetric } from '../../validation/authValidation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VitalDetails'>;
@@ -49,6 +49,7 @@ export const VitalDetailsScreen = ({ navigation, route }: Props) => {
   const [selectedFamilyId, setSelectedFamilyId] = useState<string>(
     initialFamilyId ? String(initialFamilyId) : ''
   );
+  const [showMemberDropdown, setShowMemberDropdown] = useState<boolean>(false);
 
   const { data: familyData } = useGetFamilyMembersQuery(uid, {
     skip: !uid,
@@ -90,6 +91,15 @@ export const VitalDetailsScreen = ({ navigation, route }: Props) => {
 
   const activeFamilyId = selectedFamilyId || (familyList[0] ? String(familyList[0].id) : uid);
   const activeMemberObj = familyList.find((m) => String(m.id) === activeFamilyId);
+
+  const selectedMemberDisplayName = useMemo(() => {
+    if (!activeMemberObj) return 'Select Member';
+    return (
+      activeMemberObj.name ||
+      `${activeMemberObj.f_name ?? ''} ${activeMemberObj.l_name ?? ''}`.trim() ||
+      (String(activeMemberObj.id) === String(user?.id) ? 'Self' : 'Member')
+    );
+  }, [activeMemberObj, user?.id]);
 
   const { data: rawVitals, isLoading, isError, refetch } = useGetVitalsQuery(
     { familyMemberId: activeFamilyId, type: vitalName },
@@ -303,31 +313,73 @@ export const VitalDetailsScreen = ({ navigation, route }: Props) => {
     <View style={styles.container}>
       <AppHeader title={`${vitalName} Tracker`} onBackPress={() => navigation.goBack()} />
 
-      {/* Family member selector bar */}
+      {/* Family member selector dropdown */}
       {familyList.length > 0 && (
-        <View style={styles.familyBar}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.familyScroll}>
-            {familyList.map((mem) => {
-              const selected = String(mem.id) === activeFamilyId;
-              const displayName =
-                mem.name ||
-                `${mem.f_name ?? ''} ${mem.l_name ?? ''}`.trim() ||
-                (String(mem.id) === String(user?.id) ? 'Self' : 'Member');
+        <View style={styles.memberFilterSection}>
+          <Text style={styles.dropdownLabel}>Select Member</Text>
+          <View style={styles.memberDropdownContainer}>
+            <TouchableOpacity
+              style={[
+                styles.memberDropdownField,
+                showMemberDropdown && styles.memberDropdownFieldOpen,
+              ]}
+              activeOpacity={0.85}
+              onPress={() => setShowMemberDropdown((prev) => !prev)}
+            >
+              <Text style={styles.memberDropdownFieldText} numberOfLines={1}>
+                {selectedMemberDisplayName}
+              </Text>
+              <MaterialIcons
+                name={showMemberDropdown ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                size={fs(20)}
+                color={Colors.primaryColor}
+              />
+            </TouchableOpacity>
 
-              return (
-                <TouchableOpacity
-                  key={mem.id}
-                  style={[styles.familyChip, selected && styles.familyChipSelected]}
-                  onPress={() => setSelectedFamilyId(String(mem.id))}
-                  activeOpacity={0.8}
+            {showMemberDropdown && (
+              <View style={styles.memberDropdownMenuCard}>
+                <ScrollView
+                  nestedScrollEnabled
+                  bounces={false}
+                  showsVerticalScrollIndicator={false}
+                  style={{ maxHeight: hs(220) }}
                 >
-                  <Text style={[styles.familyChipText, selected && styles.familyChipTextSelected]}>
-                    {displayName}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+                  {familyList.map((mem) => {
+                    const isSelected = String(mem.id) === activeFamilyId;
+                    const displayName =
+                      mem.name ||
+                      `${mem.f_name ?? ''} ${mem.l_name ?? ''}`.trim() ||
+                      (String(mem.id) === String(user?.id) ? 'Self' : 'Member');
+
+                    return (
+                      <TouchableOpacity
+                        key={`member-opt-${mem.id}`}
+                        style={[
+                          styles.memberDropdownMenuItem,
+                          isSelected && styles.memberDropdownMenuItemActive,
+                        ]}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          setSelectedFamilyId(String(mem.id));
+                          setShowMemberDropdown(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.memberDropdownMenuItemText,
+                            isSelected && styles.memberDropdownMenuItemTextActive,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {displayName}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+          </View>
         </View>
       )}
 
@@ -578,18 +630,88 @@ export const VitalDetailsScreen = ({ navigation, route }: Props) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgColor },
-  familyBar: { backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  familyScroll: { paddingHorizontal: ws(16), paddingVertical: hs(10) },
-  familyChip: {
+  memberFilterSection: {
+    backgroundColor: Colors.white,
+    paddingHorizontal: ws(16),
+    paddingTop: hs(12),
+    paddingBottom: hs(12),
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderColor,
+    position: 'relative',
+    zIndex: 1000,
+  },
+  dropdownLabel: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
+    color: Colors.primaryFontColor,
+    marginBottom: hs(6),
+  },
+  memberDropdownContainer: {
+    position: 'relative',
+    zIndex: 1000,
+  },
+  memberDropdownField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.white,
+    borderRadius: fs(10),
+    borderWidth: 1.5,
+    borderColor: Colors.blue_3B82F6,
     paddingHorizontal: ws(14),
-    paddingVertical: hs(7),
-    borderRadius: fs(20),
-    backgroundColor: '#F1F5F9',
+    paddingVertical: hs(10),
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: hs(1) },
+    shadowOpacity: 0.05,
+    shadowRadius: fs(3),
+    elevation: 2,
+  },
+  memberDropdownFieldOpen: {
+    borderColor: Colors.primaryColor,
+  },
+  memberDropdownFieldText: {
+    fontSize: fs(13.5),
+    ...TYPOGRAPHY.medium,
+    color: Colors.primaryFontColor,
+    flex: 1,
     marginRight: ws(8),
   },
-  familyChipSelected: { backgroundColor: Colors.primaryColor },
-  familyChipText: { fontSize: fs(Typography.fontSize.xs), color: Colors.primaryFontColor, ...TYPOGRAPHY.medium },
-  familyChipTextSelected: { color: Colors.white, ...TYPOGRAPHY.bold },
+  memberDropdownMenuCard: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: hs(4),
+    backgroundColor: Colors.white,
+    borderRadius: fs(12),
+    borderWidth: 1,
+    borderColor: Colors.borderColor,
+    padding: ws(6),
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: hs(4) },
+    shadowOpacity: 0.15,
+    shadowRadius: fs(10),
+    elevation: 10,
+    zIndex: 1000,
+  },
+  memberDropdownMenuItem: {
+    paddingVertical: hs(10),
+    paddingHorizontal: ws(12),
+    borderRadius: fs(8),
+    marginBottom: hs(2),
+  },
+  memberDropdownMenuItemActive: {
+    backgroundColor: Colors.primaryColor,
+  },
+  memberDropdownMenuItemText: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.medium,
+    color: Colors.slate_1E293B,
+  },
+  memberDropdownMenuItemTextActive: {
+    ...TYPOGRAPHY.bold,
+    color: Colors.white,
+  },
   listContent: { flexGrow: 1, padding: ws(16), paddingBottom: hs(80) },
   heroCard: {
     padding: ws(18),

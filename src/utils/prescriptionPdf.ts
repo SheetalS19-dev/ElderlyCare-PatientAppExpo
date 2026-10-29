@@ -3,6 +3,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
+import { saveLocalFileToDownloads } from './fileDownloader';
 
 interface PrescriptionItem {
   id: number;
@@ -808,41 +809,10 @@ export async function downloadPrescriptionPdf(
   info: PrescriptionPdfInfo = {},
 ) {
   const uri = await generatePrescriptionPdf(prescription, info);
+  const fileName = `Prescription_${prescription.id || Date.now()}.pdf`;
 
-  if (Platform.OS === 'android') {
-    try {
-      const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-      if (permissions.granted) {
-        const base64 = await FileSystem.readAsStringAsync(uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        const fileName = `Prescription_${prescription.id}_${Date.now()}.pdf`;
-        const newFileUri = await FileSystem.StorageAccessFramework.createFileAsync(
-          permissions.directoryUri,
-          fileName,
-          'application/pdf',
-        );
-        await FileSystem.writeAsStringAsync(newFileUri, base64, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        return { success: true, uri: newFileUri, fileName };
-      }
-    } catch (err) {
-      console.warn('StorageAccessFramework download error, falling back to share dialog:', err);
-    }
-  }
-
-  // Fallback for iOS or if directory selection is skipped
-  const isAvailable = await Sharing.isAvailableAsync();
-  if (isAvailable) {
-    await Sharing.shareAsync(uri, {
-      mimeType: 'application/pdf',
-      dialogTitle: `Save Prescription #${prescription.id}`,
-      UTI: 'com.adobe.pdf',
-    });
-  }
-
-  return { success: true, uri, fileName: `Prescription_${prescription.id}.pdf` };
+  const saveRes = await saveLocalFileToDownloads(uri, fileName, 'application/pdf');
+  return { success: saveRes.success, uri: saveRes.uri || uri, fileName };
 }
 
 export async function sharePrescriptionPdf(

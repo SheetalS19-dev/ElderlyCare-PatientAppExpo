@@ -43,20 +43,20 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
         <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose} />
         <View style={styles.forgotCard}>
           <View style={styles.forgotHeader}>
-            <Text style={styles.forgotTitle}>Reset Password</Text>
+            <Text style={styles.forgotTitle}>Forgot Password?</Text>
             <TouchableOpacity onPress={onClose}>
-              <MaterialIcons name="close" size={fs(22)} color="#718096" />
+              <MaterialIcons name="close" size={fs(22)} color={Colors.slate_718096} />
             </TouchableOpacity>
           </View>
           <Text style={styles.forgotSubtitle}>
-            Enter your registered email address below. We'll send you a password reset link.
+            Enter your email and we'll send you a reset link.
           </Text>
 
           <Text style={[styles.inputLabel, { marginTop: hs(12) }]}>Email Address</Text>
           <TextInput
             style={[styles.singleTextInput, forgotEmailError ? styles.inputBorderError : null]}
-            placeholder="Enter your email address"
-            placeholderTextColor="#94A3B8"
+            placeholder="test@yopmail.com"
+            placeholderTextColor={Colors.slate_94A3B8}
             value={forgotEmail}
             onChangeText={onEmailChange}
             keyboardType="email-address"
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: fs(20),
     padding: ws(20),
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
@@ -139,10 +139,10 @@ const styles = StyleSheet.create({
     marginBottom: hs(6),
   },
   singleTextInput: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.inputTextBgColor,
     borderRadius: fs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.borderColor,
     height: hs(50),
     paddingHorizontal: ws(14),
     ...TYPOGRAPHY.regular,
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(10),
   },
   buttonDisabled: {
-    backgroundColor: '#94A3B8',
+    backgroundColor: Colors.slate_94A3B8,
   },
   forgotSubmitText: {
     ...TYPOGRAPHY.bold,
