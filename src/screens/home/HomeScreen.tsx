@@ -55,7 +55,7 @@ import { useGetPatientFilesQuery } from '../../redux/apis/patientFilesApi';
 import { useGetUserProfileQuery } from '../../redux/apis/userApi';
 import { useDeleteVitalMutation, useGetVitalsQuery, useUpdateVitalMutation } from '../../redux/apis/vitalsApi';
 import { getUserFullName, type FamilyMemberModel, type NotificationModel } from '../../types';
-import { DateTimeUtils, downloadAndSaveFile, formatDoctorName, fs, getImageUrl, hs, isWithinLast7Days, showToast, TYPOGRAPHY, ws } from '../../utils';
+import { DateTimeUtils, downloadAndSaveFile, formatDoctorName, fs, getDepartmentImageUrl, getImageUrl, hs, isWithinLast7Days, showToast, TYPOGRAPHY, ws } from '../../utils';
 
 
 
@@ -624,7 +624,7 @@ const VitalChartCard = ({
                       {timeStr}
                     </Text>
 
-                    {/* ACTION Column with Edit and Delete Buttons */}
+                    {/* ACTION Column with Delete Button */}
                     <View style={[styles.vitalsTableCellAction, { flex: actionFlex, minWidth: actionMinW }]}>
                       <TouchableOpacity
                         style={styles.actionIconBtnDelete}
@@ -632,14 +632,6 @@ const VitalChartCard = ({
                         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                       >
                         <MaterialIcons name="delete-outline" size={19} color="#EF4444" />
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.actionIconBtnEdit}
-                        onPress={() => onEditRecord ? onEditRecord(item) : onPress()}
-                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                      >
-                        <MaterialIcons name="edit" size={19} color="#059669" />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -675,8 +667,9 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
+  const ALL_CITIES_OBJ = useMemo(() => ({ id: 'ALL', title: 'All' } as CityModel), []);
   const [search, setSearch] = useState('');
-  const [selectedCity, setSelectedCity] = useState<CityModel | null | undefined>(undefined);
+  const [selectedCity, setSelectedCity] = useState<CityModel | null | undefined>({ id: 'ALL', title: 'All' } as CityModel);
   const [deviceLocationCity, setDeviceLocationCity] = useState<string | null>(null);
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -692,7 +685,7 @@ export const HomeScreen: React.FC = () => {
           const parsed = JSON.parse(savedData);
           if (parsed?.title?.toLowerCase().includes('lucknow')) {
             await AsyncStorage.removeItem(SAVED_LOCATION_KEY);
-          } else if (parsed !== undefined) {
+          } else if (parsed !== undefined && parsed !== null) {
             setSelectedCity(parsed);
           }
         }
@@ -725,7 +718,10 @@ export const HomeScreen: React.FC = () => {
               });
               if (geocoded && geocoded.length > 0) {
                 const place = geocoded[0];
-                const cityName = place.city || place.subregion || place.district || place.region || '';
+                let cityName = place.city || place.subregion || place.district || place.region || '';
+                if (cityName.toLowerCase().includes('allahabad') || cityName.toLowerCase().includes('prayagraj')) {
+                  cityName = 'Prayagraj';
+                }
                 if (cityName) {
                   setDeviceLocationCity(cityName);
                   setIsDetectingLocation(false);
@@ -744,7 +740,11 @@ export const HomeScreen: React.FC = () => {
       if (ipRes.ok) {
         const ipData = await ipRes.json();
         if (ipData && ipData.status === 'success' && ipData.city) {
-          setDeviceLocationCity(ipData.city);
+          let cName = ipData.city;
+          if (cName.toLowerCase().includes('allahabad') || cName.toLowerCase().includes('prayagraj')) {
+            cName = 'Prayagraj';
+          }
+          setDeviceLocationCity(cName);
         }
       }
     } catch (error) {
@@ -753,12 +753,6 @@ export const HomeScreen: React.FC = () => {
       setIsDetectingLocation(false);
     }
   }, []);
-
-  useEffect(() => {
-    if (selectedCity === undefined) {
-      fetchDeviceCurrentLocation();
-    }
-  }, [selectedCity, fetchDeviceCurrentLocation]);
 
   // API Queries (useGetCurrentCityQuery removed!)
   const { data: citiesData } = useGetCitiesQuery();
@@ -775,31 +769,15 @@ export const HomeScreen: React.FC = () => {
     return [];
   }, [citiesData]);
 
-  // Match active city
+  // Match active city - defaults to All (Point 1)
   const activeCity = useMemo(() => {
-    if (selectedCity !== undefined) {
+    if (selectedCity !== undefined && selectedCity !== null) {
       return selectedCity;
     }
-    if (citiesList.length > 0) {
-      if (deviceLocationCity) {
-        const dName = deviceLocationCity.toLowerCase().trim();
-        const matched = citiesList.find((c: CityModel) => {
-          const cTitle = (c.title || '').toLowerCase().trim();
-          return cTitle.includes(dName) || dName.includes(cTitle);
-        });
-        if (matched) return matched;
-      }
-      const defaultCity = citiesList.find(
-        (c: CityModel) => (c as any).default_city === 1
-      );
-      if (defaultCity) return defaultCity;
-    }
-    return null;
-  }, [selectedCity, citiesList, deviceLocationCity]);
+    return ALL_CITIES_OBJ;
+  }, [selectedCity, ALL_CITIES_OBJ]);
 
-  const activeCityName = activeCity
-    ? activeCity.title
-    : (deviceLocationCity || 'All Cities');
+  const activeCityName = activeCity?.title || 'All';
 
   const activeCityId =
     activeCity?.id != null && String(activeCity.id) !== 'ALL' && String(activeCity.id) !== ''
@@ -818,9 +796,8 @@ export const HomeScreen: React.FC = () => {
       }
       fetchDeviceCurrentLocation();
     } else if (city === null) {
-      // User tapped "All Cities"
-      const allCitiesObj = { id: 'ALL', title: 'All Cities' } as CityModel;
-      setSelectedCity(allCitiesObj);
+      // User tapped "All"
+      setSelectedCity(ALL_CITIES_OBJ);
     } else {
       // User tapped a specific city from dropdown
       setSelectedCity(city);
@@ -994,9 +971,18 @@ export const HomeScreen: React.FC = () => {
 
   // Dynamic Vitals Queries based on active selected member filter
   const activeFamilyId = useMemo(() => {
-    if (selectedMemberId === 'ALL' || selectedMemberId === 'SELF') return userIdStr;
+    if (selectedMemberId === 'ALL' || selectedMemberId === 'SELF') {
+      const selfMem = familyMembersList.find(
+        (m: any) =>
+          (m.relationship || '').toLowerCase() === 'self' ||
+          m.is_self === true ||
+          (user?.phone && m.phone === user.phone)
+      );
+      if (selfMem?.id) return String(selfMem.id);
+      return userIdStr;
+    }
     return selectedMemberId;
-  }, [selectedMemberId, userIdStr]);
+  }, [selectedMemberId, userIdStr, familyMembersList, user]);
 
   const { data: rawBpVitals, refetch: refetchBp } = useGetVitalsQuery(
     { familyMemberId: activeFamilyId, type: 'Blood Pressure' },
@@ -1603,7 +1589,6 @@ export const HomeScreen: React.FC = () => {
                 latestVal={getLatestVitalValue(rawBpVitals, 'Blood Pressure')}
                 onPress={() => navigation.navigate('VitalDetails', { vitalName: 'Blood Pressure', familyMemberId: activeFamilyId })}
                 onDeleteRecord={handleDeleteVitalRecord}
-                onEditRecord={(item) => openEditModal(item, 'Blood Pressure')}
               />
 
               {/* 2. Sugar Levels */}
@@ -1620,7 +1605,6 @@ export const HomeScreen: React.FC = () => {
                 latestVal={getLatestVitalValue(rawSugarVitals, 'Sugar')}
                 onPress={() => navigation.navigate('VitalDetails', { vitalName: 'Sugar', familyMemberId: activeFamilyId })}
                 onDeleteRecord={handleDeleteVitalRecord}
-                onEditRecord={(item) => openEditModal(item, 'Sugar')}
               />
 
               {/* 3. Weight */}
@@ -1637,7 +1621,6 @@ export const HomeScreen: React.FC = () => {
                 latestVal={getLatestVitalValue(rawWeightVitals, 'Weight')}
                 onPress={() => navigation.navigate('VitalDetails', { vitalName: 'Weight', familyMemberId: activeFamilyId })}
                 onDeleteRecord={handleDeleteVitalRecord}
-                onEditRecord={(item) => openEditModal(item, 'Weight')}
               />
 
               {/* 4. Temperature */}
@@ -1654,7 +1637,6 @@ export const HomeScreen: React.FC = () => {
                 latestVal={getLatestVitalValue(rawTempVitals, 'Temperature')}
                 onPress={() => navigation.navigate('VitalDetails', { vitalName: 'Temperature', familyMemberId: activeFamilyId })}
                 onDeleteRecord={handleDeleteVitalRecord}
-                onEditRecord={(item) => openEditModal(item, 'Temperature')}
               />
 
               {/* 5. SpO2 Oxygen */}
@@ -1671,7 +1653,6 @@ export const HomeScreen: React.FC = () => {
                 latestVal={getLatestVitalValue(rawSpo2Vitals, 'SpO2')}
                 onPress={() => navigation.navigate('VitalDetails', { vitalName: 'SpO2', familyMemberId: activeFamilyId })}
                 onDeleteRecord={handleDeleteVitalRecord}
-                onEditRecord={(item) => openEditModal(item, 'SpO2')}
                 fullWidth
                 yLabels={['100', '90', '80']}
               />
@@ -1891,7 +1872,9 @@ export const HomeScreen: React.FC = () => {
         {/* Section 6: Top Verified Doctors */}
         <View style={styles.sectionHeader}>
           <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={styles.sectionHeading} adjustsFontSizeToFit numberOfLines={2}>Top Doctors in {activeCityName}</Text>
+            <Text style={styles.sectionHeading} adjustsFontSizeToFit numberOfLines={2}>
+              {activeCityName === 'All' ? 'Top Doctors' : `Top Doctors in ${activeCityName}`}
+            </Text>
             <Text style={styles.sectionSubheading} numberOfLines={1}>Experienced & verified physicians</Text>
           </View>
           {doctorList.length > 0 && (
@@ -1911,7 +1894,9 @@ export const HomeScreen: React.FC = () => {
         ) : doctorList.length === 0 ? (
           <View style={styles.emptyCardBox}>
             <MaterialIcons name="person-search" size={36} color={Colors.secondaryFontColor} />
-            <Text style={styles.emptyCardTitle}>No Doctors Found in {activeCityName}</Text>
+            <Text style={styles.emptyCardTitle}>
+              {activeCityName === 'All' ? 'No Doctors Found' : `No Doctors Found in ${activeCityName}`}
+            </Text>
             <Text style={styles.emptyCardSubtitle}>
               Try switching your location or exploring all specialists.
             </Text>
@@ -1962,7 +1947,9 @@ export const HomeScreen: React.FC = () => {
         <View style={styles.sectionHeader}>
           <View style={{ flex: 1, marginRight: 8 }}>
             <Text style={styles.sectionHeading} adjustsFontSizeToFit numberOfLines={2}>Featured Clinics</Text>
-            <Text style={styles.sectionSubheading} numberOfLines={1}>Trusted medical centers in {activeCityName}</Text>
+            <Text style={styles.sectionSubheading} numberOfLines={1}>
+              {activeCityName === 'All' ? 'Trusted medical centers' : `Trusted medical centers in ${activeCityName}`}
+            </Text>
           </View>
           {clinicList.length > 0 && (
             <TouchableOpacity
@@ -1981,7 +1968,9 @@ export const HomeScreen: React.FC = () => {
         ) : clinicList.length === 0 ? (
           <View style={styles.emptyCardBox}>
             <MaterialIcons name="local-hospital" size={36} color={Colors.secondaryFontColor} />
-            <Text style={styles.emptyCardTitle}>No Clinics Listed in {activeCityName}</Text>
+            <Text style={styles.emptyCardTitle}>
+              {activeCityName === 'All' ? 'No Clinics Listed' : `No Clinics Listed in ${activeCityName}`}
+            </Text>
             <Text style={styles.emptyCardSubtitle}>Check nearby cities or explore all clinics.</Text>
           </View>
         ) : (
@@ -2162,12 +2151,12 @@ export const HomeScreen: React.FC = () => {
 /* -------------------------------------------------------------------------- */
 
 const DepartmentCard = memo(({ item, onPress }: { item: DepartmentModel; onPress: () => void }) => {
-  const imageUrl = getImageUrl(item.image);
+  const imageUrl = getDepartmentImageUrl(item) || getImageUrl(item.image);
   return (
     <TouchableOpacity style={styles.deptCard} activeOpacity={0.8} onPress={onPress}>
       <View style={styles.deptIconFrame}>
         {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.deptIcon} resizeMode="contain" />
+          <Image source={{ uri: imageUrl }} style={styles.deptIcon} resizeMode="cover" />
         ) : (
           <MaterialIcons name="medical-services" size={26} color={Colors.primaryColor} />
         )}
@@ -2182,7 +2171,12 @@ const DepartmentCard = memo(({ item, onPress }: { item: DepartmentModel; onPress
 const DoctorSpotlightCard = memo(
   ({ doctor, onBook }: { doctor: DoctorModel; onBook: () => void }) => {
     const displayName = formatDoctorName(doctor.f_name || doctor.name, doctor.l_name);
-    const specialty = doctor.specialization || (doctor as any).dept_title || '';
+    const specialty =
+      doctor.department_name ||
+      (doctor as any).dept_name ||
+      (doctor as any).dept_title ||
+      doctor.specialization ||
+      '';
     const rating = Number(doctor.average_rating ?? 0);
     const reviews = doctor.number_of_reviews ?? 0;
     const experience = doctor.ex_year ?? doctor.experience;
@@ -2703,10 +2697,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: fs(5),
     elevation: 2,
+    overflow: 'hidden',
   },
   deptIcon: {
-    width: ws(50),
-    height: hs(50),
+    width: '100%',
+    height: '100%',
   },
   deptTitle: {
     fontSize: fs(11),

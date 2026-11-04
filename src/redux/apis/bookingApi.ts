@@ -13,21 +13,73 @@ export interface AddFamilyMemberPayload {
   user_id: string;
   f_name: string;
   l_name: string;
+  first_name?: string;
+  last_name?: string;
   phone: string;
   gender: string;
   isd_code: string;
   dob: string;
+  relation?: string;
+  relationship?: string;
 }
 
 export interface UpdateFamilyMemberPayload {
   id: string;
+  user_id?: string;
+  member_id?: string;
+  family_member_id?: string;
   f_name: string;
   l_name: string;
+  first_name?: string;
+  last_name?: string;
   phone: string;
   gender: string;
   isd_code: string;
   dob: string;
+  relation?: string;
+  relationship?: string;
 }
+
+const toFamilyMemberFormData = (body: any): FormData => {
+  if (body instanceof FormData) return body;
+  const formData = new FormData();
+  if (!body || typeof body !== 'object') return formData;
+
+  Object.keys(body).forEach((key) => {
+    const val = body[key];
+    if (val !== undefined && val !== null && val !== '') {
+      formData.append(key, String(val));
+    }
+  });
+
+  // Ensure aliases for compatibility with backend PHP $_POST checks
+  const fName = body.f_name || body.first_name;
+  if (fName) {
+    if (!body.f_name) formData.append('f_name', String(fName));
+    if (!body.first_name) formData.append('first_name', String(fName));
+  }
+
+  const lName = body.l_name || body.last_name;
+  if (lName) {
+    if (!body.l_name) formData.append('l_name', String(lName));
+    if (!body.last_name) formData.append('last_name', String(lName));
+  }
+
+  const idVal = body.id || body.member_id || body.family_member_id;
+  if (idVal) {
+    if (!body.id) formData.append('id', String(idVal));
+    if (!body.member_id) formData.append('member_id', String(idVal));
+    if (!body.family_member_id) formData.append('family_member_id', String(idVal));
+  }
+
+  const relVal = body.relation || body.relationship;
+  if (relVal) {
+    if (!body.relation) formData.append('relation', String(relVal));
+    if (!body.relationship) formData.append('relationship', String(relVal));
+  }
+
+  return formData;
+};
 
 // All the fields the backend expects when creating an appointment / order,
 // mirroring AppointmentService.addAppointment / RazorPayService.createOrderAppointment
@@ -80,29 +132,32 @@ export const bookingApi = baseApi.injectEndpoints({
     }),
 
     addFamilyMember: builder.mutation({
-      query: (body: AddFamilyMemberPayload) => ({
+      query: (body: AddFamilyMemberPayload | FormData) => ({
         url: ApiEndpoints.addFamilyMemberUrl,
         method: 'POST',
-        body,
+        body: toFamilyMemberFormData(body),
       }),
       invalidatesTags: ['FamilyMember'],
     }),
 
     updateFamilyMember: builder.mutation({
-      query: (body: UpdateFamilyMemberPayload) => ({
+      query: (body: UpdateFamilyMemberPayload | FormData) => ({
         url: ApiEndpoints.updateFamilyMemberUrl,
         method: 'POST',
-        body,
+        body: toFamilyMemberFormData(body),
       }),
       invalidatesTags: ['FamilyMember'],
     }),
 
     deleteFamilyMember: builder.mutation({
-      query: (id: string) => ({
-        url: ApiEndpoints.deleteFamilyMemberUrl,
-        method: 'POST',
-        body: { id },
-      }),
+      query: (id: string | any) => {
+        const idStr = typeof id === 'object' && id?.id ? String(id.id) : String(id);
+        return {
+          url: ApiEndpoints.deleteFamilyMemberUrl,
+          method: 'POST',
+          body: toFamilyMemberFormData({ id: idStr, member_id: idStr, family_member_id: idStr }),
+        };
+      },
       invalidatesTags: ['FamilyMember'],
     }),
 
@@ -164,7 +219,9 @@ export const {
   useUpdateFamilyMemberMutation,
   useDeleteFamilyMemberMutation,
   useGetTimeSlotsQuery,
+  useLazyGetTimeSlotsQuery,
   useGetBookedTimeSlotsQuery,
+  useLazyGetBookedTimeSlotsQuery,
   useValidateCouponMutation,
   useGetActivePaymentGatewayQuery,
   useAddAppointmentMutation,

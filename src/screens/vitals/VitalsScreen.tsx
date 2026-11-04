@@ -1,6 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React from 'react';
 import {
   ImageBackground,
   ScrollView,
@@ -13,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppHeader } from '../../components';
 import { Colors, Typography } from '../../constants';
 import type { RootStackParamList } from '../../navigation/types';
-import { ws, hs, fs, TYPOGRAPHY } from '../../utils';
+import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Vitals'>;
 
@@ -146,16 +145,6 @@ export const VitalsScreen = ({ navigation }: Props) => {
           </TouchableOpacity>
         ))}
 
-        {/* Health Advisory Card */}
-        <View style={styles.advisoryCard}>
-          <View style={styles.advisoryHeader}>
-            <MaterialIcons name="tips-and-updates" size={20} color={Colors.primaryColor} />
-            <Text style={styles.advisoryTitle}>Health Advisory</Text>
-          </View>
-          <Text style={styles.advisoryBody}>
-            Regular vital logging helps your consulting doctor spot trends early and personalize your treatment plan.
-          </Text>
-        </View>
       </ScrollView>
     </View>
   );
@@ -304,30 +293,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: ws(10),
-  },
-  advisoryCard: {
-    backgroundColor: '#EFF6FF',
-    borderRadius: fs(16),
-    padding: ws(16),
-    marginTop: hs(8),
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.primaryColor,
-  },
-  advisoryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ws(6),
-    marginBottom: hs(4),
-  },
-  advisoryTitle: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
-  },
-  advisoryBody: {
-    fontSize: fs(11),
-    ...TYPOGRAPHY.regular,
-    color: Colors.secondaryFontColor,
-    lineHeight: hs(17),
-  },
+  }
 });

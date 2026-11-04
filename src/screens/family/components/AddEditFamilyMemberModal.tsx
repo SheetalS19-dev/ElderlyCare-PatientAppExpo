@@ -85,7 +85,7 @@ export const AddEditFamilyMemberModal: React.FC<Props> = ({
                   style={styles.inputField}
                   value={lastName}
                   onChangeText={onChangeLastName}
-                  placeholder="Last name"
+                  placeholder="Last Name"
                   placeholderTextColor="#94A3B8"
                 />
               </View>
@@ -94,14 +94,20 @@ export const AddEditFamilyMemberModal: React.FC<Props> = ({
             {/* Phone */}
             <View style={styles.fieldWrapper}>
               <Text style={styles.fieldLabel}>Mobile Number</Text>
-              <TextInput
-                style={styles.inputField}
-                value={phone}
-                onChangeText={onChangePhone}
-                placeholder="10-digit mobile number"
-                placeholderTextColor="#94A3B8"
-                keyboardType="phone-pad"
-              />
+              <View style={styles.phoneInputRow}>
+                <View style={styles.countryCodeBtn}>
+                  <Text style={styles.dialCodeText}>+91</Text>
+                </View>
+                <TextInput
+                  style={styles.phoneInput}
+                  value={phone}
+                  onChangeText={onChangePhone}
+                  placeholder="10-digit mobile number"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                />
+              </View>
             </View>
 
             {/* Gender Pills */}
@@ -243,6 +249,37 @@ const styles = StyleSheet.create({
     fontSize: fs(13),
     ...TYPOGRAPHY.regular,
     color: Colors.primaryFontColor,
+  },
+  phoneInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: hs(44),
+    backgroundColor: '#F8FAFC',
+    borderRadius: ws(12),
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+  },
+  countryCodeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: ws(10),
+    borderRightWidth: 1,
+    borderRightColor: '#E2E8F0',
+    height: '100%',
+  },
+  dialCodeText: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.semiBold,
+    color: '#1E293B',
+  },
+  phoneInput: {
+    flex: 1,
+    height: '100%',
+    paddingHorizontal: ws(10),
+    fontSize: fs(13),
+    color: Colors.primaryFontColor,
+    ...TYPOGRAPHY.regular,
   },
   genderRow: {
     flexDirection: 'row',

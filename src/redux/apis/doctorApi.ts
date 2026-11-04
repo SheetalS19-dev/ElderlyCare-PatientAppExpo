@@ -30,14 +30,23 @@ export const doctorApi = baseApi.injectEndpoints({
     }),
 
     getDoctors: builder.query({
-      query: (args: { searchQuery?: string; cityId?: string } = {}) => ({
-        url: ApiEndpoints.getDoctorsUrl,
-        params: {
-          active: '1',
-          search_query: args.searchQuery ?? '',
-          city_id: args.cityId ?? '',
-        },
-      }),
+      query: (args: { searchQuery?: string; search?: string; cityId?: string; department?: string } = {}) => {
+        const params: Record<string, any> = { active: 1 };
+        const queryTerm = args.search ?? args.searchQuery;
+        if (queryTerm && queryTerm.trim()) {
+          params.search = queryTerm.trim();
+        }
+        if (args.cityId && String(args.cityId).trim()) {
+          params.city_id = String(args.cityId).trim();
+        }
+        if (args.department && String(args.department).trim()) {
+          params.department = String(args.department).trim();
+        }
+        return {
+          url: ApiEndpoints.getDoctorsUrl,
+          params,
+        };
+      },
     }),
 
     getDoctorsByClinicId: builder.query({

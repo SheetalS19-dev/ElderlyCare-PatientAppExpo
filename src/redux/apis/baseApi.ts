@@ -73,17 +73,34 @@ const baseQueryWithEnvelope: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQ
   }
 
   const body: any = result.data;
-  if (body && typeof body === 'object' && 'response' in body && body.response !== 200) {
-    if (body.message === 'Not Exists') {
-      return result;
+  if (body && typeof body === 'object' && 'response' in body) {
+    const isSuccess =
+      body.response === 200 ||
+      body.response === 201 ||
+      body.response === '200' ||
+      body.response === '201' ||
+      Number(body.response) === 200 ||
+      Number(body.response) === 201 ||
+      body.status === true ||
+      body.status === 200 ||
+      body.status === '200' ||
+      body.status === 'success' ||
+      body.success === true ||
+      body.success === 1 ||
+      body.success === '1';
+
+    if (!isSuccess) {
+      if (body.message === 'Not Exists') {
+        return result;
+      }
+      return {
+        error: {
+          status: 'CUSTOM_ERROR',
+          error: body.message || 'Something went wrong',
+          data: { message: body.message || 'Something went wrong' },
+        } as FetchBaseQueryError,
+      };
     }
-    return {
-      error: {
-        status: 'CUSTOM_ERROR',
-        error: body.message || 'Something went wrong',
-        data: { message: body.message || 'Something went wrong' },
-      } as FetchBaseQueryError,
-    };
   }
 
   return result;
@@ -105,6 +122,7 @@ export const baseApi = createApi({
     'BlogCategory',
     'BlogTag',
     'BlogComment',
+    'CancellationHistory',
   ],
   endpoints: () => ({}),
 });

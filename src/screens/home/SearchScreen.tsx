@@ -3,12 +3,8 @@ import {
   View,
   Text,
   FlatList,
-  ScrollView,
   TouchableOpacity,
   Image,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
   StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,8 +18,9 @@ import {
   LoadingIndicator,
   EmptyState,
   CitySelectModal,
+  DepartmentSelectModal,
 } from '../../components';
-import { Colors, Typography, ApiEndpoints } from '../../constants';
+import { Colors, Typography } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import { useDebounce } from '../../hooks';
 import {
@@ -60,6 +57,7 @@ export const SearchScreen = ({ navigation, route }: Props) => {
   });
   const [citySearch, setCitySearch] = useState('');
   const [isCityModalVisible, setIsCityModalVisible] = useState(false);
+  const [isDeptModalVisible, setIsDeptModalVisible] = useState(false);
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -84,14 +82,15 @@ export const SearchScreen = ({ navigation, route }: Props) => {
     route.params?.selectedDeptTitle,
   ]);
 
-  // Doctors & Clinics Queries
+  // Doctors & Clinics Queries (Backend driven filtering & searching)
   const {
     data: rawDoctorsData,
     isLoading: isDoctorsLoading,
     refetch: refetchDoctors,
   } = useGetDoctorsQuery({
     cityId: selectedCity.id || undefined,
-    searchQuery: debouncedSearch.trim() || undefined,
+    department: selectedDeptId || undefined,
+    search: debouncedSearch.trim() || undefined,
   });
 
   const {
@@ -100,6 +99,7 @@ export const SearchScreen = ({ navigation, route }: Props) => {
     refetch: refetchClinics,
   } = useGetClinicsQuery({
     cityId: selectedCity.id || undefined,
+    search: debouncedSearch.trim() || undefined,
   });
 
   const { data: rawDeptData } = useGetDepartmentsQuery();
@@ -120,82 +120,23 @@ export const SearchScreen = ({ navigation, route }: Props) => {
     return [];
   }, [citiesData]);
 
-  // Master doctors list unwrapped and filtered
+  // Master doctors list directly returned from backend API
   const filteredDoctors: DoctorModel[] = useMemo(() => {
     let list: DoctorModel[] = [];
     if (Array.isArray(rawDoctorsData)) list = rawDoctorsData;
     else if (Array.isArray((rawDoctorsData as any)?.data)) list = (rawDoctorsData as any).data;
     else if (Array.isArray((rawDoctorsData as any)?.response)) list = (rawDoctorsData as any).response;
-
-    // Filter by department if selected
-    if (selectedDeptId || selectedDeptTitle) {
-      list = list.filter((doc: any) => {
-        const docDeptId = String(doc.dept_id ?? doc.department_id ?? '');
-        const docDeptTitle = (
-          doc.dept_title ??
-          doc.dept_name ??
-          doc.department_name ??
-          doc.specialization ??
-          ''
-        ).toLowerCase();
-
-        if (selectedDeptId && docDeptId === String(selectedDeptId)) {
-          return true;
-        }
-
-        if (selectedDeptTitle) {
-          const targetTitle = selectedDeptTitle.toLowerCase().trim();
-          if (docDeptTitle.includes(targetTitle) || targetTitle.includes(docDeptTitle)) {
-            return true;
-          }
-        }
-        return false;
-      });
-    }
-
-    // Client-side text filter for instant responsiveness
-    if (debouncedSearch.trim()) {
-      const q = debouncedSearch.toLowerCase().trim();
-      list = list.filter((doc: any) => {
-        const fullName = `${doc.f_name ?? ''} ${doc.l_name ?? ''}`.toLowerCase();
-        const clinic = (doc.clinic_title ?? doc.clinic_name ?? (doc as any).clinics_name ?? '').toLowerCase();
-        const spec = (doc.specialization ?? (doc as any).speciality ?? '').toLowerCase();
-        const dept = (doc.dept_title ?? (doc as any).dept_name ?? (doc as any).department_name ?? '').toLowerCase();
-        const address = (doc.clinics_address ?? doc.address ?? '').toLowerCase();
-        const desc = (doc.description ?? '').toLowerCase();
-
-        return (
-          fullName.includes(q) ||
-          clinic.includes(q) ||
-          spec.includes(q) ||
-          dept.includes(q) ||
-          address.includes(q) ||
-          desc.includes(q)
-        );
-      });
-    }
-
     return list;
-  }, [rawDoctorsData, selectedDeptId, selectedDeptTitle, debouncedSearch]);
+  }, [rawDoctorsData]);
 
-  // Master clinics list unwrapped and filtered
+  // Master clinics list directly returned from backend API
   const filteredClinics: ClinicModel[] = useMemo(() => {
     let list: ClinicModel[] = [];
     if (Array.isArray(rawClinicsData)) list = rawClinicsData;
     else if (Array.isArray((rawClinicsData as any)?.data)) list = (rawClinicsData as any).data;
     else if (Array.isArray((rawClinicsData as any)?.response)) list = (rawClinicsData as any).response;
-
-    if (!debouncedSearch.trim()) return list;
-
-    const q = debouncedSearch.toLowerCase().trim();
-    return list.filter((c: any) => {
-      const title = (c.title ?? c.name ?? '').toLowerCase();
-      const address = (c.address ?? '').toLowerCase();
-      const city = (c.city_title ?? c.city_name ?? '').toLowerCase();
-      const about = (c.about_us ?? c.description ?? '').toLowerCase();
-      return title.includes(q) || address.includes(q) || city.includes(q) || about.includes(q);
-    });
-  }, [rawClinicsData, debouncedSearch]);
+    return list;
+  }, [rawClinicsData]);
 
   const handleSelectDepartment = (dept?: DepartmentModel) => {
     if (!dept) {
@@ -203,7 +144,7 @@ export const SearchScreen = ({ navigation, route }: Props) => {
       setSelectedDeptTitle(undefined);
     } else {
       setSelectedDeptId(String(dept.id));
-      setSelectedDeptTitle(dept.title);
+      setSelectedDeptTitle(dept.title || (dept as any).name || (dept as any).dept_name || '');
     }
   };
 
@@ -217,45 +158,34 @@ export const SearchScreen = ({ navigation, route }: Props) => {
     setIsCityModalVisible(false);
   };
 
+  const hasCityFilter = Boolean(selectedCity.id);
+  const hasDeptFilter = Boolean(selectedDeptId || selectedDeptTitle);
+  const hasActiveFilters = hasCityFilter || hasDeptFilter || Boolean(debouncedSearch.trim());
+
+  const handleResetFilters = () => {
+    setSearch('');
+    setSelectedCity({ id: '', title: '' });
+    handleSelectDepartment(undefined);
+  };
+
   return (
     <View style={styles.container}>
       <AppHeader title="Search" onBackPress={() => navigation.goBack()} />
 
       <View style={styles.content}>
-        {/* City Selector (Matching Flutter City Search) */}
-        <TouchableOpacity
-          style={styles.citySelector}
-          activeOpacity={0.7}
-          onPress={() => setIsCityModalVisible(true)}
-        >
-          <Ionicons name="location-sharp" size={18} color={Colors.primaryColor} />
-          <Text style={styles.citySelectorText} numberOfLines={1}>
-            {selectedCity.title || 'All Cities (Select City)'}
-          </Text>
-          {selectedCity.id ? (
-            <TouchableOpacity
-              onPress={() => setSelectedCity({ id: '', title: '' })}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="close-circle" size={18} color={Colors.secondaryFontColor} />
-            </TouchableOpacity>
-          ) : (
-            <Ionicons name="chevron-down" size={18} color={Colors.secondaryFontColor} />
-          )}
-        </TouchableOpacity>
-
-        {/* Search Input Box */}
+        {/* 1. Search Box at top */}
         <SearchBox
           value={search}
           onChangeText={setSearch}
           placeholder={
             activeTab === 'doctors'
-              ? 'Search doctors, clinics, specializations...'
+              ? 'Search doctors by name...'
               : 'Search clinics by name, address...'
           }
+          containerStyle={styles.searchBoxOverride}
         />
 
-        {/* Two Tabs: Doctors and Clinics */}
+        {/* 2. Compact Segmented Tabs: Doctors & Clinics */}
         <View style={styles.tabContainer}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'doctors' && styles.activeTab]}
@@ -264,9 +194,9 @@ export const SearchScreen = ({ navigation, route }: Props) => {
           >
             <FontAwesome5
               name="user-md"
-              size={14}
+              size={fs(13)}
               color={activeTab === 'doctors' ? Colors.primaryColor : Colors.secondaryFontColor}
-              style={{ marginRight: 6 }}
+              style={{ marginRight: ws(6) }}
             />
             <Text style={[styles.tabText, activeTab === 'doctors' && styles.activeTabText]}>
               Doctors ({filteredDoctors.length})
@@ -280,9 +210,9 @@ export const SearchScreen = ({ navigation, route }: Props) => {
           >
             <FontAwesome5
               name="hospital"
-              size={14}
+              size={fs(13)}
               color={activeTab === 'clinics' ? Colors.primaryColor : Colors.secondaryFontColor}
-              style={{ marginRight: 6 }}
+              style={{ marginRight: ws(6) }}
             />
             <Text style={[styles.tabText, activeTab === 'clinics' && styles.activeTabText]}>
               Clinics ({filteredClinics.length})
@@ -290,95 +220,121 @@ export const SearchScreen = ({ navigation, route }: Props) => {
           </TouchableOpacity>
         </View>
 
-        {/* Tab 1: Doctors */}
-        {activeTab === 'doctors' ? (
-          <>
-            {/* Horizontal Department Chips */}
-            {departments.length > 0 && (
-              <View style={styles.deptScrollWrapper}>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.deptChipsContainer}
-                >
-                  <TouchableOpacity
-                    style={[
-                      styles.deptChip,
-                      !selectedDeptId && !selectedDeptTitle && styles.deptChipActive,
-                    ]}
-                    onPress={() => handleSelectDepartment(undefined)}
-                  >
-                    <Text
-                      style={[
-                        styles.deptChipText,
-                        !selectedDeptId && !selectedDeptTitle && styles.deptChipTextActive,
-                      ]}
-                    >
-                      All
-                    </Text>
-                  </TouchableOpacity>
-
-                  {departments.map((dept) => {
-                    const isSelected =
-                      (selectedDeptId && String(dept.id) === selectedDeptId) ||
-                      (selectedDeptTitle && dept.title === selectedDeptTitle);
-                    return (
-                      <TouchableOpacity
-                        key={`dept-${dept.id}`}
-                        style={[styles.deptChip, isSelected && styles.deptChipActive]}
-                        onPress={() => handleSelectDepartment(dept)}
-                      >
-                        <Text
-                          style={[
-                            styles.deptChipText,
-                            isSelected && styles.deptChipTextActive,
-                          ]}
-                        >
-                          {dept.title}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            )}
-
-
-
-            {isDoctorsLoading && filteredDoctors.length === 0 ? (
-              <LoadingIndicator />
+        {/* 3. Streamlined Filter Row (City & Department side-by-side) */}
+        <View style={styles.filterRow}>
+          {/* City Filter Chip */}
+          <TouchableOpacity
+            style={[styles.filterChip, hasCityFilter && styles.filterChipActive]}
+            activeOpacity={0.7}
+            onPress={() => setIsCityModalVisible(true)}
+          >
+            <Ionicons
+              name="location-sharp"
+              size={fs(14)}
+              color={hasCityFilter ? Colors.primaryColor : '#64748B'}
+            />
+            <Text
+              style={[styles.filterChipText, hasCityFilter && styles.filterChipTextActive]}
+              numberOfLines={1}
+            >
+              {selectedCity.title ? selectedCity.title.split(',')[0].trim() : 'All Cities'}
+            </Text>
+            {hasCityFilter ? (
+              <TouchableOpacity
+                onPress={() => setSelectedCity({ id: '', title: '' })}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle" size={fs(15)} color={Colors.primaryColor} />
+              </TouchableOpacity>
             ) : (
-              <FlatList
-                data={filteredDoctors}
-                keyExtractor={(item, index) => `doc-${item.user_id ?? item.id ?? index}`}
-                contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + 50, 90) }]}
-                showsVerticalScrollIndicator={false}
-                ListEmptyComponent={
-                  <EmptyState message="No doctors found matching your search criteria" />
-                }
-                renderItem={({ item }) => (
-                  <DoctorCard
-                    doctor={item}
-                    variant="list"
-                    onPress={() =>
-                      navigation.navigate('DoctorDetails', {
-                        doctId: String(item.user_id || item.id),
-                      })
-                    }
-                    onBookPress={() => {
-                      if (!isAuthenticated) {
-                        navigation.navigate('Login');
-                        return;
-                      }
-                      navigation.navigate('BookAppointment', {
-                        doctId: String(item.user_id || item.id),
-                      });
-                    }}
-                  />
-                )}
-              />
+              <Ionicons name="chevron-down" size={fs(13)} color="#94A3B8" />
             )}
-          </>
+          </TouchableOpacity>
+
+          {/* Department Filter Chip (Only in Doctors Tab) */}
+          {activeTab === 'doctors' && (
+            <TouchableOpacity
+              style={[styles.filterChip, hasDeptFilter && styles.filterChipActive]}
+              activeOpacity={0.7}
+              onPress={() => setIsDeptModalVisible(true)}
+            >
+              <MaterialIcons
+                name="medical-services"
+                size={fs(14)}
+                color={hasDeptFilter ? Colors.primaryColor : '#64748B'}
+              />
+              <Text
+                style={[styles.filterChipText, hasDeptFilter && styles.filterChipTextActive]}
+                numberOfLines={1}
+              >
+                {selectedDeptTitle || 'All Departments'}
+              </Text>
+              {hasDeptFilter ? (
+                <TouchableOpacity
+                  onPress={() => handleSelectDepartment(undefined)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close-circle" size={fs(15)} color={Colors.primaryColor} />
+                </TouchableOpacity>
+              ) : (
+                <Ionicons name="chevron-down" size={fs(13)} color="#94A3B8" />
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* 4. Results Summary & Clear Action */}
+        <View style={styles.resultsHeaderRow}>
+          <Text style={styles.resultsCountText}>
+            {activeTab === 'doctors'
+              ? `${filteredDoctors.length} ${filteredDoctors.length === 1 ? 'doctor' : 'doctors'} found`
+              : `${filteredClinics.length} ${filteredClinics.length === 1 ? 'clinic' : 'clinics'} found`}
+          </Text>
+          {hasActiveFilters && (
+            <TouchableOpacity
+              onPress={handleResetFilters}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Text style={styles.resetFiltersText}>Reset</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* 5. Results List */}
+        {activeTab === 'doctors' ? (
+          isDoctorsLoading && filteredDoctors.length === 0 ? (
+            <LoadingIndicator />
+          ) : (
+            <FlatList
+              data={filteredDoctors}
+              keyExtractor={(item, index) => `doc-${item.user_id ?? item.id ?? index}`}
+              contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + 50, 90) }]}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                <EmptyState message="No doctors found matching your search criteria" />
+              }
+              renderItem={({ item }) => (
+                <DoctorCard
+                  doctor={item}
+                  variant="list"
+                  onPress={() =>
+                    navigation.navigate('DoctorDetails', {
+                      doctId: String(item.user_id || item.id),
+                    })
+                  }
+                  onBookPress={() => {
+                    if (!isAuthenticated) {
+                      navigation.navigate('Login');
+                      return;
+                    }
+                    navigation.navigate('BookAppointment', {
+                      doctId: String(item.user_id || item.id),
+                    });
+                  }}
+                />
+              )}
+            />
+          )
         ) : (
           /* Tab 2: Clinics */
           isClinicsLoading && filteredClinics.length === 0 ? (
@@ -454,6 +410,16 @@ export const SearchScreen = ({ navigation, route }: Props) => {
         selectedCityId={selectedCity.id}
         onSelectCity={handleSelectCity}
       />
+
+      {/* Department Picker Modal */}
+      <DepartmentSelectModal
+        visible={isDeptModalVisible}
+        onClose={() => setIsDeptModalVisible(false)}
+        departments={departments}
+        selectedDeptId={selectedDeptId}
+        selectedDeptTitle={selectedDeptTitle}
+        onSelectDepartment={handleSelectDepartment}
+      />
     </View>
   );
 };
@@ -461,49 +427,34 @@ export const SearchScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgColor },
   content: { flex: 1, paddingHorizontal: ws(16), paddingTop: hs(10) },
-  citySelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: fs(10),
-    paddingHorizontal: ws(12),
-    paddingVertical: hs(10),
-    borderWidth: 1,
-    borderColor: Colors.borderColor,
-    marginBottom: hs(10),
-  },
-  citySelectorText: {
-    flex: 1,
-    marginLeft: ws(8),
-    fontSize: fs(Typography.fontSize.sm),
-    ...TYPOGRAPHY.medium,
-    color: Colors.mainFontColor,
+  searchBoxOverride: {
+    marginBottom: hs(8),
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: Colors.borderColor,
-    borderRadius: fs(12),
+    backgroundColor: '#F1F5F9',
+    borderRadius: fs(10),
     padding: ws(3),
-    marginVertical: hs(10),
+    marginBottom: hs(10),
   },
   tab: {
     flex: 1,
     flexDirection: 'row',
-    paddingVertical: hs(10),
+    paddingVertical: hs(8),
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: fs(9),
+    borderRadius: fs(8),
   },
   activeTab: {
     backgroundColor: Colors.white,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: hs(1) },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: fs(2),
     elevation: 2,
   },
   tabText: {
-    fontSize: fs(Typography.fontSize.sm),
+    fontSize: fs(Typography.fontSize.xs),
     ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
   },
@@ -511,55 +462,54 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
-  deptScrollWrapper: {
-    marginBottom: hs(8),
-  },
-  deptChipsContainer: {
-    paddingVertical: hs(4),
-  },
-  deptChip: {
-    paddingHorizontal: ws(14),
-    paddingVertical: hs(6),
-    borderRadius: fs(16),
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.borderColor,
-    marginRight: ws(8),
-  },
-  deptChipActive: {
-    backgroundColor: Colors.primaryColor,
-    borderColor: Colors.primaryColor,
-  },
-  deptChipText: {
-    fontSize: fs(Typography.fontSize.xs),
-    ...TYPOGRAPHY.medium,
-    color: Colors.primaryFontColor,
-  },
-  deptChipTextActive: {
-    color: Colors.white,
-    ...TYPOGRAPHY.bold,
-  },
-  filterBanner: {
+  filterRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: ws(12),
-    paddingVertical: hs(7),
-    backgroundColor: Colors.lightBlueTint,
-    borderRadius: fs(8),
+    gap: ws(8),
     marginBottom: hs(8),
-    borderWidth: 1,
-    borderColor: Colors.lightBlueBorder,
   },
-  filterText: {
+  filterChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: fs(8),
+    paddingHorizontal: ws(10),
+    height: hs(38),
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  filterChipActive: {
+    backgroundColor: '#EFF6FF',
+    borderColor: Colors.primaryColor,
+  },
+  filterChipText: {
     flex: 1,
     fontSize: fs(Typography.fontSize.xs),
     ...TYPOGRAPHY.medium,
-    color: Colors.primaryFontColor,
+    color: '#334155',
+    marginHorizontal: ws(6),
   },
-  filterHighlight: {
+  filterChipTextActive: {
     color: Colors.primaryColor,
     ...TYPOGRAPHY.bold,
+  },
+  resultsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: ws(2),
+    marginBottom: hs(8),
+  },
+  resultsCountText: {
+    fontSize: fs(Typography.fontSize.xs),
+    ...TYPOGRAPHY.regular,
+    color: Colors.secondaryFontColor,
+  },
+  resetFiltersText: {
+    fontSize: fs(Typography.fontSize.xs),
+    ...TYPOGRAPHY.semiBold,
+    color: Colors.primaryColor,
   },
   listContent: {
     paddingBottom: hs(32),
@@ -619,56 +569,5 @@ const styles = StyleSheet.create({
     fontSize: fs(11),
     color: Colors.primaryColor,
     ...TYPOGRAPHY.medium,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: Colors.overlay,
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: fs(24),
-    borderTopRightRadius: fs(24),
-    padding: ws(16),
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: hs(12),
-  },
-  modalTitle: {
-    fontSize: fs(Typography.fontSize.lg),
-    ...TYPOGRAPHY.bold,
-    color: Colors.mainFontColor,
-  },
-  allCitiesItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: hs(12),
-    paddingHorizontal: ws(8),
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.slate_F1F5F9,
-  },
-  allCitiesText: {
-    marginLeft: ws(10),
-    fontSize: fs(Typography.fontSize.md),
-    ...TYPOGRAPHY.medium,
-    color: Colors.primaryColor,
-  },
-  cityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: hs(12),
-    paddingHorizontal: ws(8),
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.slate_F1F5F9,
-  },
-  cityItemText: {
-    marginLeft: ws(10),
-    fontSize: fs(Typography.fontSize.md),
-    ...TYPOGRAPHY.regular,
-    color: Colors.mainFontColor,
   },
 });

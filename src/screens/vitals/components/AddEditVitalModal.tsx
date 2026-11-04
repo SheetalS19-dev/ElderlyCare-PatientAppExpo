@@ -2,7 +2,10 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -56,8 +59,28 @@ export const AddEditVitalModal: React.FC<Props> = ({
   isSubmitting,
 }) => {
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+    <Modal
+      visible={visible}
+      transparent
+      statusBarTranslucent
+      animationType="slide"
+      onRequestClose={() => {
+        Keyboard.dismiss();
+        onClose();
+      }}
+    >
+      <KeyboardAvoidingView
+        style={styles.backdrop}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <TouchableOpacity
+          style={styles.backdropPressable}
+          activeOpacity={1}
+          onPress={() => {
+            Keyboard.dismiss();
+            onClose();
+          }}
+        />
         <View style={styles.sheetCard}>
           <View style={styles.handle} />
 
@@ -182,7 +205,7 @@ export const AddEditVitalModal: React.FC<Props> = ({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -193,13 +216,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'flex-end',
   },
+  backdropPressable: {
+    flex: 1,
+  },
   sheetCard: {
     backgroundColor: Colors.white,
     borderTopLeftRadius: ws(24),
     borderTopRightRadius: ws(24),
     paddingHorizontal: ws(20),
     paddingTop: hs(12),
-    maxHeight: '80%',
+    maxHeight: '85%',
   },
   handle: {
     width: ws(36),

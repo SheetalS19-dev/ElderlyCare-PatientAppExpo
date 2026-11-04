@@ -69,7 +69,6 @@ export const WalletScreen = () => {
     refetch,
   } = useGetWalletTransactionsQuery(uid, {
     skip: !isAuthenticated || !uid,
-    refetchOnMountOrArgChange: true,
   });
 
   const { data: gateway } = useGetActivePaymentGatewayQuery();
@@ -80,7 +79,6 @@ export const WalletScreen = () => {
     refetch: refetchProfile,
   } = useGetUserProfileQuery(uid, {
     skip: !uid,
-    refetchOnMountOrArgChange: true,
   });
 
   const freshProfileData = useMemo(() => {
@@ -99,6 +97,7 @@ export const WalletScreen = () => {
   const [amount, setAmount] = useState('');
   const [amountError, setAmountError] = useState<string | undefined>();
   const [processing, setProcessing] = useState(false);
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
   const [showRazorpayWebModal, setShowRazorpayWebModal] = useState(false);
   const [pendingPaymentInfo, setPendingPaymentInfo] = useState<{
@@ -208,8 +207,13 @@ export const WalletScreen = () => {
   };
 
   const handleRefresh = async () => {
+    setIsManualRefreshing(true);
     setDisplayedLimit(PAGE_SIZE);
-    await Promise.all([refetch(), refetchProfile()]);
+    try {
+      await Promise.all([refetch(), refetchProfile()]);
+    } finally {
+      setIsManualRefreshing(false);
+    }
   };
 
   const handleProcess = async () => {
@@ -260,11 +264,12 @@ export const WalletScreen = () => {
     setShowRazorpayWebModal(false);
     if (!pendingPaymentInfo) return;
 
+    const creditAmount = pendingPaymentInfo.numericAmount;
     setProcessing(true);
     try {
       const addMoneyPayload = {
         user_id: uid,
-        amount: String(pendingPaymentInfo.numericAmount),
+        amount: String(creditAmount),
         payment_transaction_id: paymentTxnId,
         payment_method: pendingPaymentInfo.methodParam,
         transaction_type: 'Credited',
@@ -277,15 +282,25 @@ export const WalletScreen = () => {
       await addWalletMoney(addMoneyPayload).unwrap();
       showToast('Amount credited to wallet successfully!');
 
-      const profileRes = await refetchProfile();
-      if (profileRes?.data) {
-        const freshData = (profileRes.data as any)?.data ?? profileRes.data;
-        await updateUser({ ...(user || {}), ...freshData });
-      }
-      refetch();
+      // Optimistic wallet balance update so the UI updates immediately
+      const currentBal = Number(user?.wallet_amount ?? (user as any)?.wallet_balance ?? 0);
+      updateUser({
+        ...(user || {}),
+        wallet_amount: currentBal + creditAmount,
+        wallet_balance: currentBal + creditAmount,
+      });
+
+      // Clear processing right away to prevent freezing the screen
+      setProcessing(false);
+      setPendingPaymentInfo(null);
+      setAmount('');
+
+      // Background synchronization without blocking UI
+      Promise.all([refetchProfile(), refetch()]).catch((e) =>
+        console.warn('Background wallet sync error:', e)
+      );
     } catch (e: any) {
       showToast(e?.data?.message || e?.message || 'Failed to credit money to wallet.');
-    } finally {
       setProcessing(false);
       setPendingPaymentInfo(null);
       setAmount('');
@@ -311,11 +326,14 @@ export const WalletScreen = () => {
         <FlatList
           data={paginatedTxnList}
           keyExtractor={(item: TxnModel, index: number) => `txn-${item.id ?? index}`}
-          refreshing={isFetching && !loadingMore}
+          refreshing={isManualRefreshing}
           onRefresh={handleRefresh}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.3}
-          contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + 20, 30) }]}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: hs(60) + insets.bottom },
+          ]}
           ListHeaderComponent={
             <>
               {/* Main Balance Card */}
@@ -401,7 +419,9 @@ export const WalletScreen = () => {
                 <ActivityIndicator size="small" color={Colors.primaryColor} />
                 <Text style={styles.footerLoaderText}>Loading more transactions...</Text>
               </View>
-            ) : null
+            ) : (
+              <View style={{ height: hs(24) }} />
+            )
           }
           ListEmptyComponent={
             isLoading ? (

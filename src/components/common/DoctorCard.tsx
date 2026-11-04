@@ -34,11 +34,15 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
     doctor?.l_name
   );
 
-  const specialty =
+  const departmentName =
+    doctor?.department_name ||
+    doctor?.dept_name ||
+    doctor?.dept_title ||
+    doctor?.department_title ||
+    doctor?.department?.name ||
+    doctor?.department?.title ||
     doctor?.specialization ||
     doctor?.specialty ||
-    doctor?.dept_title ||
-    doctor?.dept_name ||
     doctor?.categoryName ||
     'General Physician';
 
@@ -87,7 +91,6 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
               resizeMode="cover"
             />
           )}
-          <View style={styles.onlineBadge} />
         </View>
 
         <View style={styles.simpleInfo}>
@@ -95,7 +98,7 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
             {doctorDisplayName}
           </Text>
           <Text style={styles.specialty} numberOfLines={1}>
-            {specialty}
+            {departmentName}
           </Text>
           {rating > 0 && (
             <View style={styles.ratingRow}>
@@ -129,7 +132,6 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
               resizeMode="cover"
             />
           )}
-          <View style={styles.onlineBadge} />
         </View>
 
         <View style={styles.info}>
@@ -137,17 +139,9 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
             {doctorDisplayName}
           </Text>
 
-          <Text style={styles.specialty} numberOfLines={1}>
-            {specialty}
+          <Text style={styles.specialty} numberOfLines={2}>
+            {departmentName}
           </Text>
-
-          {/* Rating Row */}
-          <View style={styles.ratingRow}>
-            <StarRating rating={rating} size={fs(13)} />
-            <Text style={styles.ratingText}>
-              {rating > 0 ? rating.toFixed(1) : '0.0'} ({reviewCount} review{reviewCount === 1 ? '' : 's'})
-            </Text>
-          </View>
 
           {/* Experience Row */}
           {exYear != null && exYear !== '' && (
@@ -235,8 +229,9 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.white,
     borderRadius: fs(14),
-    padding: ws(14),
-    marginVertical: hs(6),
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(10),
+    marginVertical: hs(5),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
@@ -253,16 +248,16 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   avatar: {
-    width: ws(68),
-    height: ws(68),
+    width: ws(58),
+    height: ws(58),
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
     backgroundColor: '#EEF2FF',
   },
   avatarPlaceholder: {
-    width: ws(68),
-    height: ws(68),
+    width: ws(58),
+    height: ws(58),
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
@@ -299,6 +294,7 @@ const styles = StyleSheet.create({
     fontSize: fs(12),
     color: Colors.primaryColor,
     marginTop: hs(2),
+    lineHeight: fs(16),
   },
   ratingRow: {
     flexDirection: 'row',
@@ -340,13 +336,13 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: '#F1F5F9',
-    marginVertical: hs(10),
+    marginVertical: hs(6),
   },
   clinicRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: ws(8),
-    marginBottom: hs(6),
+    marginBottom: hs(4),
   },
   clinicDetails: {
     flex: 1,
@@ -366,8 +362,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: hs(8),
-    paddingTop: hs(8),
+    marginTop: hs(6),
+    paddingTop: hs(6),
     borderTopWidth: 1,
     borderTopColor: '#F8FAFC',
   },
@@ -385,7 +381,7 @@ const styles = StyleSheet.create({
   bookButton: {
     backgroundColor: Colors.primaryColor,
     paddingHorizontal: ws(16),
-    paddingVertical: hs(7),
+    paddingVertical: hs(6),
     borderRadius: fs(8),
     alignItems: 'center',
     justifyContent: 'center',

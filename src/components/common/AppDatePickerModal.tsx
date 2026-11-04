@@ -203,24 +203,28 @@ export const AppDatePickerModal: React.FC<AppDatePickerModalProps> = ({
                   return (
                     <TouchableOpacity
                       key={`day-${dayNum}`}
-                      style={[
-                        styles.dayCell,
-                        selected && styles.dayCellSelected,
-                        disabled && styles.dayCellDisabled,
-                      ]}
+                      style={styles.dayCell}
                       onPress={() => handleDayPress(dayNum)}
                       disabled={disabled}
                       activeOpacity={0.7}
                     >
-                      <Text
+                      <View
                         style={[
-                          styles.dayCellText,
-                          selected && styles.dayCellTextSelected,
-                          disabled && styles.dayCellTextDisabled,
+                          styles.dayCircle,
+                          selected && styles.dayCircleSelected,
+                          disabled && styles.dayCircleDisabled,
                         ]}
                       >
-                        {dayNum}
-                      </Text>
+                        <Text
+                          style={[
+                            styles.dayCellText,
+                            selected && styles.dayCellTextSelected,
+                            disabled && styles.dayCellTextDisabled,
+                          ]}
+                        >
+                          {dayNum}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   );
                 })}
@@ -340,12 +344,19 @@ const styles = StyleSheet.create({
     height: hs(38),
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: fs(19),
   },
-  dayCellSelected: {
-    backgroundColor: Colors.primaryColor,
+  dayCircle: {
+    width: ws(34),
+    height: ws(34),
+    aspectRatio: 1,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  dayCellDisabled: {
+  dayCircleSelected: {
+    backgroundColor: '#2563EB',
+  },
+  dayCircleDisabled: {
     opacity: 0.25,
   },
   dayCellText: {

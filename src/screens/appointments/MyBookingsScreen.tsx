@@ -1,8 +1,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AppHeader,
@@ -11,12 +11,12 @@ import {
   ErrorState,
   LoadingIndicator,
 } from '../../components';
-import { Colors, Typography } from '../../constants';
+import { Colors } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
 import { useGetAppointmentsQuery } from '../../redux/apis/appointmentApi';
 import type { AppointmentModel } from '../../types';
-import { fs, hs, ws, TYPOGRAPHY } from '../../utils';
+import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
 
 type RootNavigation = NativeStackNavigationProp<RootStackParamList>;
 type TabKey = 'upcoming' | 'closed';
@@ -28,6 +28,7 @@ export const MyBookingsScreen = () => {
   const navigation = useNavigation<RootNavigation>();
   const { isAuthenticated, user } = useAuth();
   const [tab, setTab] = useState<TabKey>('upcoming');
+  const [subFilter, setSubFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   const [displayedLimit, setDisplayedLimit] = useState(PAGE_SIZE);
@@ -74,7 +75,60 @@ export const MyBookingsScreen = () => {
     });
   }, [allAppointments]);
 
-  const currentList = tab === 'upcoming' ? upcomingAppointments : closedAppointments;
+  // Sub-filter counts
+  const subFilterOptions = useMemo(() => {
+    if (tab === 'closed') {
+      const completedCount = closedAppointments.filter((a) =>
+        ['completed', 'visited'].includes((a.status || '').trim().toLowerCase())
+      ).length;
+      const cancelledCount = closedAppointments.filter((a) =>
+        ['rejected', 'cancelled', 'canceled'].includes((a.status || '').trim().toLowerCase())
+      ).length;
+      const missedCount = closedAppointments.filter((a) =>
+        ['missed', 'no-show'].includes((a.status || '').trim().toLowerCase())
+      ).length;
+
+      return [
+        { key: 'all', label: `All (${closedAppointments.length})` },
+        { key: 'completed', label: `Completed (${completedCount})` },
+        { key: 'cancelled', label: `Cancelled (${cancelledCount})` },
+        { key: 'missed', label: `Missed (${missedCount})` },
+      ];
+    } else {
+      const confirmedCount = upcomingAppointments.filter((a) =>
+        ['confirmed', 'booked', 'active', 'approved', 'scheduled'].includes((a.status || '').trim().toLowerCase())
+      ).length;
+      const pendingCount = upcomingAppointments.filter((a) =>
+        ['pending', 'in-process', 'paid'].includes((a.status || '').trim().toLowerCase())
+      ).length;
+      const rescheduledCount = upcomingAppointments.filter((a) =>
+        ['rescheduled'].includes((a.status || '').trim().toLowerCase())
+      ).length;
+
+      return [
+        { key: 'all', label: `All (${upcomingAppointments.length})` },
+        { key: 'confirmed', label: `Confirmed (${confirmedCount})` },
+        { key: 'pending', label: `Pending (${pendingCount})` },
+        { key: 'rescheduled', label: `Rescheduled (${rescheduledCount})` },
+      ];
+    }
+  }, [tab, closedAppointments, upcomingAppointments]);
+
+  const currentList = useMemo(() => {
+    const base = tab === 'upcoming' ? upcomingAppointments : closedAppointments;
+    if (subFilter === 'all') return base;
+
+    return base.filter((a) => {
+      const s = (a.status || '').trim().toLowerCase();
+      if (subFilter === 'completed') return ['completed', 'visited'].includes(s);
+      if (subFilter === 'cancelled') return ['rejected', 'cancelled', 'canceled'].includes(s);
+      if (subFilter === 'missed') return ['missed', 'no-show'].includes(s);
+      if (subFilter === 'confirmed') return ['confirmed', 'booked', 'active', 'approved', 'scheduled'].includes(s);
+      if (subFilter === 'pending') return ['pending', 'in-process', 'paid'].includes(s);
+      if (subFilter === 'rescheduled') return ['rescheduled'].includes(s);
+      return true;
+    });
+  }, [tab, subFilter, upcomingAppointments, closedAppointments]);
 
   const filteredList = useMemo(() => {
     if (!searchQuery.trim()) return currentList;
@@ -118,6 +172,7 @@ export const MyBookingsScreen = () => {
 
   const handleTabChange = (newTab: TabKey) => {
     setTab(newTab);
+    setSubFilter('all');
     setDisplayedLimit(PAGE_SIZE);
   };
 
@@ -182,7 +237,7 @@ export const MyBookingsScreen = () => {
         <MaterialIcons name="search" size={20} color={Colors.secondaryFontColor} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search by patient, doctor, phone, dept..."
+          placeholder="Search patient, doctor, or department"
           placeholderTextColor={Colors.secondaryFontColor}
           value={searchQuery}
           onChangeText={handleSearchChange}
@@ -199,6 +254,39 @@ export const MyBookingsScreen = () => {
         )}
       </View>
 
+      {/* Sub-status Filter Chips */}
+      <View style={styles.subFilterContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.subFilterScroll}
+        >
+          {subFilterOptions.map((opt) => {
+            const isSel = subFilter === opt.key;
+            return (
+              <TouchableOpacity
+                key={opt.key}
+                style={[styles.subFilterChip, isSel && styles.subFilterChipActive]}
+                onPress={() => {
+                  setSubFilter(opt.key);
+                  setDisplayedLimit(PAGE_SIZE);
+                }}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.subFilterText,
+                    isSel && styles.subFilterTextActive,
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
       {isLoading ? (
         <LoadingIndicator />
       ) : isError ? (
@@ -207,7 +295,10 @@ export const MyBookingsScreen = () => {
         <FlatList
           data={paginatedList}
           keyExtractor={(item: AppointmentModel, index: number) => `appt-${item.id ?? index}`}
-          contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + 20, 40) }]}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: hs(60) + insets.bottom },
+          ]}
           refreshing={isFetching}
           onRefresh={async () => {
             setDisplayedLimit(PAGE_SIZE);
@@ -221,7 +312,9 @@ export const MyBookingsScreen = () => {
                 <ActivityIndicator size="small" color={Colors.primaryColor} />
                 <Text style={styles.footerLoaderText}>Loading more appointments...</Text>
               </View>
-            ) : null
+            ) : (
+              <View style={{ height: hs(24) }} />
+            )
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
@@ -230,8 +323,8 @@ export const MyBookingsScreen = () => {
                   searchQuery.trim().length > 0
                     ? `No appointments found matching "${searchQuery}"`
                     : tab === 'upcoming'
-                    ? 'You have no upcoming consultations scheduled.'
-                    : 'No past appointment history found.'
+                      ? 'You have no upcoming consultations scheduled.'
+                      : 'No past appointment history found.'
                 }
               />
               {tab === 'upcoming' && !searchQuery.trim() && (
@@ -386,5 +479,37 @@ const styles = StyleSheet.create({
     fontSize: fs(12),
     ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
+  },
+  subFilterContainer: {
+    backgroundColor: Colors.bgColor,
+    paddingTop: hs(6),
+    paddingBottom: hs(2),
+  },
+  subFilterScroll: {
+    paddingHorizontal: ws(16),
+    gap: ws(8),
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  subFilterChip: {
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(6),
+    borderRadius: fs(16),
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  subFilterChipActive: {
+    backgroundColor: Colors.primaryColor,
+    borderColor: Colors.primaryColor,
+  },
+  subFilterText: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
+    color: '#64748B',
+  },
+  subFilterTextActive: {
+    color: Colors.white,
+    ...TYPOGRAPHY.bold,
   },
 });

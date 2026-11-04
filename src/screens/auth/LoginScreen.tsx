@@ -19,8 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AppDatePickerModal,
   AppHeader,
-  CountryCodeItem,
-  CountryCodePicker,
+  CountryCodeItem
 } from '../../components';
 import { AppConstants, Colors, Images } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
@@ -33,7 +32,7 @@ import {
 import { confirmOtp, sendOtp } from '../../services/firebaseAuthService';
 import { storageService } from '../../services/storageService';
 import { DateTimeUtils, fs, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
-import { validateDob, validateEmail, validatePhone } from '../../validation/authValidation';
+import { validateDob, validateEmail, validatePhone, validateStrongPassword } from '../../validation/authValidation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -88,7 +87,7 @@ export const LoginScreen = ({ navigation, route }: Props) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
-  const [gender, setGender] = useState('Male');
+  const [gender, setGender] = useState('');
   const [dob, setDob] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showGenderModal, setShowGenderModal] = useState(false);
@@ -147,6 +146,30 @@ export const LoginScreen = ({ navigation, route }: Props) => {
     }, 1000);
   };
 
+  const handleSwitchToRegister = () => {
+    setPassword('');
+    setConfirmPassword('');
+    setPhone('');
+    setRegErrors({});
+    setStep('register');
+  };
+
+  const handleSwitchToLogin = async () => {
+    setRegErrors({});
+    setStep('form');
+    try {
+      const savedRemember = await storageService.getItem<boolean | string>(REMEMBER_ME_KEY);
+      const savedPhone = await storageService.getItem<string>(REMEMBER_PHONE_KEY);
+      const savedPassword = await storageService.getItem<string>(REMEMBER_PASSWORD_KEY);
+      if (savedRemember === true || savedRemember === 'true') {
+        if (savedPhone) setPhone(String(savedPhone));
+        if (savedPassword) setPassword(String(savedPassword));
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   const handleBack = () => {
     if (step === 'otp_verify') {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -156,7 +179,7 @@ export const LoginScreen = ({ navigation, route }: Props) => {
       return;
     }
     if (step === 'register') {
-      setStep('form');
+      handleSwitchToLogin();
       return;
     }
     navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
@@ -288,7 +311,7 @@ export const LoginScreen = ({ navigation, route }: Props) => {
     const errors: Record<string, string> = {};
 
     if (!firstName.trim()) errors.firstName = 'First name is required';
-    if (!lastName.trim()) errors.lastName = 'Last name is required';
+    // Last Name is optional per Point 2
 
     const phoneRes = validatePhone(phone, true);
     if (!phoneRes.isValid) errors.phone = phoneRes.error || 'Invalid phone number';
@@ -296,13 +319,14 @@ export const LoginScreen = ({ navigation, route }: Props) => {
     const emailRes = validateEmail(email, true);
     if (!emailRes.isValid) errors.email = emailRes.error || 'Invalid email address';
 
+    if (!gender) errors.gender = 'Please select gender';
+
     const dobRes = validateDob(dob, true);
     if (!dobRes.isValid) errors.dob = dobRes.error || 'Invalid date of birth';
 
-    if (!password) {
-      errors.password = 'Password is required (min 6 chars)';
-    } else if (password.length < 6) {
-      errors.password = 'Password must be at least 6 characters';
+    const passRes = validateStrongPassword(password);
+    if (!passRes.isValid) {
+      errors.password = passRes.error || 'Password must be at least 8 characters with uppercase, lowercase, number, and special character';
     }
     if (password !== confirmPassword) {
       errors.confirmPassword = 'Passwords do not match';
@@ -318,9 +342,9 @@ export const LoginScreen = ({ navigation, route }: Props) => {
     try {
       const formData = new FormData();
       formData.append('f_name', firstName.trim());
-      formData.append('l_name', lastName.trim());
+      formData.append('l_name', lastName ? lastName.trim() : '');
       formData.append('phone', phone.trim());
-      formData.append('isd_code', countryCode.dialCode);
+      formData.append('isd_code', countryCode.dialCode || '+91');
       const formattedGender = gender ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase() : 'Male';
       formData.append('gender', formattedGender);
       formData.append('dob', dob.trim());
@@ -433,14 +457,14 @@ export const LoginScreen = ({ navigation, route }: Props) => {
               <View style={styles.tabContainer}>
                 <TouchableOpacity
                   style={[styles.tabButton, step === 'form' && styles.tabButtonActive]}
-                  onPress={() => setStep('form')}
+                  onPress={handleSwitchToLogin}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.tabText, step === 'form' && styles.tabTextActive]}>Login</Text>
+                  <Text style={[styles.tabText, step === 'form' && styles.tabTextActive]}>Sign In</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.tabButton, step === 'register' && styles.tabButtonActive]}
-                  onPress={() => setStep('register')}
+                  onPress={handleSwitchToRegister}
                   activeOpacity={0.8}
                 >
                   <Text style={[styles.tabText, step === 'register' && styles.tabTextActive]}>Register</Text>
@@ -452,27 +476,22 @@ export const LoginScreen = ({ navigation, route }: Props) => {
             {step === 'form' && (
               <View style={styles.inputsSection}>
                 {/* Phone Number Field */}
-                <Text style={styles.inputLabel}>Mobile Phone Number</Text>
+                <Text style={styles.inputLabel}>
+                  Phone Number <Text style={styles.requiredAsterisk}>*</Text>
+                </Text>
                 <View
                   style={[
                     styles.phoneInputContainer,
                     phoneError ? styles.inputBorderError : null,
                   ]}
                 >
-                  <TouchableOpacity
-                    style={styles.countryCodePickerBtn}
-                    onPress={() => setShowCountryPicker(true)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.countryCodeText}>{countryCode.dialCode}</Text>
-                    <MaterialIcons name="arrow-drop-down" size={20} color="#4A5568" />
-                  </TouchableOpacity>
-
+                  <View style={styles.countryCodePickerBtn}>
+                    <Text style={styles.countryCodeText}>+91</Text>
+                  </View>
                   <View style={styles.phoneDivider} />
-
                   <TextInput
                     style={styles.phoneTextInput}
-                    placeholder="Enter phone number"
+                    placeholder="Enter 10-digit phone number"
                     placeholderTextColor="#94A3B8"
                     keyboardType="phone-pad"
                     value={phone}
@@ -480,14 +499,16 @@ export const LoginScreen = ({ navigation, route }: Props) => {
                       setPhone(text.replace(/[^0-9]/g, ''));
                       if (phoneError) setPhoneError(undefined);
                     }}
-                    maxLength={15}
+                    maxLength={10}
                   />
                 </View>
                 {!!phoneError && <Text style={styles.fieldErrorText}>{phoneError}</Text>}
 
                 {/* Password Field */}
                 <View style={styles.passwordSection}>
-                  <Text style={styles.inputLabel}>Password</Text>
+                  <Text style={styles.inputLabel}>
+                    Password <Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
                   <View
                     style={[
                       styles.passwordInputContainer,
@@ -591,7 +612,7 @@ export const LoginScreen = ({ navigation, route }: Props) => {
                 <View style={styles.switchAuthRow}>
                   <Text style={styles.switchAuthPrompt}>
                     Don't have an account?{' '}
-                    <Text style={styles.switchAuthLink} onPress={() => setStep('register')}>
+                    <Text style={styles.switchAuthLink} onPress={handleSwitchToRegister}>
                       Create Account
                     </Text>
                   </Text>
@@ -684,7 +705,9 @@ export const LoginScreen = ({ navigation, route }: Props) => {
               <View style={styles.inputsSection}>
                 {/* First Name */}
                 <View style={styles.fullWidthCol}>
-                  <Text style={styles.inputLabel}>First Name</Text>
+                  <Text style={styles.inputLabel}>
+                    First Name <Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
                   <TextInput
                     style={[styles.singleTextInput, regErrors.firstName ? styles.inputBorderError : null]}
                     placeholder="First Name"
@@ -703,22 +726,20 @@ export const LoginScreen = ({ navigation, route }: Props) => {
                 <View style={styles.fullWidthCol}>
                   <Text style={styles.inputLabel}>Last Name</Text>
                   <TextInput
-                    style={[styles.singleTextInput, regErrors.lastName ? styles.inputBorderError : null]}
+                    style={styles.singleTextInput}
                     placeholder="Last Name"
                     placeholderTextColor="#94A3B8"
                     value={lastName}
-                    onChangeText={(text) => {
-                      setLastName(text);
-                      if (regErrors.lastName) setRegErrors((prev) => ({ ...prev, lastName: '' }));
-                    }}
+                    onChangeText={setLastName}
                     autoCapitalize="words"
                   />
-                  {!!regErrors.lastName && <Text style={styles.fieldErrorText}>{regErrors.lastName}</Text>}
                 </View>
 
                 {/* Email Address */}
                 <View style={styles.fullWidthCol}>
-                  <Text style={styles.inputLabel}>Email Address</Text>
+                  <Text style={styles.inputLabel}>
+                    Email Address <Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
                   <TextInput
                     style={[styles.singleTextInput, regErrors.email ? styles.inputBorderError : null]}
                     placeholder="Email Address"
@@ -736,37 +757,58 @@ export const LoginScreen = ({ navigation, route }: Props) => {
 
                 {/* Phone Number */}
                 <View style={styles.fullWidthCol}>
-                  <Text style={styles.inputLabel}>Phone Number</Text>
-                  <TextInput
-                    style={[styles.singleTextInput, regErrors.phone ? styles.inputBorderError : null]}
-                    placeholder="Phone Number"
-                    placeholderTextColor="#94A3B8"
-                    value={phone}
-                    onChangeText={(text) => {
-                      setPhone(text.replace(/[^0-9]/g, ''));
-                      if (regErrors.phone) setRegErrors((prev) => ({ ...prev, phone: '' }));
-                    }}
-                    keyboardType="phone-pad"
-                  />
+                  <Text style={styles.inputLabel}>
+                    Phone Number <Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
+                  <View
+                    style={[
+                      styles.phoneInputContainer,
+                      regErrors.phone ? styles.inputBorderError : null,
+                    ]}
+                  >
+                    <View style={styles.countryCodePickerBtn}>
+                      <Text style={styles.countryCodeText}>+91</Text>
+                    </View>
+                    <View style={styles.phoneDivider} />
+                    <TextInput
+                      style={styles.phoneTextInput}
+                      placeholder="Enter 10-digit phone number"
+                      placeholderTextColor="#94A3B8"
+                      value={phone}
+                      onChangeText={(text) => {
+                        setPhone(text.replace(/[^0-9]/g, ''));
+                        if (regErrors.phone) setRegErrors((prev) => ({ ...prev, phone: '' }));
+                      }}
+                      keyboardType="phone-pad"
+                      maxLength={10}
+                    />
+                  </View>
                   {!!regErrors.phone && <Text style={styles.fieldErrorText}>{regErrors.phone}</Text>}
                 </View>
 
                 {/* Gender */}
                 <View style={styles.fullWidthCol}>
-                  <Text style={styles.inputLabel}>Gender</Text>
+                  <Text style={styles.inputLabel}>
+                    Select Gender <Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
                   <TouchableOpacity
-                    style={styles.dropdownSelector}
+                    style={[styles.dropdownSelector, regErrors.gender ? styles.inputBorderError : null]}
                     activeOpacity={0.8}
                     onPress={() => setShowGenderModal(true)}
                   >
-                    <Text style={styles.dropdownSelectorText}>{gender || 'Select Gender'}</Text>
+                    <Text style={[styles.dropdownSelectorText, !gender && styles.placeholderText]}>
+                      {gender || 'Select Gender'}
+                    </Text>
                     <MaterialIcons name="keyboard-arrow-down" size={20} color="#718096" />
                   </TouchableOpacity>
+                  {!!regErrors.gender && <Text style={styles.fieldErrorText}>{regErrors.gender}</Text>}
                 </View>
 
                 {/* Date Of Birth */}
                 <View style={styles.fullWidthCol}>
-                  <Text style={styles.inputLabel}>Date Of Birth</Text>
+                  <Text style={styles.inputLabel}>
+                    Date Of Birth <Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
                   <TouchableOpacity
                     style={[styles.dropdownSelector, regErrors.dob ? styles.inputBorderError : null]}
                     activeOpacity={0.8}
@@ -782,7 +824,9 @@ export const LoginScreen = ({ navigation, route }: Props) => {
 
                 {/* Row 4: Password */}
                 <View style={styles.fullWidthCol}>
-                  <Text style={styles.inputLabel}>Password</Text>
+                  <Text style={styles.inputLabel}>
+                    Password <Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
                   <View style={[styles.passwordInputContainer, regErrors.password ? styles.inputBorderError : null]}>
                     <TextInput
                       style={styles.passwordTextInput}
@@ -812,7 +856,9 @@ export const LoginScreen = ({ navigation, route }: Props) => {
 
                 {/* Row 5: Confirm Password */}
                 <View style={styles.fullWidthCol}>
-                  <Text style={styles.inputLabel}>Confirm Password</Text>
+                  <Text style={styles.inputLabel}>
+                    Confirm Password <Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
                   <View style={[styles.passwordInputContainer, regErrors.confirmPassword ? styles.inputBorderError : null]}>
                     <TextInput
                       style={styles.passwordTextInput}
@@ -978,17 +1024,6 @@ export const LoginScreen = ({ navigation, route }: Props) => {
         </TouchableOpacity>
       </Modal>
 
-      {/* Country Code Picker Modal */}
-      <CountryCodePicker
-        visible={showCountryPicker}
-        selectedDialCode={countryCode.dialCode}
-        onSelect={(item) => {
-          setCountryCode(item);
-          setShowCountryPicker(false);
-        }}
-        onClose={() => setShowCountryPicker(false)}
-      />
-
       {/* Date of Birth Picker Modal */}
       <AppDatePickerModal
         visible={showDatePicker}
@@ -1090,6 +1125,10 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
     marginBottom: hs(5),
+  },
+  requiredAsterisk: {
+    color: '#EF4444',
+    ...TYPOGRAPHY.bold,
   },
   singleTextInput: {
     height: hs(44),

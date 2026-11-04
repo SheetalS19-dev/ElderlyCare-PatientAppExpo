@@ -17,5 +17,5 @@ export * from './common/PrimaryButton';
 export * from './common/SearchBox';
 export * from './common/SkeletonLoader';
 export * from './common/StarRating';
+export * from './common/DepartmentSelectModal';
 export * from './RazorpayWebModal';
-

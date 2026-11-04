@@ -143,7 +143,7 @@ export const ClinicListScreen = ({ navigation }: Props) => {
           <FlatList
             data={clinics}
             keyExtractor={(item, index) => `clinic-${item.id ?? index}`}
-            contentContainerStyle={[styles.listContainer, { flexGrow: 1, paddingBottom: Math.max(insets.bottom + hs(20), hs(30)) }]}
+            contentContainerStyle={[styles.listContainer, { flexGrow: 1, paddingBottom: hs(80) + Math.max(insets.bottom, hs(24)) }]}
             showsVerticalScrollIndicator={false}
             refreshing={isClinicsFetching}
             onRefresh={refetchClinics}

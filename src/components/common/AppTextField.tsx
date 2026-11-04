@@ -27,6 +27,7 @@ export const AppTextField: React.FC<AppTextFieldProps> = ({ label, error, contai
 const styles = StyleSheet.create({
   container: {
     marginVertical: hs(8),
+    paddingHorizontal: ws(1),
   },
   label: {
     ...TYPOGRAPHY.medium,
@@ -44,6 +45,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.regular,
     fontSize: fs(14),
     color: Colors.primaryFontColor || '#000000',
+    marginHorizontal: 1,
   },
   inputError: {
     borderColor: Colors.redColor || '#EE404C',

@@ -52,13 +52,15 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
     );
   }, [cities, searchQuery]);
 
-  const isCurrentLocationSelected = selectedCityId === undefined || selectedCityId === 'CURRENT';
+  const isCurrentLocationSelected = selectedCityId === 'CURRENT';
 
   const isAllCitiesSelected =
     !isCurrentLocationSelected &&
-    (selectedCityId === null ||
+    (selectedCityId === undefined ||
+      selectedCityId === null ||
       String(selectedCityId) === '' ||
       String(selectedCityId).toUpperCase() === 'ALL' ||
+      String(selectedCityId).toLowerCase() === 'all' ||
       String(selectedCityId).toLowerCase() === 'all cities');
 
   const handleSelect = (city: CityModel | null | undefined) => {
@@ -196,7 +198,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
                         isAllCitiesSelected && styles.cityNameTextSelected,
                       ]}
                     >
-                      All Cities
+                      All
                     </Text>
                     <Text style={styles.cityStateText}>Show results from all locations</Text>
                   </View>

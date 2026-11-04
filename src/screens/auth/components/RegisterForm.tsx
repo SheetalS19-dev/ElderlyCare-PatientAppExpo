@@ -71,7 +71,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
     <View style={styles.inputsSection}>
       {/* First Name */}
       <View style={styles.fullWidthCol}>
-        <Text style={styles.inputLabel}>First Name</Text>
+        <Text style={styles.inputLabel}>
+          First Name <Text style={styles.requiredAsterisk}>*</Text>
+        </Text>
         <TextInput
           style={[styles.singleTextInput, regErrors.firstName ? styles.inputBorderError : null]}
           placeholder="First Name"
@@ -87,19 +89,20 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
       <View style={styles.fullWidthCol}>
         <Text style={styles.inputLabel}>Last Name</Text>
         <TextInput
-          style={[styles.singleTextInput, regErrors.lastName ? styles.inputBorderError : null]}
+          style={styles.singleTextInput}
           placeholder="Last Name"
           placeholderTextColor="#94A3B8"
           value={lastName}
           onChangeText={onLastNameChange}
           autoCapitalize="words"
         />
-        {!!regErrors.lastName && <Text style={styles.fieldErrorText}>{regErrors.lastName}</Text>}
       </View>
 
       {/* Email Address */}
       <View style={styles.fullWidthCol}>
-        <Text style={styles.inputLabel}>Email Address</Text>
+        <Text style={styles.inputLabel}>
+          Email Address <Text style={styles.requiredAsterisk}>*</Text>
+        </Text>
         <TextInput
           style={[styles.singleTextInput, regErrors.email ? styles.inputBorderError : null]}
           placeholder="Email Address"
@@ -114,34 +117,50 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
 
       {/* Phone Number */}
       <View style={styles.fullWidthCol}>
-        <Text style={styles.inputLabel}>Phone Number</Text>
-        <TextInput
-          style={[styles.singleTextInput, regErrors.phone ? styles.inputBorderError : null]}
-          placeholder="Phone Number"
-          placeholderTextColor="#94A3B8"
-          value={phone}
-          onChangeText={onPhoneChange}
-          keyboardType="phone-pad"
-        />
+        <Text style={styles.inputLabel}>
+          Phone Number <Text style={styles.requiredAsterisk}>*</Text>
+        </Text>
+        <View style={[styles.phoneInputContainer, regErrors.phone ? styles.inputBorderError : null]}>
+          <View style={styles.countryCodePickerBtn}>
+            <Text style={styles.countryCodeText}>+91</Text>
+          </View>
+          <View style={styles.phoneDivider} />
+          <TextInput
+            style={styles.phoneTextInput}
+            placeholder="Phone Number"
+            placeholderTextColor="#94A3B8"
+            value={phone}
+            onChangeText={(text) => onPhoneChange(text.replace(/[^0-9]/g, ''))}
+            keyboardType="phone-pad"
+            maxLength={10}
+          />
+        </View>
         {!!regErrors.phone && <Text style={styles.fieldErrorText}>{regErrors.phone}</Text>}
       </View>
 
       {/* Gender */}
       <View style={styles.fullWidthCol}>
-        <Text style={styles.inputLabel}>Gender</Text>
+        <Text style={styles.inputLabel}>
+          Select Gender <Text style={styles.requiredAsterisk}>*</Text>
+        </Text>
         <TouchableOpacity
-          style={styles.dropdownSelector}
+          style={[styles.dropdownSelector, regErrors.gender ? styles.inputBorderError : null]}
           activeOpacity={0.8}
           onPress={onOpenGenderModal}
         >
-          <Text style={styles.dropdownSelectorText}>{gender || 'Select Gender'}</Text>
+          <Text style={[styles.dropdownSelectorText, !gender && styles.placeholderText]}>
+            {gender || 'Select Gender'}
+          </Text>
           <MaterialIcons name="keyboard-arrow-down" size={fs(20)} color="#718096" />
         </TouchableOpacity>
+        {!!regErrors.gender && <Text style={styles.fieldErrorText}>{regErrors.gender}</Text>}
       </View>
 
       {/* Date Of Birth */}
       <View style={styles.fullWidthCol}>
-        <Text style={styles.inputLabel}>Date Of Birth</Text>
+        <Text style={styles.inputLabel}>
+          Date Of Birth <Text style={styles.requiredAsterisk}>*</Text>
+        </Text>
         <TouchableOpacity
           style={[styles.dropdownSelector, regErrors.dob ? styles.inputBorderError : null]}
           activeOpacity={0.8}
@@ -157,7 +176,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
 
       {/* Password */}
       <View style={styles.fullWidthCol}>
-        <Text style={styles.inputLabel}>Password</Text>
+        <Text style={styles.inputLabel}>
+          Password <Text style={styles.requiredAsterisk}>*</Text>
+        </Text>
         <View style={[styles.passwordInputContainer, regErrors.password ? styles.inputBorderError : null]}>
           <TextInput
             style={styles.passwordTextInput}
@@ -184,7 +205,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
 
       {/* Confirm Password */}
       <View style={styles.fullWidthCol}>
-        <Text style={styles.inputLabel}>Confirm Password</Text>
+        <Text style={styles.inputLabel}>
+          Confirm Password <Text style={styles.requiredAsterisk}>*</Text>
+        </Text>
         <View style={[styles.passwordInputContainer, regErrors.confirmPassword ? styles.inputBorderError : null]}>
           <TextInput
             style={styles.passwordTextInput}
@@ -247,6 +270,10 @@ const styles = StyleSheet.create({
     color: Colors.primaryFontColor,
     marginBottom: hs(6),
   },
+  requiredAsterisk: {
+    color: '#EF4444',
+    ...TYPOGRAPHY.bold,
+  },
   singleTextInput: {
     backgroundColor: '#F8FAFC',
     borderRadius: fs(12),
@@ -256,6 +283,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(14),
     ...TYPOGRAPHY.regular,
     fontSize: fs(14),
+    color: Colors.primaryFontColor,
+  },
+  phoneInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: fs(12),
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    height: hs(50),
+  },
+  countryCodePickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: ws(12),
+    height: '100%',
+  },
+  countryCodeText: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
+    color: Colors.primaryFontColor,
+  },
+  phoneDivider: {
+    width: ws(1),
+    height: hs(24),
+    backgroundColor: '#CBD5E1',
+  },
+  phoneTextInput: {
+    flex: 1,
+    height: '100%',
+    paddingHorizontal: ws(12),
+    fontSize: fs(14),
+    ...TYPOGRAPHY.regular,
     color: Colors.primaryFontColor,
   },
   passwordInputContainer: {

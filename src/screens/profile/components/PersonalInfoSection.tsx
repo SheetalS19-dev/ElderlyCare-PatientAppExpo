@@ -68,7 +68,7 @@ export const PersonalInfoSection: React.FC<Props> = ({
             style={styles.inputField}
             value={lName}
             onChangeText={onChangeLName}
-            placeholder="Last name"
+            placeholder="Last Name"
             placeholderTextColor="#94A3B8"
           />
         </View>

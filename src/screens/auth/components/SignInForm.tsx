@@ -54,39 +54,36 @@ export const SignInForm: React.FC<SignInFormProps> = ({
   return (
     <View style={styles.inputsSection}>
       {/* Phone Number Field */}
-      <Text style={styles.inputLabel}>Mobile Phone Number</Text>
+      <Text style={styles.inputLabel}>
+        Mobile Phone Number <Text style={styles.requiredAsterisk}>*</Text>
+      </Text>
       <View
         style={[
           styles.phoneInputContainer,
           phoneError ? styles.inputBorderError : null,
         ]}
       >
-        <TouchableOpacity
-          style={styles.countryCodePickerBtn}
-          onPress={onOpenCountryPicker}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.countryCodeText}>{countryCode.dialCode}</Text>
-          <MaterialIcons name="arrow-drop-down" size={fs(20)} color="#4A5568" />
-        </TouchableOpacity>
-
+        <View style={styles.countryCodePickerBtn}>
+          <Text style={styles.countryCodeText}>+91</Text>
+        </View>
         <View style={styles.phoneDivider} />
-
         <TextInput
           style={styles.phoneTextInput}
-          placeholder="Enter phone number"
+          placeholder="Enter 10-digit phone number"
           placeholderTextColor="#94A3B8"
           keyboardType="phone-pad"
           value={phone}
           onChangeText={onPhoneChange}
-          maxLength={15}
+          maxLength={10}
         />
       </View>
       {!!phoneError && <Text style={styles.fieldErrorText}>{phoneError}</Text>}
 
       {/* Password Field */}
       <View style={styles.passwordSection}>
-        <Text style={styles.inputLabel}>Password</Text>
+        <Text style={styles.inputLabel}>
+          Password <Text style={styles.requiredAsterisk}>*</Text>
+        </Text>
         <View
           style={[
             styles.passwordInputContainer,
@@ -181,6 +178,10 @@ const styles = StyleSheet.create({
     fontSize: fs(13),
     color: Colors.primaryFontColor,
     marginBottom: hs(6),
+  },
+  requiredAsterisk: {
+    color: '#EF4444',
+    ...TYPOGRAPHY.bold,
   },
   phoneInputContainer: {
     flexDirection: 'row',

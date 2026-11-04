@@ -1,9 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -17,6 +17,7 @@ import {
   LoadingIndicator,
   SearchBox,
   AppHeader,
+  DepartmentSelectModal,
 } from '../../components';
 import { Colors } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
@@ -45,6 +46,7 @@ export const DoctorListScreen = ({ navigation, route }: Props) => {
   const [selectedDeptTitle, setSelectedDeptTitle] = useState<string | undefined>(
     initialDeptTitle
   );
+  const [isDeptModalVisible, setIsDeptModalVisible] = useState(false);
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -93,24 +95,55 @@ export const DoctorListScreen = ({ navigation, route }: Props) => {
 
     // Filter by department id or title if selected
     if (selectedDeptId || selectedDeptTitle) {
-      list = list.filter((doc: any) => {
-        const docDeptId = String(doc.dept_id ?? doc.department_id ?? '');
-        const docDeptTitle = (
-          doc.dept_title ??
-          doc.dept_name ??
-          doc.department_name ??
-          doc.specialization ??
-          ''
-        ).toLowerCase();
+      const targetId = selectedDeptId ? String(selectedDeptId).trim() : '';
+      const targetTitle = selectedDeptTitle ? selectedDeptTitle.toLowerCase().trim() : '';
 
-        if (selectedDeptId && docDeptId === String(selectedDeptId)) {
+      list = list.filter((doc: any) => {
+        const docDeptIds = [
+          doc.dept_id,
+          doc.department_id,
+          doc.deptId,
+          doc.departmentId,
+          doc.department?.id,
+          doc.dept?.id,
+        ]
+          .filter((v) => v !== undefined && v !== null && v !== '')
+          .map((v) => String(v).trim());
+
+        const docDeptTitles = [
+          doc.dept_title,
+          doc.dept_name,
+          doc.department_name,
+          doc.department_title,
+          doc.department?.title,
+          doc.department?.name,
+          doc.dept?.title,
+          doc.dept?.name,
+        ]
+          .filter((v) => typeof v === 'string' && v.trim().length > 0)
+          .map((v) => v.toLowerCase().trim());
+
+        const docSpecializations = [
+          doc.specialization,
+          doc.specialty,
+        ]
+          .filter((v) => typeof v === 'string' && v.trim().length > 0)
+          .map((v) => v.toLowerCase().trim());
+
+        if (targetId && docDeptIds.includes(targetId)) {
           return true;
         }
 
-        if (selectedDeptTitle) {
-          const targetTitle = selectedDeptTitle.toLowerCase().trim();
-          if (docDeptTitle.includes(targetTitle) || targetTitle.includes(docDeptTitle)) {
-            return true;
+        if (targetTitle) {
+          for (const title of docDeptTitles) {
+            if (title === targetTitle || title.includes(targetTitle)) {
+              return true;
+            }
+          }
+          for (const spec of docSpecializations) {
+            if (spec === targetTitle || spec.includes(targetTitle)) {
+              return true;
+            }
           }
         }
         return false;
@@ -147,6 +180,7 @@ export const DoctorListScreen = ({ navigation, route }: Props) => {
       setSelectedDeptId(String(dept.id));
       setSelectedDeptTitle(dept.title);
     }
+    setIsDeptModalVisible(false);
   };
 
   const handleClearDepartment = () => {
@@ -167,57 +201,35 @@ export const DoctorListScreen = ({ navigation, route }: Props) => {
           onChangeText={setSearch}
           placeholder="Search doctors, specializations, clinics..."
         />
-      </View>
 
-      {/* Horizontal Department Chips */}
-      {departments.length > 0 && (
-        <View style={styles.deptScrollWrapper}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.deptChipsContainer}
+        {/* Department Dropdown Selector */}
+        {departments.length > 0 && (
+          <TouchableOpacity
+            style={styles.deptSelector}
+            activeOpacity={0.7}
+            onPress={() => setIsDeptModalVisible(true)}
           >
-            <TouchableOpacity
-              style={[
-                styles.deptChip,
-                !selectedDeptId && !selectedDeptTitle && styles.deptChipActive,
-              ]}
-              onPress={() => handleSelectDepartment(undefined)}
-            >
-              <Text
-                style={[
-                  styles.deptChipText,
-                  !selectedDeptId && !selectedDeptTitle && styles.deptChipTextActive,
-                ]}
+            <MaterialIcons
+              name="medical-services"
+              size={18}
+              color={Colors.primaryColor}
+            />
+            <Text style={styles.deptSelectorText} numberOfLines={1}>
+              {selectedDeptTitle ? selectedDeptTitle : 'All Departments (Select Department)'}
+            </Text>
+            {selectedDeptId || selectedDeptTitle ? (
+              <TouchableOpacity
+                onPress={() => handleSelectDepartment(undefined)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                All
-              </Text>
-            </TouchableOpacity>
-
-            {departments.map((dept) => {
-              const isSelected =
-                (selectedDeptId && String(dept.id) === selectedDeptId) ||
-                (selectedDeptTitle && dept.title === selectedDeptTitle);
-              return (
-                <TouchableOpacity
-                  key={`dept-${dept.id}`}
-                  style={[styles.deptChip, isSelected && styles.deptChipActive]}
-                  onPress={() => handleSelectDepartment(dept)}
-                >
-                  <Text
-                    style={[
-                      styles.deptChipText,
-                      isSelected && styles.deptChipTextActive,
-                    ]}
-                  >
-                    {dept.title}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      )}
+                <Ionicons name="close-circle" size={18} color={Colors.secondaryFontColor} />
+              </TouchableOpacity>
+            ) : (
+              <Ionicons name="chevron-down" size={18} color={Colors.secondaryFontColor} />
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
 
 
 
@@ -231,7 +243,7 @@ export const DoctorListScreen = ({ navigation, route }: Props) => {
           keyExtractor={(item: DoctorModel, index: number) =>
             `doc-${item.user_id ?? item.id ?? index}`
           }
-          contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + hs(20), hs(32)) }]}
+          contentContainerStyle={[styles.listContent, { paddingBottom: hs(80) + Math.max(insets.bottom, hs(24)) }]}
           refreshing={isFetching}
           onRefresh={refetch}
           showsVerticalScrollIndicator={false}
@@ -266,6 +278,15 @@ export const DoctorListScreen = ({ navigation, route }: Props) => {
           )}
         />
       )}
+      {/* Department Picker Modal */}
+      <DepartmentSelectModal
+        visible={isDeptModalVisible}
+        onClose={() => setIsDeptModalVisible(false)}
+        departments={departments}
+        selectedDeptId={selectedDeptId}
+        selectedDeptTitle={selectedDeptTitle}
+        onSelectDepartment={handleSelectDepartment}
+      />
     </View>
   );
 };
@@ -280,56 +301,24 @@ const styles = StyleSheet.create({
     paddingTop: hs(12),
     paddingBottom: hs(6),
   },
-  deptScrollWrapper: {
-    paddingVertical: hs(6),
-  },
-  deptChipsContainer: {
-    paddingHorizontal: ws(16),
-  },
-  deptChip: {
-    paddingHorizontal: ws(14),
-    paddingVertical: hs(7),
-    borderRadius: fs(20),
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.borderColor,
-    marginRight: ws(8),
-  },
-  deptChipActive: {
-    backgroundColor: Colors.primaryColor,
-    borderColor: Colors.primaryColor,
-  },
-  deptChipText: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.medium,
-    color: Colors.primaryFontColor,
-  },
-  deptChipTextActive: {
-    color: Colors.white,
-    ...TYPOGRAPHY.bold,
-  },
-  filterBanner: {
+  deptSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: ws(16),
-    paddingVertical: hs(8),
-    backgroundColor: Colors.lightBlueTint,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.lightBlueBorder,
+    backgroundColor: Colors.white,
+    borderRadius: fs(10),
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(10),
+    borderWidth: 1,
+    borderColor: Colors.borderColor,
+    marginTop: hs(8),
+    marginBottom: hs(4),
   },
-  filterText: {
+  deptSelectorText: {
     flex: 1,
-    fontSize: fs(12),
+    marginLeft: ws(8),
+    fontSize: fs(13),
     ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
-  },
-  filterHighlight: {
-    color: Colors.primaryColor,
-    ...TYPOGRAPHY.bold,
-  },
-  clearDeptBtn: {
-    marginLeft: ws(8),
   },
   listContent: {
     flexGrow: 1,

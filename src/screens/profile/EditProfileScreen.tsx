@@ -38,12 +38,12 @@ import { validateDob, validateEmail, validatePhone } from '../../validation/auth
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
 
-type PickerFieldType = 'gender' | 'occupation' | 'marital_status' | 'blood_group' | null;
+type PickerFieldType = 'gender' | 'marital_status' | 'blood_group' | 'occupation' | null;
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
-const OCCUPATION_OPTIONS = ['Job Holder', 'Business', 'Others'];
 const MARITAL_STATUS_OPTIONS = ['Married', 'Unmarried', 'Divorced', 'Widowed', 'Other'];
 const BLOOD_GROUP_OPTIONS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
+const OCCUPATION_OPTIONS = ['Job Holder', 'Business', 'Others'];
 
 const cleanDateString = (rawDate?: string | null): string => {
   if (!rawDate) return '';
@@ -66,6 +66,8 @@ export const EditProfileScreen = ({ navigation }: Props) => {
   const [dob, setDob] = useState(cleanDateString(authUser?.dob));
   const [gender, setGender] = useState(authUser?.gender ?? '');
   const [occupation, setOccupation] = useState(authUser?.occupation ?? '');
+  const [isCustomOccupation, setIsCustomOccupation] = useState(false);
+  const [customOccupationText, setCustomOccupationText] = useState('');
   const [maritalStatus, setMaritalStatus] = useState(authUser?.marital_status ?? '');
   const [bloodGroup, setBloodGroup] = useState(authUser?.blood_group ?? '');
 
@@ -75,6 +77,7 @@ export const EditProfileScreen = ({ navigation }: Props) => {
   const [state, setState] = useState(authUser?.state ?? '');
   const [postalCode, setPostalCode] = useState(String(authUser?.postal_code ?? ''));
 
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
 
   // Modals
@@ -108,7 +111,15 @@ export const EditProfileScreen = ({ navigation }: Props) => {
       setPhone(user.phone ?? '');
       setDob(cleanDateString(user.dob));
       setGender(user.gender ?? '');
-      setOccupation(user.occupation ?? '');
+      const userOcc = user.occupation ?? '';
+      setOccupation(userOcc);
+      if (userOcc && !['Job Holder', 'Business'].includes(userOcc)) {
+        setIsCustomOccupation(true);
+        setCustomOccupationText(userOcc === 'Others' ? '' : userOcc);
+      } else {
+        setIsCustomOccupation(userOcc === 'Others');
+        setCustomOccupationText('');
+      }
       setMaritalStatus(user.marital_status ?? '');
       setBloodGroup(user.blood_group ?? '');
       setAddress(user.address ?? '');
@@ -278,35 +289,39 @@ export const EditProfileScreen = ({ navigation }: Props) => {
   };
 
   const handleUpdate = async () => {
+    const errs: Record<string, string> = {};
+
     if (!fName.trim()) {
-      showToast('First name is required');
-      return;
+      errs.fName = 'First name is required';
     }
     if (email.trim()) {
       const emailRes = validateEmail(email, true);
       if (!emailRes.isValid) {
-        showToast(emailRes.error || 'Please enter a valid email address');
-        return;
+        errs.email = emailRes.error || 'Please enter a valid email address';
       }
     }
     if (phone.trim()) {
       const phoneRes = validatePhone(phone, true);
       if (!phoneRes.isValid) {
-        showToast(phoneRes.error || 'Please enter a valid 10-digit phone number');
-        return;
+        errs.phone = phoneRes.error || 'Please enter a valid 10-digit phone number';
       }
     }
     if (dob.trim()) {
       const dobRes = validateDob(dob, false);
       if (!dobRes.isValid) {
-        showToast(dobRes.error || 'Invalid date of birth');
-        return;
+        errs.dob = dobRes.error || 'Invalid date of birth';
       }
     }
     if (postalCode.trim() && !/^\d{5,6}$/.test(postalCode.trim())) {
-      showToast('Please enter a valid 5 or 6 digit postal code');
+      errs.postalCode = 'Please enter a valid 5 or 6 digit postal code';
+    }
+
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      showToast('Please fix the errors before updating profile');
       return;
     }
+
     if (!userId) {
       showToast('Session expired. Please log in again.');
       return;
@@ -314,6 +329,11 @@ export const EditProfileScreen = ({ navigation }: Props) => {
 
     setIsSubmitting(true);
     try {
+      const finalOccupation =
+        isCustomOccupation && customOccupationText.trim()
+          ? customOccupationText.trim()
+          : occupation;
+
       const token = await storageService.getItem<string>(AppConstants.storageKeys.token);
       await uploadProfileWithXHR(
         ApiEndpoints.updateUserUrl,
@@ -324,7 +344,7 @@ export const EditProfileScreen = ({ navigation }: Props) => {
           email: email.trim(),
           phone: phone.trim(),
           gender,
-          occupation,
+          occupation: finalOccupation,
           marital_status: maritalStatus,
           blood_group: bloodGroup,
           address: address.trim(),
@@ -362,7 +382,7 @@ export const EditProfileScreen = ({ navigation }: Props) => {
         email: email.trim(),
         phone: phone.trim(),
         gender,
-        occupation,
+        occupation: finalOccupation,
         marital_status: maritalStatus,
         blood_group: bloodGroup,
         address: address.trim(),
@@ -402,12 +422,26 @@ export const EditProfileScreen = ({ navigation }: Props) => {
     switch (activePicker) {
       case 'gender':
         return { title: 'Select Gender', options: GENDER_OPTIONS, current: gender, onSelect: setGender };
-      case 'occupation':
-        return { title: 'Select Occupation', options: OCCUPATION_OPTIONS, current: occupation, onSelect: setOccupation };
       case 'marital_status':
         return { title: 'Select Marital Status', options: MARITAL_STATUS_OPTIONS, current: maritalStatus, onSelect: setMaritalStatus };
       case 'blood_group':
         return { title: 'Select Blood Group', options: BLOOD_GROUP_OPTIONS, current: bloodGroup, onSelect: setBloodGroup };
+      case 'occupation':
+        return {
+          title: 'Select Occupation',
+          options: OCCUPATION_OPTIONS,
+          current: occupation,
+          onSelect: (opt: string) => {
+            if (opt === 'Others') {
+              setIsCustomOccupation(true);
+              setOccupation('Others');
+            } else {
+              setIsCustomOccupation(false);
+              setOccupation(opt);
+              setCustomOccupationText('');
+            }
+          },
+        };
       default:
         return { title: '', options: [], current: '', onSelect: () => { } };
     }
@@ -437,23 +471,13 @@ export const EditProfileScreen = ({ navigation }: Props) => {
           style={styles.flexOne}
           contentContainerStyle={[
             styles.scrollContent,
-            { flexGrow: 1, paddingBottom: Math.max(insets.bottom + 40, 60) },
+            { flexGrow: 1, paddingBottom: Math.max(insets.bottom + hs(24), hs(40)) },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {/* Profile Header Summary Card with Centered Avatar */}
           <View style={styles.headerCard}>
-            {/* Trash Delete Account Button on Top-Right Corner */}
-            <TouchableOpacity
-              style={styles.trashDeleteBtn}
-              activeOpacity={0.7}
-              onPress={() => setIsDeleteModalVisible(true)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <MaterialIcons name="delete-outline" size={20} color={Colors.redColor} />
-            </TouchableOpacity>
-
             <View style={styles.avatarWrapper}>
               {selectedImageUri ? (
                 <Image source={{ uri: selectedImageUri }} style={styles.avatar} />
@@ -511,29 +535,34 @@ export const EditProfileScreen = ({ navigation }: Props) => {
           </View>
 
           <View style={styles.formCard}>
-            {/* First Name & Last Name in Row */}
-            <View style={styles.row}>
-              <View style={styles.flexCol}>
-                <Text style={styles.fieldLabel}>First Name</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={fName}
-                  onChangeText={setFName}
-                  placeholder="First Name"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
+            {/* First Name */}
+            <View style={styles.fullWidthField}>
+              <Text style={styles.fieldLabel}>
+                First Name <Text style={styles.requiredAsterisk}>*</Text>
+              </Text>
+              <TextInput
+                style={styles.textInput}
+                value={fName}
+                onChangeText={(t) => {
+                  setFName(t);
+                  if (fieldErrors.fName) setFieldErrors((prev) => ({ ...prev, fName: '' }));
+                }}
+                placeholder="First Name"
+                placeholderTextColor="#94A3B8"
+              />
+              {!!fieldErrors.fName && <Text style={styles.fieldErrorText}>{fieldErrors.fName}</Text>}
+            </View>
 
-              <View style={styles.flexCol}>
-                <Text style={styles.fieldLabel}>Last Name</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={lName}
-                  onChangeText={setLName}
-                  placeholder="Last Name"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
+            {/* Last Name */}
+            <View style={styles.fullWidthField}>
+              <Text style={styles.fieldLabel}>Last Name</Text>
+              <TextInput
+                style={styles.textInput}
+                value={lName}
+                onChangeText={setLName}
+                placeholder="Last Name"
+                placeholderTextColor="#94A3B8"
+              />
             </View>
 
             {/* Email Address */}
@@ -542,26 +571,38 @@ export const EditProfileScreen = ({ navigation }: Props) => {
               <TextInput
                 style={styles.textInput}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(t) => {
+                  setEmail(t);
+                  if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: '' }));
+                }}
                 placeholder="Email Address"
                 placeholderTextColor="#94A3B8"
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
+              {!!fieldErrors.email && <Text style={styles.fieldErrorText}>{fieldErrors.email}</Text>}
             </View>
 
             {/* Mobile Number */}
             <View style={styles.fullWidthField}>
-              <Text style={styles.fieldLabel}>Mobile Number</Text>
-              <TextInput
-                style={[styles.textInput, styles.readOnlyInput]}
-                value={phone}
-                onChangeText={setPhone}
-                placeholder="Mobile Number"
-                placeholderTextColor="#94A3B8"
-                keyboardType="phone-pad"
-                editable={false}
-              />
+              <Text style={styles.fieldLabel}>
+                Mobile Number <Text style={styles.requiredAsterisk}>*</Text>
+              </Text>
+              <View style={[styles.phoneInputRow, styles.readOnlyInput]}>
+                <View style={styles.countryCodeBadge}>
+                  <Text style={styles.countryCodeText}>+91</Text>
+                </View>
+                <View style={styles.verticalDivider} />
+                <TextInput
+                  style={styles.phoneInputInner}
+                  value={phone.replace(/^\+91/, '').trim()}
+                  placeholder="Mobile Number"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="phone-pad"
+                  editable={false}
+                />
+              </View>
+              {!!fieldErrors.phone && <Text style={styles.fieldErrorText}>{fieldErrors.phone}</Text>}
             </View>
 
             {/* Date of Birth Picker */}
@@ -577,68 +618,86 @@ export const EditProfileScreen = ({ navigation }: Props) => {
                 </Text>
                 <MaterialIcons name="calendar-today" size={16} color={Colors.secondaryFontColor} />
               </TouchableOpacity>
+              {!!fieldErrors.dob && <Text style={styles.fieldErrorText}>{fieldErrors.dob}</Text>}
             </View>
 
-            {/* Gender & Occupation Row */}
-            <View style={styles.row}>
-              <View style={styles.flexCol}>
-                <Text style={styles.fieldLabel}>Gender</Text>
-                <TouchableOpacity
-                  style={styles.selectorInput}
-                  activeOpacity={0.8}
-                  onPress={() => setActivePicker('gender')}
-                >
-                  <Text style={[styles.selectorText, !gender && styles.placeholderText]}>
-                    {gender || 'Select Gender'}
-                  </Text>
-                  <MaterialIcons name="keyboard-arrow-down" size={20} color={Colors.secondaryFontColor} />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.flexCol}>
-                <Text style={styles.fieldLabel}>Occupation</Text>
-                <TouchableOpacity
-                  style={styles.selectorInput}
-                  activeOpacity={0.8}
-                  onPress={() => setActivePicker('occupation')}
-                >
-                  <Text style={[styles.selectorText, !occupation && styles.placeholderText]}>
-                    {occupation || 'Select Occupation'}
-                  </Text>
-                  <MaterialIcons name="keyboard-arrow-down" size={20} color={Colors.secondaryFontColor} />
-                </TouchableOpacity>
-              </View>
+            {/* Gender */}
+            <View style={styles.fullWidthField}>
+              <Text style={styles.fieldLabel}>
+                Gender <Text style={styles.requiredAsterisk}>*</Text>
+              </Text>
+              <TouchableOpacity
+                style={styles.selectorInput}
+                activeOpacity={0.8}
+                onPress={() => setActivePicker('gender')}
+              >
+                <Text style={[styles.selectorText, !gender && styles.placeholderText]}>
+                  {gender || 'Select Gender'}
+                </Text>
+                <MaterialIcons name="keyboard-arrow-down" size={20} color={Colors.secondaryFontColor} />
+              </TouchableOpacity>
             </View>
 
-            {/* Marital Status & Blood Group Row */}
-            <View style={styles.row}>
-              <View style={styles.flexCol}>
-                <Text style={styles.fieldLabel}>Marital Status</Text>
-                <TouchableOpacity
-                  style={styles.selectorInput}
-                  activeOpacity={0.8}
-                  onPress={() => setActivePicker('marital_status')}
-                >
-                  <Text style={[styles.selectorText, !maritalStatus && styles.placeholderText]}>
-                    {maritalStatus || 'Select Marital Status'}
-                  </Text>
-                  <MaterialIcons name="keyboard-arrow-down" size={20} color={Colors.secondaryFontColor} />
-                </TouchableOpacity>
-              </View>
+            {/* Occupation */}
+            <View style={styles.fullWidthField}>
+              <Text style={styles.fieldLabel}>Occupation</Text>
+              <TouchableOpacity
+                style={styles.selectorInput}
+                activeOpacity={0.8}
+                onPress={() => setActivePicker('occupation')}
+              >
+                <Text style={[styles.selectorText, !occupation && styles.placeholderText]} numberOfLines={1}>
+                  {occupation || 'Select Occupation'}
+                </Text>
+                <MaterialIcons name="keyboard-arrow-down" size={20} color={Colors.secondaryFontColor} />
+              </TouchableOpacity>
+            </View>
 
-              <View style={styles.flexCol}>
-                <Text style={styles.fieldLabel}>Blood Group</Text>
-                <TouchableOpacity
-                  style={styles.selectorInput}
-                  activeOpacity={0.8}
-                  onPress={() => setActivePicker('blood_group')}
-                >
-                  <Text style={[styles.selectorText, !bloodGroup && styles.placeholderText]}>
-                    {bloodGroup || 'Select Blood Group'}
-                  </Text>
-                  <MaterialIcons name="keyboard-arrow-down" size={20} color={Colors.secondaryFontColor} />
-                </TouchableOpacity>
+            {/* If Others or custom occupation is selected, provide manual entry */}
+            {isCustomOccupation && (
+              <View style={[styles.fullWidthField, { marginTop: hs(2) }]}>
+                <Text style={styles.fieldLabel}>Specify Occupation (Manual Entry)</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={customOccupationText}
+                  onChangeText={(t) => {
+                    setCustomOccupationText(t);
+                    setOccupation(t);
+                  }}
+                  placeholder="Enter your occupation (e.g. Teacher, Engineer...)"
+                  placeholderTextColor="#94A3B8"
+                />
               </View>
+            )}
+
+            {/* Marital Status */}
+            <View style={styles.fullWidthField}>
+              <Text style={styles.fieldLabel}>Marital Status</Text>
+              <TouchableOpacity
+                style={styles.selectorInput}
+                activeOpacity={0.8}
+                onPress={() => setActivePicker('marital_status')}
+              >
+                <Text style={[styles.selectorText, !maritalStatus && styles.placeholderText]}>
+                  {maritalStatus || 'Select Marital Status'}
+                </Text>
+                <MaterialIcons name="keyboard-arrow-down" size={20} color={Colors.secondaryFontColor} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Blood Group */}
+            <View style={styles.fullWidthField}>
+              <Text style={styles.fieldLabel}>Blood Group</Text>
+              <TouchableOpacity
+                style={styles.selectorInput}
+                activeOpacity={0.8}
+                onPress={() => setActivePicker('blood_group')}
+              >
+                <Text style={[styles.selectorText, !bloodGroup && styles.placeholderText]}>
+                  {bloodGroup || 'Select Blood Group'}
+                </Text>
+                <MaterialIcons name="keyboard-arrow-down" size={20} color={Colors.secondaryFontColor} />
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -661,29 +720,28 @@ export const EditProfileScreen = ({ navigation }: Props) => {
               />
             </View>
 
-            {/* City & State Row */}
-            <View style={styles.row}>
-              <View style={styles.flexCol}>
-                <Text style={styles.fieldLabel}>City</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={city}
-                  onChangeText={setCity}
-                  placeholder="City"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
+            {/* City */}
+            <View style={styles.fullWidthField}>
+              <Text style={styles.fieldLabel}>City</Text>
+              <TextInput
+                style={styles.textInput}
+                value={city}
+                onChangeText={setCity}
+                placeholder="City"
+                placeholderTextColor="#94A3B8"
+              />
+            </View>
 
-              <View style={styles.flexCol}>
-                <Text style={styles.fieldLabel}>State</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={state}
-                  onChangeText={setState}
-                  placeholder="State"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
+            {/* State */}
+            <View style={styles.fullWidthField}>
+              <Text style={styles.fieldLabel}>State</Text>
+              <TextInput
+                style={styles.textInput}
+                value={state}
+                onChangeText={setState}
+                placeholder="State"
+                placeholderTextColor="#94A3B8"
+              />
             </View>
 
             {/* Postal Code */}
@@ -692,11 +750,15 @@ export const EditProfileScreen = ({ navigation }: Props) => {
               <TextInput
                 style={styles.textInput}
                 value={postalCode}
-                onChangeText={setPostalCode}
+                onChangeText={(t) => {
+                  setPostalCode(t);
+                  if (fieldErrors.postalCode) setFieldErrors((prev) => ({ ...prev, postalCode: '' }));
+                }}
                 placeholder="Postal / Zip Code"
                 placeholderTextColor="#94A3B8"
                 keyboardType="numeric"
               />
+              {!!fieldErrors.postalCode && <Text style={styles.fieldErrorText}>{fieldErrors.postalCode}</Text>}
             </View>
           </View>
 
@@ -768,6 +830,34 @@ export const EditProfileScreen = ({ navigation }: Props) => {
                 );
               })}
             </View>
+
+            {/* Direct manual entry inside picker modal for occupation */}
+            {activePicker === 'occupation' && (
+              <View style={styles.customPickerInputWrap}>
+                <Text style={styles.customPickerInputLabel}>Or enter occupation manually:</Text>
+                <View style={styles.customPickerInputRow}>
+                  <TextInput
+                    style={styles.customPickerInput}
+                    placeholder="e.g. Teacher, Engineer..."
+                    placeholderTextColor="#94A3B8"
+                    value={customOccupationText}
+                    onChangeText={setCustomOccupationText}
+                  />
+                  <TouchableOpacity
+                    style={styles.customPickerApplyBtn}
+                    onPress={() => {
+                      if (customOccupationText.trim()) {
+                        setOccupation(customOccupationText.trim());
+                        setIsCustomOccupation(true);
+                      }
+                      setActivePicker(null);
+                    }}
+                  >
+                    <Text style={styles.customPickerApplyText}>Save</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -864,7 +954,7 @@ export const EditProfileScreen = ({ navigation }: Props) => {
           </View>
         </View>
       </Modal>
-    </View>
+    </View >
   );
 };
 
@@ -877,14 +967,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: ws(16),
+    paddingHorizontal: ws(16),
+    paddingTop: hs(12),
   },
   headerCard: {
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: fs(20),
-    padding: ws(20),
-    marginBottom: hs(20),
+    borderRadius: fs(18),
+    paddingVertical: hs(14),
+    paddingHorizontal: ws(16),
+    marginBottom: hs(12),
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: Colors.shadow,
@@ -896,10 +988,10 @@ const styles = StyleSheet.create({
   },
   trashDeleteBtn: {
     position: 'absolute',
-    top: hs(14),
-    right: ws(14),
-    width: ws(36),
-    height: ws(36),
+    top: hs(12),
+    right: ws(12),
+    width: ws(34),
+    height: ws(34),
     borderRadius: 999,
     overflow: 'hidden',
     backgroundColor: '#FEE2E2',
@@ -909,19 +1001,19 @@ const styles = StyleSheet.create({
   },
   avatarWrapper: {
     position: 'relative',
-    marginBottom: hs(12),
+    marginBottom: hs(8),
   },
   avatar: {
-    width: ws(96),
-    height: ws(96),
+    width: ws(80),
+    height: ws(80),
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
     backgroundColor: '#F1F5F9',
   },
   placeholderAvatar: {
-    width: ws(96),
-    height: ws(96),
+    width: ws(80),
+    height: ws(80),
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
@@ -930,23 +1022,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarInitials: {
-    fontSize: fs(32),
+    fontSize: fs(28),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
   editBadge: {
     position: 'absolute',
-    bottom: hs(2),
-    right: ws(2),
-    width: ws(32),
-    height: ws(32),
+    bottom: hs(0),
+    right: ws(0),
+    width: ws(28),
+    height: ws(28),
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
     backgroundColor: Colors.primaryColor,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2.5,
+    borderWidth: 2,
     borderColor: Colors.white,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: hs(2) },
@@ -955,84 +1047,126 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   headerName: {
-    fontSize: fs(16),
+    fontSize: fs(15),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
     textAlign: 'center',
-    marginBottom: hs(6),
+    marginBottom: hs(4),
   },
   headerMetaColumn: {
     alignItems: 'center',
-    gap: hs(6),
+    gap: hs(4),
     width: '100%',
   },
   headerDetailItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(5),
+    gap: ws(4),
     backgroundColor: '#F8FAFC',
-    paddingHorizontal: ws(10),
-    paddingVertical: hs(5),
-    borderRadius: fs(8),
+    paddingHorizontal: ws(8),
+    paddingVertical: hs(3),
+    borderRadius: fs(6),
   },
   headerDetailText: {
-    fontSize: fs(12),
+    fontSize: fs(11),
     ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(6),
-    marginBottom: hs(10),
+    gap: ws(5),
+    marginBottom: hs(8),
   },
   sectionTitle: {
-    fontSize: fs(12),
+    fontSize: fs(11.5),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
     letterSpacing: 0.5,
   },
   formCard: {
     backgroundColor: Colors.white,
-    borderRadius: fs(18),
-    padding: ws(16),
+    borderRadius: fs(16),
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(12),
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: hs(2) },
-    shadowOpacity: 0.04,
-    shadowRadius: fs(6),
+    shadowOffset: { width: 0, height: hs(1) },
+    shadowOpacity: 0.03,
+    shadowRadius: fs(4),
     elevation: 1,
   },
   row: {
     flexDirection: 'row',
-    gap: ws(12),
-    marginBottom: hs(14),
+    gap: ws(10),
+    marginBottom: hs(8),
   },
   flexCol: {
     flex: 1,
   },
   fullWidthField: {
-    marginBottom: hs(14),
+    marginBottom: hs(8),
   },
   fieldLabel: {
-    fontSize: fs(12),
+    fontSize: fs(11.5),
     ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
-    marginBottom: hs(6),
+    marginBottom: hs(4),
+  },
+  requiredAsterisk: {
+    color: '#EF4444',
+    ...TYPOGRAPHY.bold,
   },
   textInput: {
-    minHeight: hs(46),
-    height: hs(46),
+    minHeight: hs(38),
+    height: hs(38),
     backgroundColor: '#F8FAFC',
-    borderRadius: fs(12),
-    paddingHorizontal: ws(14),
-    paddingVertical: Platform.OS === 'ios' ? hs(10) : hs(6),
-    fontSize: fs(13.5),
+    borderRadius: fs(10),
+    paddingHorizontal: ws(12),
+    paddingVertical: Platform.OS === 'ios' ? hs(6) : hs(2),
+    fontSize: fs(13),
     ...TYPOGRAPHY.regular,
     color: Colors.primaryFontColor,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    textAlignVertical: 'center',
+  },
+  phoneInputRow: {
+    minHeight: hs(38),
+    height: hs(38),
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: fs(10),
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+  },
+  countryCodeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: ws(10),
+    height: '100%',
+    gap: ws(2),
+  },
+  countryCodeText: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
+    color: Colors.primaryFontColor,
+  },
+  verticalDivider: {
+    width: 1,
+    height: '65%',
+    backgroundColor: '#CBD5E1',
+  },
+  phoneInputInner: {
+    flex: 1,
+    height: '100%',
+    paddingHorizontal: ws(10),
+    fontSize: fs(13),
+    ...TYPOGRAPHY.regular,
+    color: Colors.primaryFontColor,
     textAlignVertical: 'center',
   },
   readOnlyInput: {
@@ -1040,21 +1174,21 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   selectorInput: {
-    minHeight: hs(46),
-    height: hs(46),
+    minHeight: hs(38),
+    height: hs(38),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#F8FAFC',
-    borderRadius: fs(12),
-    paddingHorizontal: ws(12),
+    borderRadius: fs(10),
+    paddingHorizontal: ws(10),
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   selectorText: {
     flex: 1,
-    marginRight: ws(6),
-    fontSize: fs(13),
+    marginRight: ws(4),
+    fontSize: fs(12.5),
     ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
   },
@@ -1065,36 +1199,36 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(12),
-    marginTop: hs(24),
-    marginBottom: hs(16),
+    gap: ws(10),
+    marginTop: hs(14),
+    marginBottom: hs(10),
     width: '100%',
   },
   cancelBtn: {
     flex: 1,
-    height: hs(48),
-    borderRadius: fs(12),
+    height: hs(42),
+    borderRadius: fs(10),
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
   },
   cancelBtnText: {
-    fontSize: fs(14),
+    fontSize: fs(13),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   updateBtn: {
     flex: 1.8,
-    height: hs(48),
-    borderRadius: fs(12),
+    height: hs(42),
+    borderRadius: fs(10),
     backgroundColor: Colors.primaryColor,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: Colors.primaryColor,
-    shadowOffset: { width: 0, height: hs(3) },
-    shadowOpacity: 0.25,
-    shadowRadius: fs(6),
-    elevation: 3,
+    shadowOffset: { width: 0, height: hs(2) },
+    shadowOpacity: 0.2,
+    shadowRadius: fs(4),
+    elevation: 2,
   },
   btnDisabled: {
     opacity: 0.7,
@@ -1153,6 +1287,48 @@ const styles = StyleSheet.create({
   },
   pickerOptionTextSelected: {
     color: Colors.white,
+    ...TYPOGRAPHY.bold,
+  },
+  customPickerInputWrap: {
+    marginTop: hs(12),
+    paddingTop: hs(10),
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  customPickerInputLabel: {
+    fontSize: fs(11.5),
+    ...TYPOGRAPHY.medium,
+    color: '#64748B',
+    marginBottom: hs(6),
+  },
+  customPickerInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ws(8),
+  },
+  customPickerInput: {
+    flex: 1,
+    height: hs(38),
+    backgroundColor: '#F8FAFC',
+    borderRadius: fs(8),
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingHorizontal: ws(10),
+    fontSize: fs(12.5),
+    ...TYPOGRAPHY.regular,
+    color: Colors.primaryFontColor,
+  },
+  customPickerApplyBtn: {
+    height: hs(38),
+    paddingHorizontal: ws(14),
+    backgroundColor: Colors.primaryColor,
+    borderRadius: fs(8),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  customPickerApplyText: {
+    color: Colors.white,
+    fontSize: fs(12),
     ...TYPOGRAPHY.bold,
   },
   bottomModalBackdrop: {
@@ -1255,5 +1431,11 @@ const styles = StyleSheet.create({
     fontSize: fs(13),
     ...TYPOGRAPHY.bold,
     color: Colors.white,
+  },
+  fieldErrorText: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
+    color: '#EF4444',
+    marginTop: hs(4),
   },
 });

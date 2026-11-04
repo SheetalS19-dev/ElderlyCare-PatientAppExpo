@@ -100,3 +100,24 @@ export const validateVitalMetric = (
   return { isValid: true };
 };
 
+export const validateStrongPassword = (password: string): ValidationResult => {
+  if (!password || password.trim().length === 0) {
+    return { isValid: false, error: 'Password is required' };
+  }
+  if (password.length < 8) {
+    return { isValid: false, error: 'Password must be at least 8 characters' };
+  }
+  if (!/[A-Z]/.test(password)) {
+    return { isValid: false, error: 'Password must include at least one uppercase letter (A-Z)' };
+  }
+  if (!/[a-z]/.test(password)) {
+    return { isValid: false, error: 'Password must include at least one lowercase letter (a-z)' };
+  }
+  if (!/[0-9]/.test(password)) {
+    return { isValid: false, error: 'Password must include at least one number (0-9)' };
+  }
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    return { isValid: false, error: 'Password must include at least one special character (!@#$%^&*)' };
+  }
+  return { isValid: true };
+};

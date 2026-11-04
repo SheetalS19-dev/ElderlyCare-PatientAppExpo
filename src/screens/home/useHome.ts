@@ -5,7 +5,6 @@ import { requireOptionalNativeModule } from 'expo-modules-core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
-import { useGetAppointmentsQuery } from '../../redux/apis/appointmentApi';
 import { useGetFamilyMembersQuery } from '../../redux/apis/bookingApi';
 import { useGetClinicsQuery } from '../../redux/apis/clinicApi';
 import {
@@ -15,10 +14,8 @@ import {
   useGetDoctorsQuery,
   type CityModel,
 } from '../../redux/apis/doctorApi';
-import { useGetPatientFilesQuery } from '../../redux/apis/patientFilesApi';
 import { useGetUserProfileQuery } from '../../redux/apis/userApi';
 import { useDeleteVitalMutation, useGetVitalsQuery } from '../../redux/apis/vitalsApi';
-import { FamilyMemberModel } from '../../types';
 import { showToast } from '../../utils';
 
 const SAVED_LOCATION_KEY = 'SAVED_USER_CITY_LOCATION';
@@ -40,8 +37,9 @@ export const useHome = () => {
     }
   };
 
+  const ALL_CITIES_OBJ: CityModel = { id: 'ALL', title: 'All' } as CityModel;
   const [search, setSearch] = useState('');
-  const [selectedCity, setSelectedCity] = useState<CityModel | null | undefined>(undefined);
+  const [selectedCity, setSelectedCity] = useState<CityModel | null | undefined>(ALL_CITIES_OBJ);
   const [deviceLocationCity, setDeviceLocationCity] = useState<string | null>(null);
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -56,7 +54,7 @@ export const useHome = () => {
           const parsed = JSON.parse(savedData);
           if (parsed?.title?.toLowerCase().includes('lucknow')) {
             await AsyncStorage.removeItem(SAVED_LOCATION_KEY);
-          } else if (parsed !== undefined) {
+          } else if (parsed !== undefined && parsed !== null) {
             setSelectedCity(parsed);
           }
         }
@@ -115,12 +113,6 @@ export const useHome = () => {
     }
   }, []);
 
-  useEffect(() => {
-    if (selectedCity === undefined) {
-      fetchDeviceCurrentLocation();
-    }
-  }, [selectedCity, fetchDeviceCurrentLocation]);
-
   const { data: citiesData } = useGetCitiesQuery();
   const { data: bannersData } = useGetBannersQuery();
   const { data: departments, isLoading: deptLoading } = useGetDepartmentsQuery();
@@ -132,25 +124,11 @@ export const useHome = () => {
   }, [citiesData]);
 
   const activeCity = useMemo(() => {
-    if (selectedCity !== undefined) return selectedCity;
-    if (citiesList.length > 0) {
-      if (deviceLocationCity) {
-        const dName = deviceLocationCity.toLowerCase().trim();
-        const matched = citiesList.find((c: CityModel) => {
-          const cTitle = (c.title || '').toLowerCase().trim();
-          return cTitle.includes(dName) || dName.includes(cTitle);
-        });
-        if (matched) return matched;
-      }
-      const defaultCity = citiesList.find(
-        (c: CityModel) => (c as any).default_city === 1
-      );
-      if (defaultCity) return defaultCity;
-    }
-    return null;
-  }, [selectedCity, citiesList, deviceLocationCity]);
+    if (selectedCity !== undefined && selectedCity !== null) return selectedCity;
+    return ALL_CITIES_OBJ;
+  }, [selectedCity]);
 
-  const activeCityName = activeCity ? activeCity.title : (deviceLocationCity || 'All Cities');
+  const activeCityName = activeCity ? activeCity.title : 'All';
   const activeCityId = activeCity?.id != null && String(activeCity.id) !== 'ALL' ? String(activeCity.id) : undefined;
 
   const handleCitySelect = async (city: CityModel | null | undefined) => {
@@ -163,8 +141,7 @@ export const useHome = () => {
       }
       fetchDeviceCurrentLocation();
     } else if (city === null) {
-      const allCitiesObj = { id: 'ALL', title: 'All Cities' } as CityModel;
-      setSelectedCity(allCitiesObj);
+      setSelectedCity(ALL_CITIES_OBJ);
     } else {
       setSelectedCity(city);
     }

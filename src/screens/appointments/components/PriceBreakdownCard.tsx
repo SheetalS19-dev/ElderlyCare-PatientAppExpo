@@ -10,6 +10,7 @@ interface Props {
   taxAmount: number;
   couponDiscount: number;
   total: number;
+  consultationType?: string;
 }
 
 export const PriceBreakdownCard: React.FC<Props> = ({
@@ -18,10 +19,18 @@ export const PriceBreakdownCard: React.FC<Props> = ({
   taxAmount,
   couponDiscount,
   total,
+  consultationType,
 }) => {
   return (
     <View style={styles.card}>
       <Text style={styles.sectionTitle}>Bill Summary</Text>
+
+      {!!consultationType && (
+        <View style={styles.row}>
+          <Text style={styles.label}>Consultation Type</Text>
+          <Text style={styles.value}>{consultationType}</Text>
+        </View>
+      )}
 
       <View style={styles.row}>
         <Text style={styles.label}>Consultation Fee</Text>

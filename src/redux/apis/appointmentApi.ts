@@ -28,6 +28,7 @@ export const appointmentApi = baseApi.injectEndpoints({
 
     getCancellationHistory: builder.query({
       query: (appId: string) => `${ApiEndpoints.getAppointmentCancellationUrlByAppId}/${appId}`,
+      providesTags: (_r: any, _e: any, appId: string) => [{ type: 'CancellationHistory', id: appId }],
     }),
 
     addCancellationRequest: builder.mutation({
@@ -36,7 +37,10 @@ export const appointmentApi = baseApi.injectEndpoints({
         method: 'POST',
         body,
       }),
-      invalidatesTags: ['Appointment'],
+      invalidatesTags: (_r: any, _e: any, { appointment_id }: any) => [
+        'Appointment',
+        { type: 'CancellationHistory', id: String(appointment_id) },
+      ],
     }),
 
     deleteCancellationRequest: builder.mutation({
@@ -45,7 +49,10 @@ export const appointmentApi = baseApi.injectEndpoints({
         method: 'POST',
         body,
       }),
-      invalidatesTags: ['Appointment'],
+      invalidatesTags: (_r: any, _e: any, { appointment_id }: any) => [
+        'Appointment',
+        { type: 'CancellationHistory', id: String(appointment_id) },
+      ],
     }),
 
     addDoctorReview: builder.mutation({

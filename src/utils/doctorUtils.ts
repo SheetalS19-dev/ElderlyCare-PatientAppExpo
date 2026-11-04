@@ -1,5 +1,5 @@
 import { ToastAndroid, Alert, Platform } from 'react-native';
-import { ApiEndpoints } from '../constants';
+import { ApiEndpoints, DEPARTMENT_DEFAULT_IMAGES } from '../constants';
 
 /**
  * Safely format doctor name ensuring "Dr. " prefix is added exactly once.
@@ -43,4 +43,14 @@ export const getImageUrl = (path?: string) => {
     return `${ApiEndpoints.webApiUrl}/api/public/${cleanPath}`;
   }
   return `${ApiEndpoints.imageUrl}/${cleanPath}`;
+};
+
+export const getDepartmentImageUrl = (dept?: { id?: string | number; title?: string; name?: string; image?: string } | null): string => {
+  if (!dept) return '';
+  if (dept.image) return getImageUrl(dept.image);
+  const idKey = dept.id != null ? String(dept.id) : '';
+  const titleKey = (dept.title || dept.name || '').toLowerCase().trim();
+  const matched = DEPARTMENT_DEFAULT_IMAGES[idKey] || DEPARTMENT_DEFAULT_IMAGES[titleKey];
+  if (matched) return getImageUrl(matched);
+  return '';
 };

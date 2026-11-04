@@ -6,7 +6,7 @@ export type RootStackParamList = {
   Search: { searchQuery?: string; initialTab?: 'doctors' | 'clinics'; selectedDeptId?: string; selectedDeptTitle?: string } | undefined;
   DoctorList: { categoryId?: string; search?: string; selectedDeptId?: string; selectedDeptTitle?: string; searchQuery?: string } | undefined;
   DoctorDetails: { doctorId?: string | number; doctId?: string | number };
-  BookAppointment: { doctorId?: string | number; doctId?: string | number; clinicId?: string | number };
+  BookAppointment: { doctorId?: string | number; doctId?: string | number; clinicId?: string | number; initialMode?: 'clinic' | 'video' | 'emergency' };
   ClinicList: undefined;
   Clinic: { clinicId: string | number };
   MyBookings: undefined;

@@ -47,6 +47,9 @@ const parseAppointmentDate = (rawDate?: string) => {
 
 const getStatusBadge = (status?: string) => {
   const s = (status || '').toLowerCase().trim();
+  if (s === 'approval pending' || s === 'approval_pending' || s === 'approvalpending') {
+    return { bg: '#FEF3C7', color: '#D97706', label: 'Approval Pending' };
+  }
   if (s === 'pending') {
     return { bg: '#FEF3C7', color: '#D97706', label: 'Pending' };
   }
@@ -90,8 +93,14 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
     ? DateTimeUtils.formatTimeToAmPm(rawTimeSlot)
     : '--:--';
 
-  const status = appointment?.status || 'Scheduled';
-  const statusBadge = getStatusBadge(status);
+  const isCancelApprovalPending =
+    (appointment as any)?.current_cancel_req_status?.toString().toLowerCase() === 'pending' ||
+    (appointment as any)?.cancellation_status?.toString().toLowerCase() === 'pending' ||
+    (appointment?.status || '').toString().toLowerCase() === 'approval pending' ||
+    (appointment?.status || '').toString().toLowerCase() === 'approval_pending';
+
+  const displayedStatus = isCancelApprovalPending ? 'Approval Pending' : (appointment?.status || 'Scheduled');
+  const statusBadge = getStatusBadge(displayedStatus);
 
   const doctName = formatDoctorName(
     appointment?.doct_f_name || appointment?.doctorName || appointment?.doctor_name,
@@ -118,46 +127,27 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
       onPress={onPress}
       activeOpacity={0.85}
     >
+      {/* Top Header: Avatar, Info, Date Badge */}
       <View style={styles.cardHeader}>
-        {/* Doctor Profile Picture Avatar */}
+        {/* Doctor Avatar */}
         <View style={styles.avatarWrapper}>
           {doctorPhotoUri ? (
             <Image source={{ uri: doctorPhotoUri }} style={styles.doctorAvatar} />
           ) : (
             <View style={styles.avatarPlaceholder}>
-              <MaterialIcons name="person" size={fs(28)} color={Colors.primaryColor} />
+              <MaterialIcons name="person" size={fs(26)} color={Colors.primaryColor} />
             </View>
           )}
-          <View style={styles.onlineDot} />
         </View>
 
         {/* Doctor & Department Info */}
         <View style={styles.headerInfo}>
-          <View style={styles.topMetaRow}>
-            {/* Consultation Type Badge */}
-            <View style={[styles.typePill, { backgroundColor: isVideo ? '#EFF6FF' : '#EFF6FF' }]}>
-              <MaterialIcons
-                name={isVideo ? 'videocam' : 'local-hospital'}
-                size={fs(12)}
-                color={isVideo ? '#2563EB' : Colors.primaryColor}
-              />
-              <Text
-                style={[
-                  styles.typePillText,
-                  { color: isVideo ? '#2563EB' : Colors.primaryColor },
-                ]}
-              >
-                {isVideo ? 'Video Call' : 'In-Clinic'}
-              </Text>
-            </View>
-
-            {/* Status Badge */}
-            <View style={[styles.statusPill, { backgroundColor: statusBadge.bg }]}>
-              <View style={[styles.statusDot, { backgroundColor: statusBadge.color }]} />
-              <Text style={[styles.statusPillText, { color: statusBadge.color }]}>
-                {statusBadge.label}
-              </Text>
-            </View>
+          {/* Status Badge */}
+          <View style={[styles.statusPill, { backgroundColor: statusBadge.bg }]}>
+            <View style={[styles.statusDot, { backgroundColor: statusBadge.color }]} />
+            <Text style={[styles.statusPillText, { color: statusBadge.color }]}>
+              {statusBadge.label}
+            </Text>
           </View>
 
           {/* Doctor Name */}
@@ -179,47 +169,53 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
         </View>
       </View>
 
-      {/* Divider */}
-      <View style={styles.divider} />
-
-      {/* Footer Info Row */}
-      <View style={styles.cardFooter}>
-        <View style={styles.footerLeft}>
-          <View style={styles.metaRowItem}>
-            <MaterialIcons name="person-outline" size={fs(14)} color={Colors.secondaryFontColor} />
-            <Text style={styles.metaLabelText} numberOfLines={1}>
-              Patient: <Text style={styles.metaValueText}>{patientFullName}</Text>
-            </Text>
-          </View>
-
-          <View style={styles.metaRowItem}>
-            <MaterialIcons name="access-time" size={fs(14)} color={Colors.secondaryFontColor} />
-            <Text style={styles.metaLabelText}>{formattedTimeSlot}</Text>
-          </View>
+      {/* Patient & Time Details */}
+      <View style={styles.detailsSection}>
+        <View style={styles.metaRowItem}>
+          <MaterialIcons name="person-outline" size={fs(15)} color="#64748B" />
+          <Text style={styles.metaLabelText} numberOfLines={1}>
+            Patient: <Text style={styles.metaValueText}>{patientFullName}</Text>
+          </Text>
         </View>
 
-        {/* Right CTAs */}
-        <View style={styles.footerActions}>
-          {onRebook && (
-            <TouchableOpacity
-              style={styles.rebookBtn}
-              activeOpacity={0.8}
-              onPress={onRebook}
-            >
-              <MaterialIcons name="replay" size={fs(13)} color={Colors.white} />
-              <Text style={styles.rebookBtnText}>Rebook</Text>
-            </TouchableOpacity>
+        <View style={styles.metaRowItem}>
+          <MaterialIcons name="access-time" size={fs(15)} color="#64748B" />
+          <Text style={styles.metaLabelText}>
+            {formattedTimeSlot}  •
+          </Text>
+          {isVideo && (
+            <MaterialIcons
+              name="videocam"
+              size={fs(15)}
+              color="#2563EB"
+              style={{ marginRight: ws(3) }}
+            />
           )}
-
-          <TouchableOpacity
-            style={styles.detailsChevron}
-            onPress={onPress}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.detailsLinkText}>Details</Text>
-            <MaterialIcons name="chevron-right" size={fs(16)} color={Colors.primaryColor} />
-          </TouchableOpacity>
+          <Text style={[styles.metaLabelText, isVideo && { color: '#2563EB', ...TYPOGRAPHY.medium }]}>
+            {isVideo ? 'Video Consultant' : (appointment?.type || 'Clinic Visit')}
+          </Text>
         </View>
+      </View>
+
+      {/* Bottom Actions Row */}
+      <View style={styles.cardFooter}>
+        <TouchableOpacity
+          style={styles.rebookBtn}
+          activeOpacity={0.8}
+          onPress={onRebook || onPress}
+        >
+          <MaterialIcons name="sync" size={fs(14)} color="#2563EB" />
+          <Text style={styles.rebookBtnText}>Rebook</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.detailsChevron}
+          onPress={onPress}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.detailsLinkText}>Details</Text>
+          <MaterialIcons name="chevron-right" size={fs(16)} color="#2563EB" />
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
@@ -228,15 +224,16 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
 const styles = StyleSheet.create({
   cardContainer: {
     backgroundColor: Colors.white,
-    borderRadius: fs(18),
-    padding: ws(14),
-    marginBottom: hs(12),
+    borderRadius: fs(14),
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(10),
+    marginBottom: hs(10),
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
     elevation: 2,
   },
   cardHeader: {
@@ -245,77 +242,61 @@ const styles = StyleSheet.create({
   },
   avatarWrapper: {
     position: 'relative',
-    marginRight: ws(12),
+    marginRight: ws(10),
   },
   doctorAvatar: {
-    width: ws(54),
-    height: ws(54),
+    width: ws(44),
+    height: ws(44),
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
     backgroundColor: '#F1F5F9',
-    borderWidth: 1.5,
-    borderColor: Colors.primaryColor,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   avatarPlaceholder: {
-    width: ws(54),
-    height: ws(54),
+    width: ws(44),
+    height: ws(44),
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: '#DBEAFE',
   },
-  onlineDot: {
+  verifiedBadge: {
     position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: ws(12),
-    height: ws(12),
-    aspectRatio: 1,
+    bottom: -1,
+    right: -1,
+    width: ws(16),
+    height: ws(16),
     borderRadius: 999,
-    overflow: 'hidden',
-    backgroundColor: '#10B981',
-    borderWidth: 2,
+    backgroundColor: '#2563EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
     borderColor: Colors.white,
   },
   headerInfo: {
     flex: 1,
     marginRight: ws(8),
   },
-  topMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ws(6),
-    marginBottom: hs(4),
-  },
-  typePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: ws(8),
-    paddingVertical: hs(3),
-    borderRadius: fs(6),
-    gap: ws(4),
-  },
-  typePillText: {
-    ...TYPOGRAPHY.bold,
-    fontSize: fs(10),
-  },
   statusPill: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: ws(8),
-    paddingVertical: hs(3),
-    borderRadius: fs(6),
+    paddingHorizontal: ws(6),
+    paddingVertical: hs(2),
+    borderRadius: fs(5),
     gap: ws(4),
+    marginBottom: hs(2),
   },
   statusDot: {
-    width: ws(6),
-    height: ws(6),
-    borderRadius: ws(3),
+    width: ws(5),
+    height: ws(5),
+    borderRadius: ws(2.5),
   },
   statusPillText: {
     ...TYPOGRAPHY.bold,
@@ -323,56 +304,48 @@ const styles = StyleSheet.create({
   },
   doctorName: {
     ...TYPOGRAPHY.bold,
-    fontSize: fs(14),
-    color: Colors.primaryFontColor,
+    fontSize: fs(13.5),
+    color: '#1E293B',
   },
   deptText: {
     ...TYPOGRAPHY.regular,
     fontSize: fs(11),
-    color: Colors.secondaryFontColor,
-    marginTop: hs(2),
+    color: '#64748B',
+    marginTop: hs(1),
   },
   dateBadge: {
-    width: ws(52),
-    height: hs(56),
-    borderRadius: fs(12),
-    backgroundColor: '#EFF6FF',
+    width: ws(46),
+    height: hs(48),
+    borderRadius: fs(8),
+    backgroundColor: '#F8FAFC',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: '#E2E8F0',
   },
   dateMonth: {
     ...TYPOGRAPHY.bold,
-    fontSize: fs(9),
-    color: Colors.primaryColor,
+    fontSize: fs(8.5),
+    color: '#64748B',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   dateDay: {
     ...TYPOGRAPHY.bold,
-    fontSize: fs(18),
-    color: Colors.primaryColor,
-    lineHeight: fs(20),
+    fontSize: fs(17),
+    color: '#1E293B',
+    lineHeight: fs(19),
   },
   dateYear: {
     ...TYPOGRAPHY.medium,
-    fontSize: fs(8),
-    color: Colors.secondaryFontColor,
+    fontSize: fs(8.5),
+    color: '#94A3B8',
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#F1F5F9',
-    marginVertical: hs(10),
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  footerLeft: {
-    flex: 1,
-    gap: hs(4),
+  detailsSection: {
+    marginTop: hs(8),
+    paddingTop: hs(6),
+    borderTopWidth: 1,
+    borderTopColor: '#F8FAFC',
+    gap: hs(3),
   },
   metaRowItem: {
     flexDirection: 'row',
@@ -382,40 +355,46 @@ const styles = StyleSheet.create({
   metaLabelText: {
     ...TYPOGRAPHY.regular,
     fontSize: fs(11),
-    color: Colors.secondaryFontColor,
+    color: '#64748B',
   },
   metaValueText: {
     ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
+    color: '#1E293B',
   },
-  footerActions: {
+  cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(8),
+    justifyContent: 'space-between',
+    marginTop: hs(8),
+    paddingTop: hs(6),
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
   },
   rebookBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: ws(4),
-    backgroundColor: Colors.primaryColor,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
     paddingHorizontal: ws(10),
-    paddingVertical: hs(6),
-    borderRadius: fs(8),
+    paddingVertical: hs(4),
+    borderRadius: fs(12),
   },
   rebookBtnText: {
     ...TYPOGRAPHY.bold,
     fontSize: fs(11),
-    color: Colors.white,
+    color: '#2563EB',
   },
   detailsChevron: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: ws(2),
-    paddingVertical: hs(4),
+    paddingVertical: hs(2),
   },
   detailsLinkText: {
     ...TYPOGRAPHY.bold,
-    fontSize: fs(11),
-    color: Colors.primaryColor,
+    fontSize: fs(11.5),
+    color: '#2563EB',
   },
 });

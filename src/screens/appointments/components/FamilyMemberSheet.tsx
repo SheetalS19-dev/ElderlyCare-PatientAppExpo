@@ -15,7 +15,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppDatePickerModal } from '../../../components/common/AppDatePickerModal';
-import { CountryCodePicker } from '../../../components/common/CountryCodePicker';
 import { Colors } from '../../../constants';
 import { useAuth } from '../../../context/AuthContext';
 import {
@@ -139,8 +138,8 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
   };
 
   const handleAdd = async () => {
-    if (!validateName(firstName) || !validateName(lastName)) {
-      setError('Enter valid first and last name (min 3 chars)');
+    if (!validateName(firstName)) {
+      setError('Enter a valid first name');
       return;
     }
     if (!phone || phone.trim().length < 6) {
@@ -157,7 +156,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
       const payload = {
         user_id: uid,
         f_name: firstName.trim(),
-        l_name: lastName.trim(),
+        l_name: lastName ? lastName.trim() : '',
         phone: phone.trim(),
         gender,
         isd_code: countryCode.dialCode || '+91',
@@ -261,7 +260,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                 autoCapitalize="words"
               />
 
-              <Text style={styles.inputLabel}>Last Name*</Text>
+              <Text style={styles.inputLabel}>Last Name</Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="Last Name"
@@ -273,21 +272,15 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
 
               <Text style={styles.inputLabel}>Mobile Number</Text>
               <View style={styles.phoneInputRow}>
-                <TouchableOpacity
-                  style={styles.countryCodeBtn}
-                  onPress={() => setShowCountryPicker(true)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.flagText}>{countryCode.flag}</Text>
-                  <Text style={styles.dialCodeText}>{countryCode.dialCode}</Text>
-                  <MaterialIcons name="arrow-drop-down" size={18} color="#64748B" />
-                </TouchableOpacity>
+                <View style={styles.countryCodeBtn}>
+                  <Text style={styles.dialCodeText}>+91</Text>
+                </View>
                 <TextInput
                   style={styles.phoneInput}
-                  placeholder="Mobile Number"
+                  placeholder="Enter 10-digit mobile number"
                   placeholderTextColor="#94A3B8"
                   keyboardType="phone-pad"
-                  maxLength={15}
+                  maxLength={10}
                   value={phone}
                   onChangeText={(v) => setPhone(v.replace(/[^0-9]/g, ''))}
                 />
@@ -462,17 +455,6 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
           )}
         </View>
       </KeyboardAvoidingView>
-
-      {/* Country Code Picker Modal */}
-      <CountryCodePicker
-        visible={showCountryPicker}
-        selectedDialCode={countryCode.dialCode}
-        onSelect={(item) => {
-          setCountryCode(item);
-          setShowCountryPicker(false);
-        }}
-        onClose={() => setShowCountryPicker(false)}
-      />
 
       {/* Date of Birth Calendar Picker Modal */}
       <AppDatePickerModal

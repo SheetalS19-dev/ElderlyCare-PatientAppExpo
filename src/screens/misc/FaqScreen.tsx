@@ -52,7 +52,7 @@ const DEFAULT_FAQS: FaqItem[] = [
     id: 'faq-4',
     question: 'How do I book an in-clinic or video consultation?',
     answer:
-      'Select a doctor from the Doctors tab or Care Services Hub, choose In-Clinic or Video Call, pick an available date and time slot, select the patient, and confirm your booking.',
+      'Select a doctor from the Doctors tab or Care Services Hub, choose In-Clinic or Video Consultation, pick an available date and time slot, select the patient, and confirm your booking.',
   },
   {
     id: 'faq-5',
@@ -91,7 +91,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Faq'>;
 export const FaqScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
   const { data: faqData, isLoading, refetch } = useGetFaqQuery();
-  const [expandedId, setExpandedId] = useState<string | null>(DEFAULT_FAQS[0].id);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Parse HTML body from API into Q&A items
@@ -147,7 +147,7 @@ export const FaqScreen = ({ navigation }: Props) => {
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: Math.max(insets.bottom + 24, 40) },
+          { paddingBottom: hs(80) + Math.max(insets.bottom, hs(24)) },
         ]}
         showsVerticalScrollIndicator={false}
       >

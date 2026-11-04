@@ -61,7 +61,7 @@ export const ContactUsScreen = ({ navigation }: Props) => {
       <AppHeader title="Help & Support" onBackPress={() => navigation.goBack()} />
 
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + hs(20), hs(30)) }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: hs(80) + Math.max(insets.bottom, hs(24)) }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Hero Support Banner with container_bg */}
@@ -156,18 +156,6 @@ export const ContactUsScreen = ({ navigation }: Props) => {
             <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.yellow_D97706} />
           </View>
         </TouchableOpacity>
-
-        {/* Bottom Banner Card - Your well-being matters */}
-        <View style={styles.wellbeingCard}>
-          <View style={styles.wellbeingIconBox}>
-            <MaterialIcons name="security" size={fs(24)} color={Colors.primaryColor} />
-          </View>
-          <View style={styles.wellbeingMeta}>
-            <Text style={styles.wellbeingTitle}>Your well-being matters</Text>
-            <Text style={styles.wellbeingSubtitle}>Our team is always ready to support you.</Text>
-          </View>
-          <MaterialIcons name="favorite-border" size={fs(22)} color={Colors.blue_60A5FA} />
-        </View>
       </ScrollView>
     </View>
   );

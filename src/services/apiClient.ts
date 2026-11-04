@@ -27,8 +27,23 @@ apiClient.interceptors.response.use(
     // Same backend response envelope as baseApi.ts: HTTP 200 doesn't
     // guarantee logical success - check response.data.response too.
     const body: any = response.data;
-    if (body && typeof body === 'object' && 'response' in body && body.response !== 200) {
-      return Promise.reject(new Error(body.message || 'Something went wrong'));
+    if (body && typeof body === 'object' && 'response' in body) {
+      const isSuccess =
+        body.response === 200 ||
+        body.response === 201 ||
+        body.response === '200' ||
+        body.response === '201' ||
+        Number(body.response) === 200 ||
+        Number(body.response) === 201 ||
+        body.status === true ||
+        body.status === 200 ||
+        body.status === '200' ||
+        body.status === 'success' ||
+        body.success === true ||
+        body.success === 1;
+      if (!isSuccess) {
+        return Promise.reject(new Error(body.message || 'Something went wrong'));
+      }
     }
     return response.data;
   },

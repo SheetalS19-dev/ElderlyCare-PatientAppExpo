@@ -20,10 +20,9 @@ import {
   AppCard,
   AppDatePickerModal,
   AppHeader,
-  CountryCodePicker,
   EmptyState,
   ErrorState,
-  LoadingIndicator,
+  LoadingIndicator
 } from '../../components';
 import { Colors } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
@@ -40,6 +39,23 @@ import { DateTimeUtils, fs, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
 import { validateDob, validatePhone } from '../../validation/authValidation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FamilyMemberList'>;
+
+function calculateAge(dobStr?: string): string | null {
+  if (!dobStr) return null;
+  try {
+    const birth = new Date(dobStr);
+    if (isNaN(birth.getTime())) return null;
+    const now = new Date();
+    let age = now.getFullYear() - birth.getFullYear();
+    const m = now.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age > 0 && age < 125 ? `${age} yrs` : null;
+  } catch {
+    return null;
+  }
+}
 
 export const FamilyMemberListScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
@@ -144,6 +160,7 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
   const [phone, setPhone] = useState('');
   const [gender, setGender] = useState('Male');
   const [dob, setDob] = useState('');
+  const [relation, setRelation] = useState('');
 
   const openAddModal = () => {
     setEditingId(null);
@@ -152,6 +169,7 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
     setPhone('');
     setGender('Male');
     setDob('');
+    setRelation('');
     setCountryCode({
       name: 'India',
       code: 'IN',
@@ -168,6 +186,8 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
     setPhone(item.phone ?? '');
     setGender(item.gender || 'Male');
     setDob(item.dob ?? '');
+    const itemRelation = (item as any).relation || item.relationship || '';
+    setRelation(itemRelation.toLowerCase() === 'family member' ? '' : itemRelation);
     if (item.isd_code) {
       setCountryCode((prev) => ({
         ...prev,
@@ -182,10 +202,8 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
       showToast('Enter First Name');
       return;
     }
-    if (!lastName.trim()) {
-      showToast('Enter Last Name');
-      return;
-    }
+    // Last Name is optional per Point 2
+
     if (phone.trim()) {
       const phoneRes = validatePhone(phone, true);
       if (!phoneRes.isValid) {
@@ -207,28 +225,35 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
     }
 
     try {
+      const payload: any = {
+        user_id: uid,
+        f_name: firstName.trim(),
+        first_name: firstName.trim(),
+        l_name: lastName ? lastName.trim() : '',
+        last_name: lastName ? lastName.trim() : '',
+        phone: phone.trim(),
+        gender,
+        dob,
+        isd_code: countryCode.dialCode || '+91',
+      };
+      if (relation.trim()) {
+        payload.relation = relation.trim();
+        payload.relationship = relation.trim();
+      }
+
       if (editingId) {
         // Updating existing family member
         await updateFamilyMember({
           id: editingId,
-          f_name: firstName.trim(),
-          l_name: lastName.trim(),
-          phone: phone.trim(),
-          gender,
-          dob,
-          isd_code: countryCode.dialCode,
+          member_id: editingId,
+          family_member_id: editingId,
+          ...payload,
         }).unwrap();
         showToast('Family member updated successfully');
       } else {
         // Adding new family member (requires user_id)
         await addFamilyMember({
-          user_id: uid,
-          f_name: firstName.trim(),
-          l_name: lastName.trim(),
-          phone: phone.trim(),
-          gender,
-          dob,
-          isd_code: countryCode.dialCode,
+          ...payload,
         }).unwrap();
         showToast('Family member added successfully');
       }
@@ -279,7 +304,10 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
         <FlatList
           data={familyList}
           keyExtractor={(item, index) => `fam-${item.id ?? index}`}
-          contentContainerStyle={[styles.listContent, { paddingBottom: 90 + insets.bottom }]}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: hs(140) + Math.max(insets.bottom, hs(24)) },
+          ]}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <EmptyState message="No family members added. Tap + at bottom right to add one." />
@@ -292,10 +320,28 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
             const memberName =
               `${item.f_name ?? ''} ${item.l_name ?? ''}`.trim() || (isSelf ? 'Self' : 'Family Member');
             const itemDob = item.dob || (isSelf ? currentUser?.dob : '');
-            const relationshipText = isSelf ? 'Self' : (item.relationship || 'Family Member');
             const initial = memberName ? memberName.charAt(0).toUpperCase() : 'M';
             const genderVal = item.gender || (isSelf ? currentUser?.gender : '');
-            const phoneVal = item.phone ? `${item.isd_code ? `${item.isd_code} ` : ''}${item.phone}` : (isSelf ? currentUser?.phone : '');
+            const phoneVal = item.phone
+              ? `${item.isd_code ? `${item.isd_code} ` : ''}${item.phone}`
+              : (isSelf ? currentUser?.phone : '');
+
+            // DB Relation (Husband, Wife, Father, etc.) - if not present, don't show any chip
+            const rawRelation =
+              (item as any).relation ||
+              item.relationship ||
+              (item as any).relation_name ||
+              (item as any).relation_title ||
+              '';
+            const cleanRelation = typeof rawRelation === 'string' ? rawRelation.trim() : '';
+            const isGenericOrSelf =
+              !cleanRelation ||
+              cleanRelation.toLowerCase() === 'family member' ||
+              cleanRelation.toLowerCase() === 'self';
+            const dbRelation = !isGenericOrSelf ? cleanRelation : null;
+
+            const isFemale = (genderVal || '').toLowerCase() === 'female';
+            const ageText = calculateAge(itemDob);
 
             return (
               <AppCard style={styles.card}>
@@ -303,20 +349,80 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
                   activeOpacity={0.85}
                   onPress={() => (isSelf ? navigation.navigate('EditProfile') : openEditModal(item))}
                 >
-                  {/* Card Top Row: Avatar + Name + Relationship + Actions */}
                   <View style={styles.cardHeaderRow}>
-                    <View style={[styles.avatarCircle, isSelf && styles.avatarCircleSelf]}>
-                      <Text style={[styles.avatarText, isSelf && styles.avatarTextSelf]}>
+                    <View
+                      style={[
+                        styles.avatarCircle,
+                        isSelf
+                          ? styles.avatarCircleSelf
+                          : isFemale
+                            ? styles.avatarCircleFemale
+                            : styles.avatarCircleMale,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.avatarText,
+                          isSelf
+                            ? styles.avatarTextSelf
+                            : isFemale
+                              ? styles.avatarTextFemale
+                              : styles.avatarTextMale,
+                        ]}
+                      >
                         {initial}
                       </Text>
                     </View>
 
                     <View style={styles.headerInfo}>
-                      <Text style={styles.name} numberOfLines={1}>{memberName}</Text>
-                      <View style={[styles.relationBadge, isSelf ? styles.selfBadge : styles.familyBadge]}>
-                        <Text style={[styles.relationBadgeText, isSelf ? styles.selfBadgeText : styles.familyBadgeText]}>
-                          {relationshipText}
+                      <View style={styles.nameRow}>
+                        <Text style={styles.name} numberOfLines={1}>
+                          {memberName}
                         </Text>
+                        {isSelf ? (
+                          <View style={styles.selfBadge}>
+                            <MaterialIcons
+                              name="verified"
+                              size={fs(11)}
+                              color="#059669"
+                              style={{ marginRight: ws(2) }}
+                            />
+                            <Text style={styles.selfBadgeText}>Self</Text>
+                          </View>
+                        ) : dbRelation ? (
+                          <View style={styles.relationDbBadge}>
+                            <Text style={styles.relationDbBadgeText}>{dbRelation}</Text>
+                          </View>
+                        ) : null}
+                      </View>
+
+                      {/* Compact Meta Chips Row */}
+                      <View style={styles.metaChipsRow}>
+                        {!!genderVal && (
+                          <View style={styles.miniMetaChip}>
+                            <MaterialIcons
+                              name={isFemale ? 'female' : 'male'}
+                              size={fs(12)}
+                              color={isFemale ? '#DB2777' : '#2563EB'}
+                              style={{ marginRight: ws(2) }}
+                            />
+                            <Text style={styles.miniMetaText}>{genderVal}</Text>
+                          </View>
+                        )}
+                        {!!itemDob && (
+                          <View style={styles.miniMetaChip}>
+                            <MaterialIcons
+                              name="cake"
+                              size={fs(12)}
+                              color="#D97706"
+                              style={{ marginRight: ws(2) }}
+                            />
+                            <Text style={styles.miniMetaText}>
+                              {DateTimeUtils.getDataFormat(itemDob) || itemDob}
+                              {ageText ? ` (${ageText})` : ''}
+                            </Text>
+                          </View>
+                        )}
                       </View>
                     </View>
 
@@ -327,7 +433,7 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
                           onPress={() => navigation.navigate('EditProfile')}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
-                          <MaterialIcons name="edit" size={17} color={Colors.primaryColor} />
+                          <MaterialIcons name="edit" size={fs(15)} color={Colors.primaryColor} />
                         </TouchableOpacity>
                       ) : (
                         <>
@@ -336,49 +442,25 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
                             onPress={() => openEditModal(item)}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
-                            <MaterialIcons name="edit" size={17} color={Colors.primaryColor} />
+                            <MaterialIcons name="edit" size={fs(15)} color={Colors.primaryColor} />
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={[styles.actionIconBtn, styles.deleteIconBtn]}
                             onPress={() => handleDelete(String(item.id), memberName)}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
-                            <MaterialIcons name="delete-outline" size={17} color={Colors.redColor} />
+                            <MaterialIcons name="delete-outline" size={fs(15)} color={Colors.redColor} />
                           </TouchableOpacity>
                         </>
                       )}
                     </View>
                   </View>
 
-                  {/* Card Bottom Meta Box */}
-                  {(!!genderVal || !!phoneVal || !!itemDob) && (
-                    <View style={styles.metaContainerBox}>
-                      {!!genderVal && (
-                        <View style={styles.metaGridItem}>
-                          <View style={[styles.metaIconCircle, { backgroundColor: '#EFF6FF' }]}>
-                            <MaterialIcons name="wc" size={13} color="#2563EB" />
-                          </View>
-                          <Text style={styles.metaText}>{genderVal}</Text>
-                        </View>
-                      )}
-                      {!!phoneVal && (
-                        <View style={styles.metaGridItem}>
-                          <View style={[styles.metaIconCircle, { backgroundColor: '#ECFDF5' }]}>
-                            <MaterialIcons name="phone" size={13} color="#059669" />
-                          </View>
-                          <Text style={styles.metaText}>{phoneVal}</Text>
-                        </View>
-                      )}
-                      {!!itemDob && (
-                        <View style={styles.metaGridItem}>
-                          <View style={[styles.metaIconCircle, { backgroundColor: '#FEF3C7' }]}>
-                            <MaterialIcons name="cake" size={13} color="#D97706" />
-                          </View>
-                          <Text style={styles.metaText}>
-                            {DateTimeUtils.getDataFormat(itemDob) || itemDob}
-                          </Text>
-                        </View>
-                      )}
+                  {/* Phone number row if present */}
+                  {!!phoneVal && (
+                    <View style={styles.cardPhoneRow}>
+                      <MaterialIcons name="call" size={fs(12)} color="#059669" style={{ marginRight: ws(4) }} />
+                      <Text style={styles.cardPhoneText}>{phoneVal}</Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -390,7 +472,7 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
 
       {/* FAB Add Button */}
       <TouchableOpacity
-        style={[styles.fab, { bottom: 24 + insets.bottom }]}
+        style={[styles.fab, { bottom: hs(24) + Math.max(insets.bottom, hs(16)) }]}
         activeOpacity={0.85}
         onPress={openAddModal}
       >
@@ -429,41 +511,42 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
                 </TouchableOpacity>
               </View>
 
-              <Text style={[styles.inputLabel, styles.firstInputLabel]}>First Name*</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="First Name"
-                placeholderTextColor="#94A3B8"
-                value={firstName}
-                onChangeText={setFirstName}
-              />
+              {/* 2-Column Row for First Name and Last Name */}
+              <View style={styles.twoColRow}>
+                <View style={styles.col}>
+                  <Text style={[styles.inputLabel, styles.firstInputLabel]}>First Name*</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="First Name"
+                    placeholderTextColor="#94A3B8"
+                    value={firstName}
+                    onChangeText={setFirstName}
+                  />
+                </View>
 
-              <Text style={styles.inputLabel}>Last Name*</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Last Name"
-                placeholderTextColor="#94A3B8"
-                value={lastName}
-                onChangeText={setLastName}
-              />
+                <View style={styles.col}>
+                  <Text style={[styles.inputLabel, styles.firstInputLabel]}>Last Name</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Last Name"
+                    placeholderTextColor="#94A3B8"
+                    value={lastName}
+                    onChangeText={setLastName}
+                  />
+                </View>
+              </View>
 
               <Text style={styles.inputLabel}>Mobile Number</Text>
               <View style={styles.phoneInputRow}>
-                <TouchableOpacity
-                  style={styles.countryCodeBtn}
-                  onPress={() => setShowCountryPicker(true)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.flagText}>{countryCode.flag}</Text>
-                  <Text style={styles.dialCodeText}>{countryCode.dialCode}</Text>
-                  <MaterialIcons name="arrow-drop-down" size={18} color="#64748B" />
-                </TouchableOpacity>
+                <View style={styles.countryCodeBtn}>
+                  <Text style={styles.dialCodeText}>+91</Text>
+                </View>
                 <TextInput
                   style={styles.phoneInput}
-                  placeholder="Mobile Number"
+                  placeholder="Enter 10-digit mobile number"
                   placeholderTextColor="#94A3B8"
                   keyboardType="phone-pad"
-                  maxLength={15}
+                  maxLength={10}
                   value={phone}
                   onChangeText={(v) => setPhone(v.replace(/[^0-9]/g, ''))}
                 />
@@ -479,7 +562,7 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
                 <Text style={[styles.dateSelectorText, !dob ? styles.dateSelectorPlaceholder : null]}>
                   {dob ? DateTimeUtils.getDataFormat(dob) || dob : 'Select Date of Birth'}
                 </Text>
-                <MaterialIcons name="calendar-today" size={18} color={Colors.primaryColor} />
+                <MaterialIcons name="calendar-today" size={16} color={Colors.primaryColor} />
               </TouchableOpacity>
 
               {/* Gender Selector */}
@@ -498,6 +581,43 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
                 ))}
               </View>
 
+              {/* Relation Selector */}
+              <Text style={styles.inputLabel}>Relation (Optional)</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="e.g. Husband, Wife, Father, Mother..."
+                placeholderTextColor="#94A3B8"
+                value={relation}
+                onChangeText={setRelation}
+              />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.quickRelationRow}
+              >
+                {['Husband', 'Wife', 'Father', 'Mother', 'Son', 'Daughter', 'Brother', 'Sister', 'Spouse'].map(
+                  (rel) => (
+                    <TouchableOpacity
+                      key={rel}
+                      style={[
+                        styles.quickRelationChip,
+                        relation.toLowerCase() === rel.toLowerCase() && styles.quickRelationChipActive,
+                      ]}
+                      onPress={() => setRelation(rel)}
+                    >
+                      <Text
+                        style={[
+                          styles.quickRelationText,
+                          relation.toLowerCase() === rel.toLowerCase() && styles.quickRelationTextActive,
+                        ]}
+                      >
+                        {rel}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                )}
+              </ScrollView>
+
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowModal(false)}>
                   <Text style={styles.cancelText}>Cancel</Text>
@@ -514,17 +634,6 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Country Code Picker Modal */}
-      <CountryCodePicker
-        visible={showCountryPicker}
-        selectedDialCode={countryCode.dialCode}
-        onSelect={(item) => {
-          setCountryCode(item);
-          setShowCountryPicker(false);
-        }}
-        onClose={() => setShowCountryPicker(false)}
-      />
-
       {/* Date of Birth Calendar Picker Modal */}
       <AppDatePickerModal
         visible={showDatePicker}
@@ -540,18 +649,19 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgColor },
-  listContent: { flexGrow: 1, padding: ws(16), paddingBottom: hs(80) },
+  listContent: { flexGrow: 1, padding: ws(16) },
   card: {
-    marginBottom: hs(14),
-    borderRadius: fs(20),
-    padding: ws(16),
+    marginBottom: hs(10),
+    borderRadius: fs(14),
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(12),
     backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
+    borderColor: '#E2E8F0',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
-    shadowRadius: 10,
+    shadowRadius: 4,
     elevation: 2,
   },
   cardHeaderRow: {
@@ -559,109 +669,166 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarCircle: {
-    width: ws(48),
-    height: ws(48),
+    width: ws(42),
+    height: ws(42),
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EEF2FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: ws(12),
+    marginRight: ws(10),
     borderWidth: 1.5,
-    borderColor: '#C7D2FE',
   },
   avatarCircleSelf: {
     backgroundColor: '#ECFDF5',
     borderColor: '#A7F3D0',
   },
+  avatarCircleMale: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+  },
+  avatarCircleFemale: {
+    backgroundColor: '#FDF2F8',
+    borderColor: '#FBCFE8',
+  },
   avatarText: {
-    fontSize: fs(18),
+    fontSize: fs(16),
     ...TYPOGRAPHY.bold,
-    color: '#4338CA',
   },
   avatarTextSelf: {
-    color: '#047857',
+    color: '#059669',
+  },
+  avatarTextMale: {
+    color: '#2563EB',
+  },
+  avatarTextFemale: {
+    color: '#DB2777',
   },
   headerInfo: {
     flex: 1,
-    marginRight: ws(8),
+    marginRight: ws(6),
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: ws(6),
+    marginBottom: hs(2),
   },
   name: {
-    fontSize: fs(16),
+    fontSize: fs(14),
     ...TYPOGRAPHY.bold,
-    color: '#0F172A',
-    marginBottom: hs(3),
-  },
-  relationBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: ws(8),
-    paddingVertical: hs(2),
-    borderRadius: fs(6),
-    borderWidth: 1,
+    color: '#1E293B',
   },
   selfBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#ECFDF5',
+    borderWidth: 1,
     borderColor: '#A7F3D0',
-  },
-  familyBadge: {
-    backgroundColor: '#EEF2FF',
-    borderColor: '#C7D2FE',
-  },
-  relationBadgeText: {
-    fontSize: fs(11),
-    ...TYPOGRAPHY.bold,
+    paddingHorizontal: ws(6),
+    paddingVertical: hs(2),
+    borderRadius: fs(5),
   },
   selfBadgeText: {
+    fontSize: fs(10),
+    ...TYPOGRAPHY.bold,
     color: '#047857',
   },
-  familyBadgeText: {
-    color: '#4338CA',
+  relationDbBadge: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingHorizontal: ws(6),
+    paddingVertical: hs(2),
+    borderRadius: fs(5),
+  },
+  relationDbBadgeText: {
+    fontSize: fs(10),
+    ...TYPOGRAPHY.bold,
+    color: '#1D4ED8',
+  },
+  metaChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: ws(8),
+    marginTop: hs(2),
+  },
+  miniMetaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  miniMetaText: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.regular,
+    color: '#64748B',
+  },
+  cardPhoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: hs(8),
+    paddingTop: hs(6),
+    borderTopWidth: 1,
+    borderTopColor: '#F8FAFC',
+  },
+  cardPhoneText: {
+    fontSize: fs(11.5),
+    ...TYPOGRAPHY.medium,
+    color: '#334155',
   },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(8),
+    gap: ws(6),
     flexShrink: 0,
   },
   actionIconBtn: {
-    width: ws(36),
-    height: ws(36),
+    width: ws(30),
+    height: ws(30),
     borderRadius: 999,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     justifyContent: 'center',
     alignItems: 'center',
   },
   deleteIconBtn: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FEE2E2',
   },
-  metaContainerBox: {
-    marginTop: hs(12),
-    paddingTop: hs(10),
-    paddingHorizontal: ws(10),
-    paddingBottom: hs(8),
-    backgroundColor: '#F8FAFC',
-    borderRadius: fs(12),
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    gap: hs(6),
-  },
-  metaGridItem: {
+  twoColRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: ws(8),
+    gap: ws(10),
   },
-  metaIconCircle: {
-    width: ws(24),
-    height: ws(24),
-    borderRadius: 999,
-    justifyContent: 'center',
-    alignItems: 'center',
+  col: {
+    flex: 1,
   },
-  metaText: {
-    fontSize: fs(12),
-    color: '#475569',
+  quickRelationRow: {
+    flexDirection: 'row',
+    paddingVertical: hs(4),
+    gap: ws(6),
+  },
+  quickRelationChip: {
+    paddingHorizontal: ws(10),
+    paddingVertical: hs(4),
+    borderRadius: fs(12),
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  quickRelationChipActive: {
+    backgroundColor: Colors.primaryColor,
+    borderColor: Colors.primaryColor,
+  },
+  quickRelationText: {
+    fontSize: fs(11),
     ...TYPOGRAPHY.medium,
+    color: '#475569',
+  },
+  quickRelationTextActive: {
+    ...TYPOGRAPHY.bold,
+    color: Colors.white,
   },
   fab: {
     position: 'absolute',
@@ -683,89 +850,90 @@ const styles = StyleSheet.create({
   backdropPressable: { flex: 1 },
   modalBox: {
     backgroundColor: Colors.white,
-    borderTopLeftRadius: fs(24),
-    borderTopRightRadius: fs(24),
-    padding: ws(20),
+    borderTopLeftRadius: fs(20),
+    borderTopRightRadius: fs(20),
+    paddingHorizontal: ws(16),
+    paddingTop: hs(14),
     maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: hs(14),
-    paddingBottom: hs(12),
+    marginBottom: hs(10),
+    paddingBottom: hs(8),
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   modalTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(10),
+    gap: ws(8),
   },
   modalIconCircle: {
-    width: ws(36),
-    height: ws(36),
+    width: ws(32),
+    height: ws(32),
     borderRadius: 999,
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalTitle: {
-    fontSize: fs(16),
+    fontSize: fs(15),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   inputLabel: {
-    fontSize: fs(13),
+    fontSize: fs(12),
     ...TYPOGRAPHY.medium,
     color: '#334155',
-    marginBottom: hs(6),
-    marginTop: hs(14),
+    marginBottom: hs(3),
+    marginTop: hs(8),
   },
   firstInputLabel: {
     marginTop: hs(2),
   },
   textInput: {
-    height: hs(48),
+    height: hs(38),
     backgroundColor: '#F8FAFC',
-    borderRadius: fs(10),
+    borderRadius: fs(8),
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingHorizontal: ws(14),
-    fontSize: fs(14),
+    paddingHorizontal: ws(10),
+    fontSize: fs(13),
     color: '#1E293B',
     ...TYPOGRAPHY.regular,
   },
   phoneInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: hs(48),
+    height: hs(38),
     backgroundColor: '#F8FAFC',
-    borderRadius: fs(10),
+    borderRadius: fs(8),
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   countryCodeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: ws(10),
+    paddingHorizontal: ws(8),
     borderRightWidth: 1,
     borderRightColor: '#E2E8F0',
     height: '100%',
   },
   flagText: {
-    fontSize: fs(16),
+    fontSize: fs(15),
     marginRight: ws(4),
   },
   dialCodeText: {
-    fontSize: fs(13),
+    fontSize: fs(12.5),
     ...TYPOGRAPHY.semiBold,
     color: '#1E293B',
   },
   phoneInput: {
     flex: 1,
-    paddingHorizontal: ws(12),
-    fontSize: fs(14),
+    paddingHorizontal: ws(10),
+    fontSize: fs(13),
     color: '#1E293B',
     ...TYPOGRAPHY.regular,
   },
@@ -773,15 +941,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: hs(48),
+    height: hs(38),
     backgroundColor: '#F8FAFC',
-    borderRadius: fs(10),
+    borderRadius: fs(8),
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingHorizontal: ws(14),
+    paddingHorizontal: ws(10),
   },
   dateSelectorText: {
-    fontSize: fs(14),
+    fontSize: fs(13),
     color: '#1E293B',
     ...TYPOGRAPHY.regular,
   },
@@ -791,14 +959,14 @@ const styles = StyleSheet.create({
   genderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: hs(4),
-    marginBottom: hs(10),
-    gap: ws(10),
+    marginTop: hs(3),
+    marginBottom: hs(6),
+    gap: ws(8),
   },
   genderChip: {
     flex: 1,
-    paddingVertical: hs(11),
-    borderRadius: fs(10),
+    paddingVertical: hs(7),
+    borderRadius: fs(8),
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
@@ -810,7 +978,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryColor,
   },
   genderChipText: {
-    fontSize: fs(13),
+    fontSize: fs(12),
     ...TYPOGRAPHY.medium,
     color: '#475569',
   },
@@ -821,15 +989,15 @@ const styles = StyleSheet.create({
   modalActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: hs(20),
+    marginTop: hs(14),
   },
   cancelBtn: {
-    paddingVertical: hs(12),
-    paddingHorizontal: ws(16),
-    marginRight: ws(10),
+    paddingVertical: hs(10),
+    paddingHorizontal: ws(14),
+    marginRight: ws(8),
   },
   cancelText: {
-    fontSize: fs(14),
+    fontSize: fs(13),
     color: Colors.secondaryFontColor,
     ...TYPOGRAPHY.medium,
   },

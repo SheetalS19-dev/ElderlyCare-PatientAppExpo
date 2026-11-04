@@ -40,6 +40,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AppointmentDetails'>;
 
 const STATUS_COLORS: Record<string, string> = {
   Pending: Colors.yellow_F5C518,
+  'Approval Pending': '#D97706',
+  'approval pending': '#D97706',
   Rescheduled: Colors.orange_FF9800,
   Rejected: Colors.redColor,
   Confirmed: Colors.greenFontColor,
@@ -52,12 +54,8 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
   const { appId } = route.params;
   const { user } = useAuth();
   const { data: rawAppointment, isLoading, isError, refetch } = useGetAppointmentByIdQuery(appId);
-  const { data: rawCancellationHistory } = useGetCancellationHistoryQuery(appId);
-  const [addCancellationRequest, { isLoading: isCancelling }] = useAddCancellationRequestMutation();
-  const [deleteCancellationRequest, { isLoading: isWithdrawing }] = useDeleteCancellationRequestMutation();
   const [addDoctorReview, { isLoading: isSubmittingReview }] = useAddDoctorReviewMutation();
 
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
@@ -77,7 +75,6 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
     Linking.openURL(gCalUrl).catch(() => showToast('Could not open Google Calendar'));
   };
 
-
   const appointment: AppointmentModel | null = React.useMemo(() => {
     if (!rawAppointment) return null;
     let target = (rawAppointment as any)?.data ?? (rawAppointment as any)?.response ?? rawAppointment;
@@ -91,13 +88,6 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
     if (!rawDoctorData) return null;
     return (rawDoctorData as any)?.data ?? rawDoctorData;
   }, [rawDoctorData]);
-
-  const cancellationHistory: AppointmentCancellationModel[] = React.useMemo(() => {
-    if (!rawCancellationHistory) return [];
-    if (Array.isArray(rawCancellationHistory)) return rawCancellationHistory;
-    if (Array.isArray((rawCancellationHistory as any)?.data)) return (rawCancellationHistory as any).data;
-    return [];
-  }, [rawCancellationHistory]);
 
   if (isLoading) {
     return (
@@ -118,33 +108,8 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
   }
 
   const statusColor = STATUS_COLORS[appointment.status ?? ''] ?? Colors.secondaryFontColor;
-  const isCancellable = UpcomingStatuses.includes(appointment.status ?? '');
-  const activeCancelReq = (cancellationHistory ?? []).find(
-    (c: AppointmentCancellationModel) => c.status === 'Pending',
-  );
   const canReview = appointment.status === 'Completed' || appointment.status === 'Visited';
   const isVideoCall = appointment.type === 'Video Consultant';
-
-  const handleConfirmCancel = async () => {
-    try {
-      await addCancellationRequest({ appointment_id: appId, status: 'Pending' }).unwrap();
-      showToast('Cancellation request sent');
-      setShowCancelConfirm(false);
-      refetch();
-    } catch {
-      showToast('Could not submit cancellation request');
-    }
-  };
-
-  const handleWithdrawCancel = async () => {
-    try {
-      await deleteCancellationRequest({ appointment_id: appId }).unwrap();
-      showToast('Cancellation request withdrawn');
-      refetch();
-    } catch {
-      showToast('Could not withdraw the request');
-    }
-  };
 
   const handleSubmitReview = async () => {
     try {
@@ -281,18 +246,17 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
                 style={styles.avatar}
                 resizeMode="cover"
               />
-              <View style={styles.verifiedBadge}>
-                <MaterialIcons name="verified" size={14} color={Colors.primaryColor} />
-              </View>
             </View>
 
             <View style={styles.doctorInfo}>
               <Text style={styles.doctorName}>
                 {formatDoctorName(appointment.doct_f_name, appointment.doct_l_name)}
               </Text>
-              {!!appointment.doct_specialization && (
+              {!!(appointment.department_name || (appointment as any).dept_name || appointment.dept_title || appointment.doct_specialization) && (
                 <View style={styles.specBadge}>
-                  <Text style={styles.specialization}>{appointment.doct_specialization}</Text>
+                  <Text style={styles.specialization}>
+                    {appointment.department_name || (appointment as any).dept_name || appointment.dept_title || appointment.doct_specialization}
+                  </Text>
                 </View>
               )}
               <View style={styles.ratingRow}>
@@ -389,21 +353,21 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
               <MaterialIcons name="videocam" size={24} color={Colors.white} />
               <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={styles.videoBannerTitle}>Video Consultation Ready</Text>
-                <Text style={styles.videoBannerSub}>Tap to join doctor on video call</Text>
+                <Text style={styles.videoBannerSub}>Tap to join doctor on video consultation</Text>
               </View>
             </View>
-            <AppButton title="Join Video Call" onPress={handleJoinCall} style={styles.videoBannerBtn} />
+            <AppButton title="Join Video Consultation" onPress={handleJoinCall} style={styles.videoBannerBtn} />
           </View>
         )}
 
         {/* Queue Arrival & QR Code Card (Web Appointment Details Sync) */}
-        <TouchableOpacity style={styles.qrCard} activeOpacity={0.85} onPress={() => setShowQrModal(true)}>
-          <View style={styles.qrIconCircle}>
+        <TouchableOpacity style={styles.invoiceCard} activeOpacity={0.85} onPress={() => setShowQrModal(true)}>
+          <View style={styles.invoiceIconCircle}>
             <MaterialIcons name="qr-code-2" size={22} color={Colors.primaryColor} />
           </View>
-          <View style={styles.qrMeta}>
-            <Text style={styles.qrTitle}>Clinic Queue QR Code</Text>
-            <Text style={styles.qrSubtitle}>Scan QR code at clinic for queue number generation</Text>
+          <View style={styles.invoiceMeta}>
+            <Text style={styles.invoiceTitle}>Clinic Queue QR Code</Text>
+            <Text style={styles.invoiceSubtitle}>Scan QR code at clinic for queue number generation</Text>
           </View>
           <MaterialIcons name="chevron-right" size={22} color={Colors.primaryColor} />
         </TouchableOpacity>
@@ -514,6 +478,10 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
                     <Text style={styles.contactLabel}>Phone</Text>
                     <Text style={styles.contactValue}>{docPhone}</Text>
                   </View>
+                  <View style={styles.actionPillBtn}>
+                    <Ionicons name="call-outline" size={fs(12)} color="#2563EB" />
+                    <Text style={styles.actionPillBtnText}>Call</Text>
+                  </View>
                 </TouchableOpacity>
               )}
 
@@ -533,6 +501,10 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
                     <Text style={styles.contactLabel}>Email</Text>
                     <Text style={styles.contactValue}>{docEmail}</Text>
                   </View>
+                  <View style={styles.actionPillBtn}>
+                    <Ionicons name="mail-outline" size={fs(12)} color="#2563EB" />
+                    <Text style={styles.actionPillBtnText}>Email</Text>
+                  </View>
                 </TouchableOpacity>
               )}
 
@@ -551,6 +523,10 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
                   <View style={styles.contactTextGroup}>
                     <Text style={styles.contactLabel}>Clinic Address</Text>
                     <Text style={styles.contactValue} numberOfLines={3}>{clinicAddr}</Text>
+                  </View>
+                  <View style={styles.actionPillBtn}>
+                    <Ionicons name="navigate-outline" size={fs(12)} color="#2563EB" />
+                    <Text style={styles.actionPillBtnText}>Directions</Text>
                   </View>
                 </TouchableOpacity>
               )}
@@ -573,50 +549,8 @@ export const AppointmentDetailsScreen = ({ navigation, route }: Props) => {
           </TouchableOpacity>
         )}
 
-        {/* Cancellation Section */}
-        {isCancellable && (
-          <View style={styles.cancelSection}>
-            {activeCancelReq ? (
-              <TouchableOpacity style={styles.cancelBannerPending} onPress={handleWithdrawCancel} disabled={isWithdrawing}>
-                <MaterialIcons name="hourglass-empty" size={18} color={Colors.primaryColor} />
-                <Text style={styles.withdrawText}>
-                  {isWithdrawing ? 'Withdrawing request…' : 'Cancellation requested — tap to withdraw'}
-                </Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.cancelBtnOutline} onPress={() => setShowCancelConfirm(true)}>
-                <MaterialIcons name="cancel" size={16} color={Colors.redColor} />
-                <Text style={styles.cancelText}>Cancel Appointment</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
         <View style={styles.bottomSpacer} />
       </ScrollView>
-
-      {/* Cancel confirmation */}
-      <Modal visible={showCancelConfirm} transparent animationType="fade" onRequestClose={() => setShowCancelConfirm(false)}>
-        <View style={styles.dialogOverlay}>
-          <View style={styles.dialogBox}>
-            <View style={styles.dialogHeaderRow}>
-              <View style={styles.dialogIconBox}>
-                <MaterialIcons name="warning" size={24} color={Colors.redColor} />
-              </View>
-              <Text style={styles.dialogTitle}>Cancel Appointment?</Text>
-            </View>
-            <Text style={styles.dialogMessage}>Are you sure you want to cancel this appointment?</Text>
-            <View style={styles.dialogActions}>
-              <TouchableOpacity style={styles.dialogBtnCancel} onPress={() => setShowCancelConfirm(false)}>
-                <Text style={styles.dialogBtnTextMuted}>No, Keep</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.dialogBtnConfirm} onPress={handleConfirmCancel} disabled={isCancelling}>
-                <Text style={styles.dialogBtnTextConfirm}>{isCancelling ? 'Processing…' : 'Yes, Cancel'}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* Review modal */}
       <Modal visible={showReviewModal} transparent animationType="slide" onRequestClose={() => setShowReviewModal(false)}>
@@ -1041,6 +975,94 @@ const styles = StyleSheet.create({
   reviewTitle: { fontSize: fs(13), ...TYPOGRAPHY.bold, color: Colors.primaryFontColor },
   reviewSubtitle: { marginTop: hs(2), fontSize: fs(11), ...TYPOGRAPHY.regular, color: Colors.secondaryFontColor },
   cancelSection: { marginTop: hs(8), alignItems: 'center' },
+  approvalPendingHeaderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: fs(14),
+    padding: ws(14),
+    marginBottom: hs(14),
+  },
+  approvalPendingIconCircle: {
+    width: ws(38),
+    height: ws(38),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: '#FEF3C7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: ws(12),
+  },
+  approvalPendingTextGroup: {
+    flex: 1,
+  },
+  approvalPendingTitle: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
+    color: '#B45309',
+    marginBottom: hs(2),
+  },
+  approvalPendingDesc: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.regular,
+    color: '#92400E',
+    lineHeight: hs(16),
+  },
+  pendingCancelCard: {
+    width: '100%',
+    backgroundColor: '#FFFBEB',
+    borderRadius: fs(14),
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    padding: ws(16),
+  },
+  pendingCancelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: hs(8),
+  },
+  pendingCancelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ws(6),
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: ws(10),
+    paddingVertical: hs(4),
+    borderRadius: fs(8),
+  },
+  pendingCancelBadgeText: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
+    color: '#D97706',
+  },
+  pendingCancelMessage: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
+    color: '#78350F',
+    lineHeight: hs(18),
+    marginBottom: hs(12),
+  },
+  withdrawBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: ws(6),
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.lightBlueBorder,
+    borderRadius: fs(10),
+    paddingVertical: hs(10),
+    paddingHorizontal: ws(14),
+  },
+  withdrawBtnText: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
+    color: Colors.primaryColor,
+  },
   cancelBannerPending: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1051,15 +1073,26 @@ const styles = StyleSheet.create({
     borderRadius: fs(10),
   },
   cancelBtnOutline: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(6),
-    paddingVertical: hs(10),
+    justifyContent: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECDD3',
+    borderRadius: fs(14),
+    paddingVertical: hs(12),
     paddingHorizontal: ws(16),
+    gap: ws(8),
   },
-  cancelText: { fontSize: fs(13), ...TYPOGRAPHY.bold, color: Colors.redColor },
+  cancelText: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
+    color: Colors.redColor,
+    textAlign: 'center',
+  },
   withdrawText: { fontSize: fs(13), ...TYPOGRAPHY.medium, color: Colors.primaryColor },
-  bottomSpacer: { height: hs(20) },
+  bottomSpacer: { height: hs(60) },
   dialogOverlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'center', padding: ws(24) },
   dialogBox: { backgroundColor: Colors.white, borderRadius: fs(16), padding: ws(20) },
   dialogHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: ws(10), marginBottom: hs(8) },
@@ -1283,7 +1316,7 @@ const styles = StyleSheet.create({
   },
   contactRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: hs(16),
   },
   contactIconCircle: {
@@ -1316,6 +1349,26 @@ const styles = StyleSheet.create({
     fontSize: fs(12),
     ...TYPOGRAPHY.bold,
     color: Colors.white,
+  },
+  actionPillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: ws(5),
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    width: ws(92),
+    height: hs(32),
+    borderRadius: fs(8),
+    marginLeft: ws(8),
+    alignSelf: 'center',
+  },
+  actionPillBtnText: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.bold,
+    color: '#2563EB',
+    textAlign: 'center',
   },
 });
 

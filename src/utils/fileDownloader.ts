@@ -1,10 +1,44 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import { Linking, NativeModules, Platform } from 'react-native';
+import { Linking, NativeModules, PermissionsAndroid, Platform } from 'react-native';
 import { showToast } from './doctorUtils';
 
 const SAF_KEY = '@elderly_download_saf_dir';
+
+export async function ensureNotificationPermission(): Promise<boolean> {
+  if (Platform.OS === 'android') {
+    const apiLevel =
+      typeof Platform.Version === 'number'
+        ? Platform.Version
+        : parseInt(String(Platform.Version), 10);
+
+    if (apiLevel >= 33 && PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS) {
+      try {
+        const hasPermission = await PermissionsAndroid.check(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+        );
+        if (!hasPermission) {
+          const status = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+            {
+              title: 'Download Notification Permission',
+              message:
+                'ElderlyCare needs notification permission so you receive notifications when files finish downloading.',
+              buttonPositive: 'Allow',
+              buttonNegative: 'Not Now',
+            }
+          );
+          return status === PermissionsAndroid.RESULTS.GRANTED;
+        }
+        return true;
+      } catch (e) {
+        console.warn('Notification permission error:', e);
+      }
+    }
+  }
+  return true;
+}
 
 export const getMimeType = (ext: string): string => {
   const extension = ext.toLowerCase();
@@ -35,12 +69,57 @@ export const getMimeType = (ext: string): string => {
   }
 };
 
+/**
+ * Immediately opens a downloaded file with the system viewer / default application
+ */
+export async function openDownloadedFile(
+  uriOrPath: string,
+  mimeType: string = 'application/pdf',
+  fileName?: string
+): Promise<boolean> {
+  try {
+    if (Platform.OS === 'android') {
+      const { DownloadHelperModule } = NativeModules;
+      if (DownloadHelperModule && typeof DownloadHelperModule.openFile === 'function') {
+        try {
+          let openUri = uriOrPath;
+          if (openUri.startsWith('file://')) {
+            try {
+              openUri = await FileSystem.getContentUriAsync(openUri);
+            } catch (_) {}
+          }
+          await DownloadHelperModule.openFile(openUri, mimeType);
+          return true;
+        } catch (nativeErr) {
+          console.warn('Native openFile failed, falling back to Sharing:', nativeErr);
+        }
+      }
+    }
+
+    const canShare = await Sharing.isAvailableAsync();
+    if (canShare) {
+      await Sharing.shareAsync(uriOrPath, {
+        mimeType,
+        dialogTitle: fileName ? `Open ${fileName}` : 'Open file',
+        UTI: mimeType === 'application/pdf' ? 'com.adobe.pdf' : undefined,
+      });
+      return true;
+    }
+  } catch (err) {
+    console.warn('Could not open downloaded file:', err);
+  }
+  return false;
+}
+
 export async function saveLocalFileToDownloads(
   localUri: string,
   fileName: string,
-  mimeType: string = 'application/pdf'
+  mimeType: string = 'application/pdf',
+  openImmediately: boolean = true
 ): Promise<{ success: boolean; uri?: string; fileName?: string }> {
   if (Platform.OS === 'android') {
+    await ensureNotificationPermission();
+
     const { DownloadHelperModule } = NativeModules;
     if (DownloadHelperModule && typeof DownloadHelperModule.saveBase64ToDownloads === 'function') {
       try {
@@ -52,7 +131,15 @@ export async function saveLocalFileToDownloads(
           mimeType,
           base64Data
         );
-        return { success: true, uri: result?.uri || localUri, fileName };
+        const savedUri = result?.uri || localUri;
+
+        if (openImmediately) {
+          setTimeout(() => {
+            openDownloadedFile(savedUri, mimeType, fileName).catch(() => {});
+          }, 350);
+        }
+
+        return { success: true, uri: savedUri, fileName };
       } catch (nativeErr) {
         console.warn('Native DownloadHelperModule error:', nativeErr);
       }
@@ -81,10 +168,35 @@ export async function saveLocalFileToDownloads(
         await FileSystem.writeAsStringAsync(createdUri, base64Data, {
           encoding: FileSystem.EncodingType.Base64,
         });
+
+        if (DownloadHelperModule && typeof DownloadHelperModule.showDownloadNotification === 'function') {
+          DownloadHelperModule.showDownloadNotification(fileName, mimeType, createdUri).catch(() => {});
+        }
+
+        if (openImmediately) {
+          setTimeout(() => {
+            openDownloadedFile(createdUri, mimeType, fileName).catch(() => {});
+          }, 350);
+        }
+
         return { success: true, uri: createdUri, fileName };
       }
     } catch (safErr) {
       console.warn('SAF save error:', safErr);
+    }
+
+    // Fallback: If direct Downloads save and SAF are unavailable, open system save/share dialog
+    try {
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(localUri, {
+          mimeType,
+          dialogTitle: `Save ${fileName}`,
+        });
+        return { success: true, uri: localUri, fileName };
+      }
+    } catch (shareErr) {
+      console.warn('Fallback share error:', shareErr);
     }
 
     return { success: false, fileName };
@@ -102,11 +214,17 @@ export async function saveLocalFileToDownloads(
   }
 }
 
-export const downloadAndSaveFile = async (fileUrl: string, fileName?: string) => {
+export const downloadAndSaveFile = async (
+  fileUrl: string,
+  fileName?: string,
+  openImmediately: boolean = true
+) => {
   if (!fileUrl) {
     showToast('File URL not available');
     return;
   }
+
+  await ensureNotificationPermission();
 
   const name = fileName || 'file';
   try {
@@ -123,9 +241,14 @@ export const downloadAndSaveFile = async (fileUrl: string, fileName?: string) =>
     const result = await FileSystem.downloadAsync(fileUrl, tempUri);
 
     if (result.status >= 200 && result.status < 300) {
-      const saveRes = await saveLocalFileToDownloads(result.uri, downloadFileName, mimeType);
+      const saveRes = await saveLocalFileToDownloads(
+        result.uri,
+        downloadFileName,
+        mimeType,
+        openImmediately
+      );
       if (saveRes.success) {
-        showToast('File downloaded to Downloads folder');
+        showToast('File downloaded successfully');
       } else {
         await Linking.openURL(fileUrl);
       }

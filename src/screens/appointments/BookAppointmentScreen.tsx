@@ -1,3 +1,4 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useMemo, useState } from 'react';
@@ -14,8 +15,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppButton, AppCard, AppHeader, ErrorState, LoadingIndicator, StarRating } from '../../components';
-import { AppConstants, Colors, Typography } from '../../constants';
+import { AppCard, AppHeader, ErrorState, LoadingIndicator, StarRating } from '../../components';
+import { AppConstants, Colors } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
 import {
@@ -40,6 +41,7 @@ interface AppointmentTypeOption {
   code: '1' | '2' | '3';
   name: 'OPD' | 'Video Consultant' | 'Emergency';
   label: string;
+  subtext: string;
   enabled: boolean;
   fee?: number | string;
 }
@@ -114,11 +116,18 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
   const [couponError, setCouponError] = useState<string | undefined>();
   const [isSuggestedExpanded, setIsSuggestedExpanded] = useState(false);
 
+  const [isReviewsExpanded, setIsReviewsExpanded] = useState(false);
+
   const reviews: DoctorReviewModel[] = useMemo(() => {
     if (Array.isArray(rawReviews)) return rawReviews;
     if (Array.isArray((rawReviews as any)?.data)) return (rawReviews as any).data;
     return [];
   }, [rawReviews]);
+
+  const displayedReviews = useMemo(() => {
+    if (isReviewsExpanded) return reviews;
+    return reviews.slice(0, 3);
+  }, [reviews, isReviewsExpanded]);
 
   const deptId = String(
     (doctor as any)?.dept_id ??
@@ -165,22 +174,72 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
   const [showDateTimeSheet, setShowDateTimeSheet] = useState(false);
   const [showPaymentSheet, setShowPaymentSheet] = useState(false);
 
+  const initialModeApplied = React.useRef(false);
+
   const typeOptions: AppointmentTypeOption[] = useMemo(() => {
     if (!doctor) return [];
+    const isClinicEnabled =
+      Number(doctor.clinic_appointment) === 1 ||
+      (doctor.clinic_appointment as any) === '1' ||
+      Boolean(doctor.opd_fee);
+
+    const isVideoEnabled =
+      Number(doctor.video_appointment) === 1 ||
+      (doctor.video_appointment as any) === '1' ||
+      Boolean(doctor.video_fee);
+
+    const isEmgEnabled =
+      Number(doctor.emergency_appointment) === 1 ||
+      (doctor.emergency_appointment as any) === '1';
+
     return [
-      { code: '1' as const, name: 'OPD' as const, label: 'Clinic Visit', enabled: doctor.clinic_appointment === 1, fee: doctor.opd_fee },
-      { code: '2' as const, name: 'Video Consultant' as const, label: 'Video Call', enabled: doctor.video_appointment === 1, fee: doctor.video_fee },
-      { code: '3' as const, name: 'Emergency' as const, label: 'Emergency', enabled: doctor.emergency_appointment === 1, fee: doctor.emg_fee },
+      {
+        code: '1' as const,
+        name: 'OPD' as const,
+        label: 'Clinic Visit',
+        subtext: '(In-person)',
+        enabled: Boolean(isClinicEnabled),
+        fee: doctor.opd_fee ?? 0,
+      },
+      {
+        code: '2' as const,
+        name: 'Video Consultant' as const,
+        label: 'Video Consultation',
+        subtext: '(Online)',
+        enabled: Boolean(isVideoEnabled),
+        fee: doctor.video_fee ?? 0,
+      },
+      {
+        code: '3' as const,
+        name: 'Emergency' as const,
+        label: 'Emergency',
+        subtext: '(In-person only)',
+        enabled: Boolean(isEmgEnabled),
+        fee: doctor.emg_fee ?? 0,
+      },
     ].filter((o) => o.enabled);
   }, [doctor]);
 
   React.useEffect(() => {
-    if (!selectedType && typeOptions.length > 0) {
-      setSelectedType(typeOptions[0]);
-      setSelectedDate(null);
-      setSelectedTimeStart(null);
+    if (typeOptions.length === 0) return;
+
+    if (!initialModeApplied.current) {
+      initialModeApplied.current = true;
+      const initialMode = (route.params as any)?.initialMode;
+      if (initialMode) {
+        const code = initialMode === 'clinic' ? '1' : initialMode === 'video' ? '2' : '3';
+        const match = typeOptions.find((t) => t.code === code);
+        if (match) {
+          setSelectedType(match);
+          return;
+        }
+      }
     }
-  }, [typeOptions, selectedType]);
+
+    if (!selectedType || !typeOptions.some((t) => t.code === selectedType.code)) {
+      setSelectedType(typeOptions[0]);
+    }
+  }, [typeOptions, (route.params as any)?.initialMode]);
 
   const fee = useMemo(() => {
     if (!selectedType?.fee) return 0;
@@ -455,7 +514,7 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
           {/* Doctor Header Card matching Flutter */}
           <AppCard style={styles.doctorCard}>
             <View style={styles.doctorHeaderRow}>
-              {/* Avatar with Online Status Dot */}
+              {/* Avatar without unverified badge */}
               <View style={styles.avatarWrapper}>
                 <Image
                   source={
@@ -465,39 +524,30 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
                   }
                   style={styles.doctorAvatar}
                 />
-                <View style={styles.onlineDotOuter}>
-                  <View style={styles.onlineDotInner} />
-                </View>
               </View>
 
               {/* Doctor Info */}
               <View style={styles.doctorMetaColumn}>
-                <Text style={styles.doctorNameText}>{fullName}</Text>
-                {!!doctor.specialization && (
-                  <Text style={styles.doctorSpecializationText}>{doctor.specialization}</Text>
+                <Text style={styles.doctorNameText}>{fullName || 'Doctor'}</Text>
+                {!!(doctor.department_name || (doctor as any).dept_name || (doctor as any).dept_title || doctor.specialization) && (
+                  <Text style={styles.doctorSpecializationText}>
+                    {doctor.department_name || (doctor as any).dept_name || (doctor as any).dept_title || doctor.specialization}
+                  </Text>
                 )}
 
                 <View style={styles.doctorRatingRow}>
-                  <StarRating rating={Number(doctor.average_rating ?? 5)} starSize={14} />
+                  <StarRating rating={Number(doctor.average_rating ?? 0)} starSize={13} />
                   <Text style={styles.doctorRatingCountText}>
-                    {Number(doctor.average_rating ?? 0).toFixed(1)} ({doctor.number_of_reviews ?? 0} Review)
+                    {Number(doctor.average_rating ?? 0).toFixed(1)} ({doctor.number_of_reviews ?? reviews.length} reviews)
                   </Text>
                 </View>
 
-                {doctor.experience != null && (
-                  <View style={styles.doctorDetailRow}>
-                    <MaterialIcons name="work-outline" size={14} color={Colors.primaryColor} />
-                    <Text style={styles.doctorDetailText}>
-                      Experience {doctor.experience || doctor.ex_year || 0} Year
-                    </Text>
-                  </View>
-                )}
-
-                {doctor.total_appointment_done != null && (
-                  <View style={styles.doctorDetailRow}>
-                    <MaterialIcons name="check-circle" size={14} color="#16A34A" />
-                    <Text style={styles.doctorDetailText}>
-                      {doctor.total_appointment_done} Appointments Done
+                {/* Patients Treated - verified from database */}
+                {(doctor.total_appointment_done != null || (doctor as any).patients_served != null) && (
+                  <View style={styles.doctorPatientsRow}>
+                    <MaterialIcons name="people" size={13} color="#2563EB" />
+                    <Text style={styles.doctorPatientsText}>
+                      {doctor.total_appointment_done ?? (doctor as any).patients_served} Patients Treated
                     </Text>
                   </View>
                 )}
@@ -506,149 +556,185 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
           </AppCard>
 
           {/* Clinic Location Info */}
-          {!!doctor.clinic_title && (
-            <AppCard style={{ marginTop: hs(10) }}>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ws(6) }}>
-                <MaterialIcons name="location-on" size={fs(18)} color={Colors.primaryColor} style={{ marginTop: hs(2) }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.clinicTitle}>{doctor.clinic_title}</Text>
-                  {!!doctor.clinics_address && (
-                    <Text style={[styles.clinicAddress, { marginLeft: 0 }]}>{doctor.clinics_address}</Text>
-                  )}
-                </View>
-              </View>
-            </AppCard>
-          )}
+          {(() => {
+            const clinicTitle = doctor.clinic_title || (doctor as any).clinic_name || (doctor as any).clinics_name;
+            const clinicAddress = doctor.clinics_address || (doctor as any).clinic_address;
 
-          {/* Consultation Fee / Appointment Type Cards */}
-          <Text style={styles.sectionTitle}>Consultation Type</Text>
-          <View style={styles.typeCardsRow}>
-            {typeOptions.map((opt) => {
-              const active = selectedType?.code === opt.code;
-              const assetSource =
-                opt.code === '1'
-                  ? require('../../../assets/icons/medical-appointment.png')
-                  : opt.code === '2'
-                    ? require('../../../assets/icons/Play.png')
-                    : require('../../../assets/icons/ambulance.png');
-
+            if (clinicTitle) {
               return (
                 <TouchableOpacity
-                  key={opt.code}
-                  style={[styles.typeCard, active && styles.typeCardActive]}
+                  style={styles.clinicCard}
                   onPress={() => {
-                    setSelectedType(opt);
-                    setSelectedDate(null);
-                    setSelectedTimeStart(null);
+                    const cId = (doctor as any).clinic_id || (doctor as any).clinics_id;
+                    if (cId) {
+                      navigation.navigate('Clinic', { clinicId: String(cId) });
+                    }
                   }}
                   activeOpacity={0.8}
                 >
-                  <View style={styles.typeIconContainer}>
-                    <Image
-                      source={assetSource}
-                      style={[
-                        styles.typeCardAssetImg,
-                      ]}
-                      resizeMode="contain"
-                    />
+                  <View style={styles.clinicPinCircle}>
+                    <MaterialIcons name="location-on" size={18} color="#2563EB" />
                   </View>
-                  <Text style={[styles.typeCardTitle, active && styles.typeCardTextActive]}>
-                    {opt.label}
-                  </Text>
-                  <Text style={[styles.typeCardFee, active && styles.typeCardTextActive]}>
-                    Fee {AppConstants.appCurrency}{opt.fee || 0}
-                  </Text>
+                  <View style={styles.clinicMeta}>
+                    <Text style={styles.clinicTitle}>{clinicTitle}</Text>
+                    {!!clinicAddress && (
+                      <Text style={styles.clinicAddress} numberOfLines={2}>
+                        {clinicAddress}
+                      </Text>
+                    )}
+                  </View>
+                  <MaterialIcons name="chevron-right" size={20} color="#94A3B8" />
                 </TouchableOpacity>
               );
-            })}
-          </View>
+            }
 
-          {/* Date & Time Selector Cards */}
-          {selectedType && selectedType.code !== '3' && (
-            <View style={styles.dateTimeContainer}>
-              <View style={styles.dateTimeRow}>
-                {/* Date Card */}
-                <View style={styles.dateTimeColumn}>
-                  <Text style={styles.inputSubLabel}>Date</Text>
-                  <TouchableOpacity
-                    style={styles.dateTimeTile}
-                    onPress={() => setShowDateTimeSheet(true)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.dateTimeValueText} numberOfLines={1}>
-                      {selectedDate ? DateTimeUtils.getDataFormat(selectedDate) : '--'}
-                    </Text>
-                    <View style={styles.tileIconBox}>
-                      <MaterialIcons name="calendar-today" size={16} color="#FFFFFF" />
-                    </View>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Time Card */}
-                <View style={styles.dateTimeColumn}>
-                  <Text style={styles.inputSubLabel}>Time</Text>
-                  <TouchableOpacity
-                    style={styles.dateTimeTile}
-                    onPress={() => setShowDateTimeSheet(true)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.dateTimeValueText} numberOfLines={1}>
-                      {selectedTimeStart
-                        ? DateTimeUtils.formatTimeToAmPm(selectedTimeStart)
-                        : '--'}
-                    </Text>
-                    <View style={styles.tileIconBox}>
-                      <MaterialIcons name="access-time" size={16} color="#FFFFFF" />
-                    </View>
-                  </TouchableOpacity>
-                </View>
+            return (
+              <View style={styles.emptyInfoCard}>
+                <MaterialIcons name="location-off" size={18} color="#64748B" />
+                <Text style={styles.emptyInfoText}>
+                  Primary clinic information is not listed for this doctor.
+                </Text>
               </View>
+            );
+          })()}
+
+          {/* Consultation Fee / Appointment Type Cards */}
+          <Text style={styles.sectionTitle}>Consultation Type</Text>
+          {typeOptions.length > 0 ? (
+            <View style={styles.feeCardsRow}>
+              {typeOptions.map((opt) => {
+                const isSelected = selectedType?.code === opt.code;
+                const isEmergency = opt.code === '3';
+
+                return (
+                  <TouchableOpacity
+                    key={opt.code}
+                    style={[
+                      styles.feeCard,
+                      isSelected && styles.feeCardSelected,
+                      isEmergency && styles.feeCardEmergency,
+                      isEmergency && isSelected && styles.feeCardEmergencySelected,
+                    ]}
+                    onPress={() => {
+                      setSelectedType(opt);
+                      setSelectedDate(null);
+                      setSelectedTimeStart(null);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    {isSelected ? (
+                      <View
+                        style={[
+                          styles.selectedBadgeCorner,
+                          isEmergency && { backgroundColor: '#EF4444' },
+                        ]}
+                      >
+                        <MaterialIcons name="check" size={12} color={Colors.white} />
+                      </View>
+                    ) : (
+                      <View style={styles.unselectedRadioCorner} />
+                    )}
+
+                    <View
+                      style={[
+                        styles.feeIconCircle,
+                        { backgroundColor: isEmergency ? '#FEE2E2' : '#EFF6FF' },
+                      ]}
+                    >
+                      {opt.code === '1' ? (
+                        <MaterialCommunityIcons name="hospital-building" size={20} color="#2563EB" />
+                      ) : opt.code === '2' ? (
+                        <MaterialIcons name="videocam" size={20} color="#2563EB" />
+                      ) : (
+                        <MaterialCommunityIcons name="ambulance" size={22} color="#EF4444" />
+                      )}
+                    </View>
+                    <Text style={styles.feeLabel}>
+                      {opt.label}
+                    </Text>
+                    <Text style={styles.feeValue}>
+                      {AppConstants.appCurrency}{opt.fee || 0}
+                    </Text>
+                    <Text style={styles.feeModeSubtext}>{opt.subtext}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={styles.emptyInfoCard}>
+              <MaterialIcons name="event-busy" size={18} color="#64748B" />
+              <Text style={styles.emptyInfoText}>
+                No consultation modes are currently active for this doctor.
+              </Text>
             </View>
           )}
 
+          {/* Date & Time Selector Cards */}
+          {selectedType && selectedType.code !== '3' && (
+            <>
+              <Text style={styles.sectionTitle}>Select Slot *</Text>
+              <View style={styles.dateTimeRow}>
+                {/* Date Card */}
+                <TouchableOpacity
+                  style={styles.dateTimeSelectorCard}
+                  onPress={() => setShowDateTimeSheet(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.selectorLabel}>Date *</Text>
+                  <View style={styles.selectorValueRow}>
+                    <MaterialIcons name="calendar-today" size={15} color="#2563EB" />
+                    <Text style={styles.selectorValueText} numberOfLines={1}>
+                      {selectedDate ? DateTimeUtils.getDataFormat(selectedDate) : 'Select Date'}
+                    </Text>
+                    <MaterialIcons name="chevron-right" size={16} color="#94A3B8" />
+                  </View>
+                </TouchableOpacity>
+
+                {/* Time Card */}
+                <TouchableOpacity
+                  style={styles.dateTimeSelectorCard}
+                  onPress={() => setShowDateTimeSheet(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.selectorLabel}>Time *</Text>
+                  <View style={styles.selectorValueRow}>
+                    <MaterialIcons name="access-time" size={15} color="#2563EB" />
+                    <Text style={styles.selectorValueText} numberOfLines={1}>
+                      {selectedTimeStart
+                        ? DateTimeUtils.formatTimeToAmPm(selectedTimeStart)
+                        : 'Select Time'}
+                    </Text>
+                    <MaterialIcons name="chevron-right" size={16} color="#94A3B8" />
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
           {/* Patient Selection Card */}
-          <Text style={styles.sectionTitle}>Patient Details</Text>
+          <Text style={styles.sectionTitle}>Select Patient *</Text>
           <TouchableOpacity
-            style={styles.patientCard}
+            style={styles.patientSelectorCard}
             onPress={() => setShowFamilySheet(true)}
             activeOpacity={0.8}
           >
-            <View style={styles.patientAvatarBox}>
-              <MaterialIcons
-                name={selectedMember ? 'person' : 'person-add'}
-                size={24}
-                color={selectedMember ? Colors.primaryColor : Colors.secondaryFontColor}
-              />
+            <View style={styles.patientIconCircle}>
+              <MaterialIcons name="person" size={20} color="#2563EB" />
             </View>
-            <View style={styles.patientInfoBox}>
-              <Text
-                style={[
-                  styles.patientNameText,
-                  !selectedMember && { color: Colors.secondaryFontColor, ...TYPOGRAPHY.medium },
-                ]}
-                numberOfLines={1}
-              >
-                {selectedMember ? patientDisplayName : 'Select Patient'}
-              </Text>
-              <Text style={styles.patientPhoneText}>
-                {selectedMember?.phone
-                  ? `${selectedMember.isd_code ? `${selectedMember.isd_code} ` : ''}${selectedMember.phone}`
-                  : 'Tap to choose or add patient'}
-              </Text>
-            </View>
-            <MaterialIcons name="edit" size={20} color={Colors.primaryColor} />
+            <Text style={styles.patientSelectorText} numberOfLines={1}>
+              {selectedMember ? patientDisplayName : 'Choose a patient'}
+            </Text>
+            <MaterialIcons name="chevron-right" size={18} color="#94A3B8" />
           </TouchableOpacity>
 
           {/* Coupon Code Section */}
           <Text style={styles.sectionTitle}>Coupon Code</Text>
           <View style={styles.couponContainer}>
-            <View style={styles.couponRow}>
+            <View style={styles.couponInputWrapper}>
+              <MaterialIcons name="confirmation-number" size={18} color="#2563EB" style={{ marginLeft: ws(12) }} />
               <TextInput
-                style={[
-                  styles.couponTextInput,
-                  couponError ? styles.couponInputError : null,
-                ]}
-                placeholder="Enter Coupon Code"
+                style={styles.couponInput}
+                placeholder="Enter coupon code"
                 placeholderTextColor="#94A3B8"
                 value={couponCode}
                 onChangeText={(text) => {
@@ -660,8 +746,8 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
               />
               <TouchableOpacity
                 style={[
-                  styles.couponActionBtn,
-                  appliedCoupon ? styles.couponRemoveBtn : styles.couponApplyBtn,
+                  styles.couponApplyBtn,
+                  appliedCoupon && styles.couponRemoveBtn,
                   isValidatingCoupon && { opacity: 0.7 },
                 ]}
                 onPress={appliedCoupon ? handleRemoveCoupon : handleApplyCoupon}
@@ -671,7 +757,7 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
                 {isValidatingCoupon ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.couponActionBtnText}>
+                  <Text style={styles.couponApplyBtnText}>
                     {appliedCoupon ? 'Remove' : 'Apply'}
                   </Text>
                 )}
@@ -688,96 +774,68 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
             )}
           </View>
 
-          {/* Patient Reviews Card */}
-          {reviews.length > 0 && (
-            <View style={styles.reviewSection}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }}>
-                {reviews.map((rev: any, idx: number) => (
-                  <View key={`rev-${rev.id ?? idx}`} style={styles.patientReviewCard}>
-                    <View style={styles.reviewUserHeader}>
-                      <View style={styles.reviewerAvatarCircle}>
-                        <MaterialIcons name="person" size={20} color={Colors.white} />
-                      </View>
-                      <View style={styles.reviewerMeta}>
-                        <Text style={styles.reviewerName}>{rev.user_name || 'Patient'}</Text>
-                        <StarRating rating={Number(rev.points ?? 5)} starSize={12} />
-                      </View>
-                    </View>
-                    {!!rev.description && (
-                      <Text style={styles.reviewCommentText} numberOfLines={3}>
-                        "{rev.description}"
-                      </Text>
-                    )}
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          {/* Suggested Doctors Section */}
-          {suggestedDoctors.length > 0 && (
-            <View style={styles.suggestedSection}>
-              <Text style={styles.suggestedTitle}>Suggested Doctors</Text>
-
-              <View style={styles.suggestedGrid}>
-                {displayedSuggestedDoctors.map((doc: DoctorModel) => {
-                  const docRating = Number(doc.average_rating ?? 0);
-                  const docReviewsCount = Number(doc.number_of_reviews ?? 0);
-                  return (
-                    <TouchableOpacity
-                      key={`sug-${doc.id ?? doc.user_id}`}
-                      style={styles.suggestedGridCard}
-                      activeOpacity={0.8}
-                      onPress={() => navigation.push('BookAppointment', { doctId: String(doc.user_id || doc.id) })}
-                    >
-                      <View style={styles.suggestedAvatarWrapper}>
-                        <Image
-                          source={doc.image ? { uri: getImageUrl(doc.image) } : require('../../../assets/icons/user.png')}
-                          style={styles.suggestedAvatarImg}
-                          resizeMode="cover"
-                        />
-                      </View>
-                      <Text style={styles.suggestedCardName} numberOfLines={1}>
-                        {formatDoctorName(doc.f_name, doc.l_name)}
-                      </Text>
-                      <Text style={styles.suggestedCardDept} numberOfLines={2}>
-                        {doc.specialization || (doc as any).dept_title || 'Specialist'}
-                      </Text>
-                      <View style={styles.suggestedRatingRow}>
-                        <StarRating rating={docRating} starSize={11} />
-                        <Text style={styles.suggestedRatingText}>
-                          {docRating.toFixed(1)} ({docReviewsCount} reviews)
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
+          {/* Price Breakdown */}
+          <AppCard style={styles.priceBreakdownCard}>
+            <Text style={styles.priceBreakdownTitle}>Price Breakdown</Text>
+            <View style={styles.priceBreakdownRow}>
+              <Text style={styles.priceBreakdownLabel}>Consultation Type</Text>
+              <View style={styles.priceBreakdownTypeBadge}>
+                <MaterialIcons
+                  name={selectedType?.code === '2' ? 'videocam' : 'location-city'}
+                  size={14}
+                  color={Colors.primaryColor}
+                />
+                <Text style={styles.priceBreakdownTypeValue}>
+                  {selectedType?.label ?? 'Clinic Visit'}{' '}
+                  <Text style={styles.priceBreakdownTypeSub}>{selectedType?.subtext ?? ''}</Text>
+                </Text>
               </View>
-
-              {suggestedDoctors.length > 2 && (
-                <TouchableOpacity
-                  style={styles.viewMoreToggleBtn}
-                  onPress={() => setIsSuggestedExpanded(!isSuggestedExpanded)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.viewMoreToggleText}>
-                    {isSuggestedExpanded ? 'View Less <' : 'View More >'}
-                  </Text>
-                </TouchableOpacity>
-              )}
             </View>
-          )}
+            <View style={styles.priceBreakdownRow}>
+              <Text style={styles.priceBreakdownLabel}>Consultation Fee</Text>
+              <Text style={styles.priceBreakdownValue}>{AppConstants.appCurrency}{fee}</Text>
+            </View>
+            <View style={styles.priceBreakdownRow}>
+              <Text style={styles.priceBreakdownLabel}>Service Fee</Text>
+              <Text style={styles.priceBreakdownValue}>{AppConstants.appCurrency}{taxAmount.toFixed(0)}</Text>
+            </View>
+            {couponDiscount > 0 && (
+              <View style={styles.priceBreakdownRow}>
+                <Text style={styles.priceBreakdownDiscountLabel}>Discount ({appliedCoupon?.code || couponCode})</Text>
+                <Text style={styles.priceBreakdownDiscountValue}>-{AppConstants.appCurrency}{couponDiscount.toFixed(0)}</Text>
+              </View>
+            )}
+            <View style={styles.priceBreakdownDivider} />
+            <View style={styles.priceBreakdownRow}>
+              <Text style={styles.priceBreakdownTotalLabel}>Total Amount</Text>
+              <Text style={styles.priceBreakdownTotalValue}>{AppConstants.appCurrency}{total.toFixed(0)}</Text>
+            </View>
+          </AppCard>
 
           <View style={styles.bottomSpacer} />
         </ScrollView>
       </KeyboardAvoidingView>
 
       <View style={[styles.reviewBar, { paddingBottom: Math.max(insets.bottom + 12, 16) }]}>
-        <AppButton
-          title={`Review & Pay ${AppConstants.appCurrency}${total.toFixed(2)}`}
+        {!canReview && (
+          <View style={styles.incompleteWarningRow}>
+            <MaterialIcons name="info" size={13} color="#EF4444" />
+            <Text style={styles.incompleteWarningText}>
+              Select a date, time, and patient to continue
+            </Text>
+          </View>
+        )}
+        <TouchableOpacity
+          style={[styles.reviewPayBtn, !canReview && styles.reviewPayBtnDisabled]}
           disabled={!canReview}
           onPress={() => setShowPaymentSheet(true)}
-        />
+          activeOpacity={0.85}
+        >
+          <MaterialIcons name="lock" size={16} color={Colors.white} />
+          <Text style={styles.reviewPayBtnText}>
+            Review & Pay {AppConstants.appCurrency}{total.toFixed(2)}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <FamilyMemberSheet
@@ -840,50 +898,37 @@ const styles = StyleSheet.create({
   scrollContent: { padding: ws(14), paddingBottom: hs(110) },
   doctorCard: {
     padding: ws(12),
+    borderRadius: fs(14),
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   doctorHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   avatarWrapper: {
     position: 'relative',
-    marginRight: ws(14),
+    marginRight: ws(12),
   },
   doctorAvatar: {
-    width: ws(80),
-    height: ws(80),
+    width: ws(72),
+    height: ws(72),
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
     backgroundColor: '#E2E8F0',
   },
-  onlineDotOuter: {
-    position: 'absolute',
-    top: hs(4),
-    right: ws(4),
-    width: ws(14),
-    height: ws(14),
-    borderRadius: 999,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  onlineDotInner: {
-    width: ws(10),
-    height: ws(10),
-    borderRadius: 999,
-    backgroundColor: '#16A34A',
-  },
   doctorMetaColumn: {
     flex: 1,
   },
   doctorNameText: {
-    fontSize: fs(16),
+    fontSize: fs(15),
     ...TYPOGRAPHY.bold,
     color: '#1A202C',
   },
   doctorSpecializationText: {
-    fontSize: fs(12),
+    fontSize: fs(11.5),
     ...TYPOGRAPHY.medium,
     color: '#718096',
     marginTop: hs(2),
@@ -891,257 +936,521 @@ const styles = StyleSheet.create({
   doctorRatingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: hs(4),
-    gap: ws(6),
+    marginTop: hs(3),
+    gap: ws(4),
   },
   doctorRatingCountText: {
     fontSize: fs(11),
     ...TYPOGRAPHY.medium,
     color: '#718096',
   },
-  doctorDetailRow: {
+  doctorPatientsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(5),
-    marginTop: hs(5),
+    gap: ws(4),
+    marginTop: hs(4),
   },
-  doctorDetailText: {
-    fontSize: fs(12),
+  doctorPatientsText: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
+    color: '#2563EB',
+  },
+  emptyInfoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: fs(12),
+    padding: ws(12),
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: hs(10),
+    gap: ws(8),
+  },
+  emptyInfoText: {
+    fontSize: fs(11),
     ...TYPOGRAPHY.regular,
-    color: '#4A5568',
+    color: '#64748B',
+    flex: 1,
+  },
+  clinicCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: fs(12),
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: ws(12),
+    marginTop: hs(10),
+    gap: ws(10),
+  },
+  clinicPinCircle: {
+    width: ws(36),
+    height: ws(36),
+    borderRadius: 999,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clinicMeta: {
+    flex: 1,
   },
   clinicTitle: {
-    fontSize: fs(14),
+    fontSize: fs(13),
     ...TYPOGRAPHY.bold,
     color: '#1A202C',
   },
   clinicAddress: {
     marginTop: hs(2),
-    fontSize: fs(12),
+    fontSize: fs(11),
     ...TYPOGRAPHY.regular,
     color: '#718096',
-    marginLeft: ws(24),
+    lineHeight: fs(15),
   },
   sectionTitle: {
-    marginTop: hs(16),
+    marginTop: hs(14),
     marginBottom: hs(8),
+    fontSize: fs(13.5),
+    ...TYPOGRAPHY.bold,
+    color: '#1E293B',
+  },
+  feeCardsRow: {
+    flexDirection: 'row',
+    gap: ws(6),
+  },
+  feeCard: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: fs(12),
+    paddingVertical: hs(10),
+    paddingHorizontal: ws(4),
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    position: 'relative',
+  },
+  feeCardSelected: {
+    borderColor: '#2563EB',
+    backgroundColor: '#F8FAFC',
+  },
+  feeCardEmergency: {
+    borderColor: '#FEE2E2',
+    backgroundColor: '#FFFDFD',
+  },
+  feeCardEmergencySelected: {
+    borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
+  },
+  selectedBadgeCorner: {
+    position: 'absolute',
+    top: hs(4),
+    right: ws(4),
+    width: ws(16),
+    height: ws(16),
+    borderRadius: 999,
+    backgroundColor: '#2563EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  unselectedRadioCorner: {
+    position: 'absolute',
+    top: hs(5),
+    right: ws(5),
+    width: ws(14),
+    height: ws(14),
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+  },
+  feeIconCircle: {
+    width: ws(36),
+    height: ws(36),
+    borderRadius: 999,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: hs(4),
+  },
+  feeLabel: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.bold,
+    color: '#1E293B',
+    textAlign: 'center',
+  },
+  feeValue: {
     fontSize: fs(14),
     ...TYPOGRAPHY.bold,
-    color: '#1A202C',
-  },
-  typeCardsRow: {
-    flexDirection: 'row',
-    gap: ws(8),
-  },
-  typeCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: fs(10),
-    paddingVertical: hs(12),
-    paddingHorizontal: ws(6),
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    elevation: 1,
-  },
-  typeCardActive: {
-    backgroundColor: Colors.primaryColor,
-    borderColor: Colors.primaryColor,
-  },
-  typeIconContainer: {
-    width: ws(44),
-    height: ws(44),
-    borderRadius: 999,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: hs(6),
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: hs(1) },
-    shadowOpacity: 0.08,
-    shadowRadius: fs(2),
-    elevation: 1,
-  },
-  typeCardAssetImg: {
-    width: ws(26),
-    height: hs(26),
-  },
-  typeCardTitle: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.medium,
-    color: '#2D3748',
-    textAlign: 'center',
-  },
-  typeCardFee: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryColor,
+    color: Colors.primaryFontColor,
     marginTop: hs(2),
-    textAlign: 'center',
   },
-  typeCardTextActive: {
-    color: '#FFFFFF',
-  },
-  dateTimeContainer: {
-    marginTop: hs(12),
+  feeModeSubtext: {
+    fontSize: fs(9),
+    ...TYPOGRAPHY.regular,
+    color: '#64748B',
+    marginTop: hs(1),
   },
   dateTimeRow: {
     flexDirection: 'row',
     gap: ws(10),
+    marginTop: hs(4),
   },
-  dateTimeColumn: {
+  dateTimeSelectorCard: {
     flex: 1,
-  },
-  inputSubLabel: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.medium,
-    color: '#4A5568',
-    marginBottom: hs(4),
-  },
-  dateTimeTile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
-    borderRadius: fs(8),
+    borderRadius: fs(10),
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingHorizontal: ws(12),
-    height: hs(48),
+    padding: ws(10),
   },
-  dateTimeValueText: {
-    fontSize: fs(13),
+  selectorLabel: {
+    fontSize: fs(11),
     ...TYPOGRAPHY.medium,
-    color: '#1A202C',
+    color: '#64748B',
+    marginBottom: hs(4),
+  },
+  selectorValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ws(6),
+  },
+  selectorValueText: {
+    fontSize: fs(12.5),
+    ...TYPOGRAPHY.bold,
+    color: '#1E293B',
     flex: 1,
   },
-  tileIconBox: {
-    width: ws(28),
-    height: hs(28),
-    borderRadius: fs(6),
-    backgroundColor: '#1A202C',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: ws(6),
-  },
-  patientCard: {
+  patientSelectorCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: fs(10),
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    padding: ws(12),
-  },
-  patientAvatarBox: {
-    width: ws(40),
-    height: ws(40),
-    borderRadius: 999,
-    backgroundColor: '#EBF8FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: ws(12),
-  },
-  patientInfoBox: {
-    flex: 1,
-  },
-  patientNameText: {
-    fontSize: fs(14),
-    ...TYPOGRAPHY.bold,
-    color: '#1A202C',
-  },
-  patientPhoneText: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.regular,
-    color: '#718096',
-    marginTop: hs(2),
-  },
-  couponContainer: {
-    marginTop: hs(6),
-    width: '100%',
-  },
-  couponRow: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
+    padding: ws(10),
     gap: ws(10),
   },
-  couponTextInput: {
-    flex: 1,
-    minHeight: hs(48),
-    height: hs(48),
-    backgroundColor: '#FFFFFF',
-    borderRadius: fs(8),
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: ws(14),
-    paddingVertical: Platform.OS === 'ios' ? hs(10) : hs(6),
-    fontSize: fs(14),
-    ...TYPOGRAPHY.medium,
-    color: '#1E293B',
-    textAlignVertical: 'center',
-  },
-  couponInputError: {
-    borderColor: '#EF4444',
-  },
-  couponActionBtn: {
-    height: hs(48),
-    paddingHorizontal: ws(20),
-    borderRadius: fs(8),
+  patientIconCircle: {
+    width: ws(32),
+    height: ws(32),
+    borderRadius: 999,
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: ws(84),
-    flexShrink: 0,
+  },
+  patientSelectorText: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
+    color: '#1E293B',
+    flex: 1,
+  },
+  couponContainer: {
+    marginTop: hs(2),
+    width: '100%',
+  },
+  couponInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: fs(10),
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    height: hs(46),
+    overflow: 'hidden',
+  },
+  couponInput: {
+    flex: 1,
+    height: hs(46),
+    paddingHorizontal: ws(10),
+    fontSize: fs(13),
+    ...TYPOGRAPHY.medium,
+    color: '#1E293B',
   },
   couponApplyBtn: {
-    backgroundColor: Colors.primaryColor,
+    height: '100%',
+    paddingHorizontal: ws(20),
+    backgroundColor: '#2563EB',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   couponRemoveBtn: {
     backgroundColor: '#EF4444',
   },
-  couponActionBtnText: {
-    fontSize: fs(14),
+  couponApplyBtnText: {
+    fontSize: fs(13),
     ...TYPOGRAPHY.bold,
     color: '#FFFFFF',
   },
   couponErrorText: {
-    fontSize: fs(12),
+    fontSize: fs(11),
     ...TYPOGRAPHY.regular,
     color: '#EF4444',
-    marginTop: hs(6),
+    marginTop: hs(4),
   },
   couponSuccessBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(6),
-    marginTop: hs(6),
-    paddingHorizontal: ws(2),
+    gap: ws(4),
+    marginTop: hs(4),
   },
   couponSuccessText: {
-    fontSize: fs(12),
+    fontSize: fs(11),
     ...TYPOGRAPHY.medium,
     color: '#16A34A',
   },
-  reviewSection: { marginTop: hs(20), marginBottom: hs(8) },
-  patientReviewCard: { width: ws(280), backgroundColor: Colors.white, borderRadius: fs(12), borderWidth: 1, borderColor: Colors.border, padding: ws(12), marginRight: ws(12) },
-  reviewUserHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: hs(8) },
-  reviewerAvatarCircle: { width: ws(36), height: ws(36), aspectRatio: 1, borderRadius: 999, overflow: 'hidden', backgroundColor: Colors.primaryColor, justifyContent: 'center', alignItems: 'center', marginRight: ws(10) },
+  priceBreakdownCard: {
+    marginTop: hs(14),
+    padding: ws(14),
+    borderRadius: fs(12),
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  priceBreakdownTitle: {
+    fontSize: fs(13.5),
+    ...TYPOGRAPHY.bold,
+    color: '#1E293B',
+    marginBottom: hs(10),
+  },
+  priceBreakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: hs(3),
+  },
+  priceBreakdownLabel: {
+    fontSize: fs(12.5),
+    ...TYPOGRAPHY.regular,
+    color: '#64748B',
+  },
+  priceBreakdownTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ws(4),
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: ws(8),
+    paddingVertical: hs(3),
+    borderRadius: fs(6),
+  },
+  priceBreakdownTypeValue: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
+    color: Colors.primaryColor,
+  },
+  priceBreakdownTypeSub: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
+    color: '#3B82F6',
+  },
+  priceBreakdownValue: {
+    fontSize: fs(12.5),
+    ...TYPOGRAPHY.bold,
+    color: '#1E293B',
+  },
+  priceBreakdownDiscountLabel: {
+    fontSize: fs(12.5),
+    ...TYPOGRAPHY.medium,
+    color: '#16A34A',
+  },
+  priceBreakdownDiscountValue: {
+    fontSize: fs(12.5),
+    ...TYPOGRAPHY.bold,
+    color: '#16A34A',
+  },
+  priceBreakdownDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: hs(8),
+  },
+  priceBreakdownTotalLabel: {
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
+    color: '#1E293B',
+  },
+  priceBreakdownTotalValue: {
+    fontSize: fs(16),
+    ...TYPOGRAPHY.bold,
+    color: '#2563EB',
+  },
+  reviewSection: { marginTop: 0, marginBottom: 0 },
+  patientReviewCard: {
+    backgroundColor: Colors.white,
+    borderRadius: fs(12),
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: ws(12),
+    marginBottom: hs(8),
+  },
+  reviewUserHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: hs(6) },
+  reviewerAvatarCircle: {
+    width: ws(34),
+    height: ws(34),
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: ws(10),
+    marginTop: hs(2),
+  },
+  reviewerInitial: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
+    color: '#2563EB',
+  },
   reviewerMeta: { flex: 1 },
-  reviewerName: { fontSize: fs(Typography.fontSize.xs), ...TYPOGRAPHY.bold, color: Colors.primaryFontColor },
-  reviewCommentText: { fontSize: fs(Typography.fontSize.xs), ...TYPOGRAPHY.regular, color: Colors.secondaryFontColor, fontStyle: 'italic', lineHeight: hs(18) },
-  suggestedSection: { marginTop: hs(24), marginBottom: hs(8) },
-  suggestedTitle: { fontSize: fs(Typography.fontSize.md), ...TYPOGRAPHY.bold, color: Colors.primaryFontColor, marginBottom: hs(12) },
+  reviewerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: ws(8),
+  },
+  reviewerName: { fontSize: fs(12), ...TYPOGRAPHY.bold, color: '#1E293B', flexShrink: 1 },
+  reviewDateText: {
+    fontSize: fs(10.5),
+    ...TYPOGRAPHY.regular,
+    color: '#64748B',
+  },
+  reviewServiceText: {
+    fontSize: fs(10),
+    ...TYPOGRAPHY.regular,
+    color: '#64748B',
+    marginTop: hs(1),
+  },
+  reviewRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ws(4),
+    marginTop: hs(3),
+  },
+  reviewRatingPts: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.bold,
+    color: '#D97706',
+  },
+  reviewCommentText: {
+    fontSize: fs(11.5),
+    ...TYPOGRAPHY.regular,
+    color: '#475569',
+    lineHeight: fs(17),
+    marginTop: hs(4),
+  },
+  emptyReviewsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: fs(12),
+    padding: ws(14),
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 0,
+    gap: ws(10),
+  },
+  emptyReviewsIconCircle: {
+    width: ws(36),
+    height: ws(36),
+    borderRadius: 999,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyReviewsContent: {
+    flex: 1,
+  },
+  emptyReviewsTitle: {
+    fontSize: fs(12.5),
+    ...TYPOGRAPHY.bold,
+    color: '#1E293B',
+  },
+  emptyReviewsSub: {
+    fontSize: fs(10.5),
+    ...TYPOGRAPHY.regular,
+    color: '#64748B',
+    marginTop: hs(2),
+  },
+  suggestedSection: { marginTop: 0, marginBottom: hs(8) },
+  suggestedTitle: {
+    fontSize: fs(13.5),
+    ...TYPOGRAPHY.bold,
+    color: '#1E293B',
+    marginBottom: hs(8),
+  },
   suggestedGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  suggestedGridCard: { width: '48%', backgroundColor: Colors.white, borderRadius: fs(12), borderWidth: 1, borderColor: Colors.border, padding: ws(12), alignItems: 'center', marginBottom: hs(12) },
-  suggestedAvatarWrapper: { width: ws(64), height: ws(64), aspectRatio: 1, borderRadius: 999, backgroundColor: '#EBF5FF', justifyContent: 'center', alignItems: 'center', marginBottom: hs(8), overflow: 'hidden' },
-  suggestedAvatarImg: { width: ws(64), height: ws(64), aspectRatio: 1, borderRadius: 999, overflow: 'hidden' },
-  suggestedCardName: { fontSize: fs(Typography.fontSize.xs), ...TYPOGRAPHY.bold, color: Colors.primaryFontColor, textAlign: 'center' },
-  suggestedCardDept: { marginTop: hs(3), fontSize: fs(10), color: Colors.secondaryFontColor, textAlign: 'center', lineHeight: hs(14) },
-  suggestedRatingRow: { flexDirection: 'row', alignItems: 'center', marginTop: hs(6) },
-  suggestedRatingText: { marginLeft: ws(4), fontSize: fs(10), color: Colors.secondaryFontColor },
-  viewMoreToggleBtn: { alignSelf: 'flex-end', paddingVertical: hs(6), paddingHorizontal: ws(4) },
-  viewMoreToggleText: { fontSize: fs(Typography.fontSize.xs), color: Colors.secondaryFontColor, ...TYPOGRAPHY.medium },
+  suggestedGridCard: {
+    width: '48%',
+    backgroundColor: Colors.white,
+    borderRadius: fs(12),
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: ws(10),
+    alignItems: 'center',
+    marginBottom: hs(10),
+  },
+  suggestedAvatarWrapper: {
+    width: ws(56),
+    height: ws(56),
+    borderRadius: 999,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: hs(6),
+    overflow: 'hidden',
+  },
+  suggestedAvatarImg: { width: ws(56), height: ws(56), borderRadius: 999, overflow: 'hidden' },
+  suggestedCardName: { fontSize: fs(12), ...TYPOGRAPHY.bold, color: '#1E293B', textAlign: 'center' },
+  suggestedCardDept: { marginTop: hs(2), fontSize: fs(10), color: '#64748B', textAlign: 'center', lineHeight: hs(14) },
+  suggestedRatingRow: { flexDirection: 'row', alignItems: 'center', marginTop: hs(4), gap: ws(4) },
+  suggestedRatingText: { fontSize: fs(9.5), color: '#64748B' },
+  viewMoreToggleBtn: {
+    alignSelf: 'flex-end',
+    paddingVertical: hs(4),
+    paddingHorizontal: ws(4),
+    marginTop: hs(2),
+    marginBottom: 0,
+  },
+  viewMoreToggleText: { fontSize: fs(11.5), color: '#2563EB', ...TYPOGRAPHY.medium },
   bottomSpacer: { height: hs(20) },
-  reviewBar: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: ws(16), backgroundColor: Colors.white, borderTopWidth: 1, borderTopColor: Colors.border },
+  reviewBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: ws(16),
+    paddingTop: hs(8),
+    backgroundColor: Colors.white,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+  },
+  incompleteWarningRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: ws(4),
+    marginBottom: hs(6),
+  },
+  incompleteWarningText: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
+    color: '#EF4444',
+  },
+  reviewPayBtn: {
+    height: hs(44),
+    borderRadius: fs(10),
+    backgroundColor: '#2563EB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: ws(6),
+  },
+  reviewPayBtnDisabled: {
+    backgroundColor: '#94A3B8',
+    opacity: 0.7,
+  },
+  reviewPayBtnText: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
+    color: '#FFFFFF',
+  },
 });
