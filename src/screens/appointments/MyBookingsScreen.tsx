@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useNavigation } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -10,13 +10,14 @@ import {
   EmptyState,
   ErrorState,
   LoadingIndicator,
+  SearchBox,
 } from '../../components';
 import { Colors } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
 import { useGetAppointmentsQuery } from '../../redux/apis/appointmentApi';
 import type { AppointmentModel } from '../../types';
-import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
+import { fs, hs, loadRescheduledAppointmentIds, TYPOGRAPHY, ws } from '../../utils';
 
 type RootNavigation = NativeStackNavigationProp<RootStackParamList>;
 type TabKey = 'upcoming' | 'closed';
@@ -26,10 +27,27 @@ const PAGE_SIZE = 10;
 export const MyBookingsScreen = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<RootNavigation>();
+  const route = useRoute<RouteProp<RootStackParamList, 'MyBookings'>>();
   const { isAuthenticated, user } = useAuth();
-  const [tab, setTab] = useState<TabKey>('upcoming');
-  const [subFilter, setSubFilter] = useState<string>('all');
+  const [tab, setTab] = useState<TabKey>(route.params?.initialTab || 'upcoming');
+  const [subFilter, setSubFilter] = useState<string>(route.params?.initialSubFilter || 'all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [rescheduledIds, setRescheduledIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (route.params?.initialTab) {
+      setTab(route.params.initialTab);
+    }
+    if (route.params?.initialSubFilter) {
+      setSubFilter(route.params.initialSubFilter);
+    }
+  }, [route.params]);
+
+  useEffect(() => {
+    loadRescheduledAppointmentIds().then((ids) => {
+      setRescheduledIds(new Set(ids));
+    });
+  }, []);
 
   const [displayedLimit, setDisplayedLimit] = useState(PAGE_SIZE);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -55,8 +73,20 @@ export const MyBookingsScreen = () => {
     } else if (Array.isArray((rawData as any)?.response)) {
       list = (rawData as any).response;
     }
-    return list;
-  }, [rawData]);
+
+    return list.map((item) => {
+      const idStr = String(item.id ?? '').trim();
+      const isLocalRescheduled = rescheduledIds.has(idStr);
+      const serverStatus = (item.status || '').trim().toLowerCase();
+      if (isLocalRescheduled && serverStatus !== 'rescheduled') {
+        return {
+          ...item,
+          status: 'Rescheduled',
+        };
+      }
+      return item;
+    });
+  }, [rawData, rescheduledIds]);
 
   const upcomingAppointments = useMemo(() => {
     return allAppointments.filter((a) => {
@@ -233,26 +263,12 @@ export const MyBookingsScreen = () => {
       </View>
 
       {/* Search Input Bar */}
-      <View style={styles.searchBarWrapper}>
-        <MaterialIcons name="search" size={20} color={Colors.secondaryFontColor} style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search patient, doctor, or department"
-          placeholderTextColor={Colors.secondaryFontColor}
-          value={searchQuery}
-          onChangeText={handleSearchChange}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity
-            onPress={() => handleSearchChange('')}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <MaterialIcons name="close" size={18} color={Colors.secondaryFontColor} />
-          </TouchableOpacity>
-        )}
-      </View>
+      <SearchBox
+        value={searchQuery}
+        onChangeText={handleSearchChange}
+        placeholder="Search patient, doctor, or department"
+        containerStyle={styles.searchBarWrapper}
+      />
 
       {/* Sub-status Filter Chips */}
       <View style={styles.subFilterContainer}>
@@ -302,7 +318,11 @@ export const MyBookingsScreen = () => {
           refreshing={isFetching}
           onRefresh={async () => {
             setDisplayedLimit(PAGE_SIZE);
-            await refetch();
+            try {
+              const ids = await loadRescheduledAppointmentIds();
+              setRescheduledIds(new Set(ids));
+              await refetch();
+            } catch {}
           }}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.4}
@@ -344,13 +364,25 @@ export const MyBookingsScreen = () => {
               item.doct_id ||
               (item as any)?.doctor_id ||
               (item as any)?.doctorId;
+            const isUpcoming = ['pending', 'confirmed', 'rescheduled', 'scheduled', 'booked', 'active', 'approved', 'paid', 'in-process'].includes(
+              (item.status || '').trim().toLowerCase()
+            );
+
             return (
               <AppointmentCard
                 appointment={item}
                 onPress={() => navigation.navigate('AppointmentDetails', { appId: String(item.id) })}
                 onRebook={() => {
                   if (docId) {
-                    navigation.navigate('DoctorDetails', { doctId: String(docId) });
+                    const mode = item.type === 'Video Consultant' ? 'video' : item.type === 'Emergency' ? 'emergency' : 'clinic';
+                    navigation.navigate('BookAppointment', {
+                      doctId: String(docId),
+                      clinicId: item.clinic_id,
+                      initialMode: mode,
+                      initialMemberId: item.patient_id,
+                      isReschedule: isUpcoming,
+                      rescheduledFromAppId: isUpcoming ? item.id : undefined,
+                    });
                   } else {
                     navigation.navigate('Search');
                   }
@@ -374,7 +406,7 @@ const styles = StyleSheet.create({
     paddingVertical: hs(12),
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: Colors.border,
   },
   segmentedControl: {
     flexDirection: 'row',
@@ -414,7 +446,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: fs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     marginHorizontal: ws(16),
     marginTop: hs(12),
     marginBottom: hs(4),
@@ -497,7 +529,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(16),
     backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   subFilterChipActive: {
     backgroundColor: Colors.primaryColor,

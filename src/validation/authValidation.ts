@@ -3,6 +3,27 @@ export interface ValidationResult {
   error?: string;
 }
 
+export const validateName = (name: string, required = true, fieldName = 'Name'): ValidationResult => {
+  const trimmed = (name || '').trim();
+  if (!trimmed) {
+    if (!required) return { isValid: true };
+    return { isValid: false, error: `${fieldName} is required` };
+  }
+  if (/\d/.test(trimmed)) {
+    return { isValid: false, error: 'Numbers are not allowed in name' };
+  }
+  if (/-/.test(trimmed)) {
+    return { isValid: false, error: 'Hyphens are not allowed in name' };
+  }
+  if (!/^[A-Za-z\s]+$/.test(trimmed)) {
+    return { isValid: false, error: 'Special characters, hyphens, and numbers are not allowed' };
+  }
+  if (trimmed.length < 2) {
+    return { isValid: false, error: `${fieldName} must be at least 2 characters` };
+  }
+  return { isValid: true };
+};
+
 export const validatePhoneNumber = (phone: string, required = true): ValidationResult => {
   if (!phone || phone.trim().length === 0) {
     if (!required) return { isValid: true };
@@ -25,6 +46,37 @@ export const validateEmail = (email: string, required = true): ValidationResult 
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!re.test(email.trim())) {
     return { isValid: false, error: 'Please enter a valid email address' };
+  }
+  return { isValid: true };
+};
+
+export const validatePhoneOrEmail = (input: string, required = true): ValidationResult => {
+  const trimmed = (input || '').trim();
+  if (!trimmed) {
+    if (!required) return { isValid: true };
+    return { isValid: false, error: 'Phone number or email is required' };
+  }
+
+  if (trimmed.includes('@') || /[A-Za-z]/.test(trimmed)) {
+    const emailResult = validateEmail(trimmed, true);
+    if (!emailResult.isValid) {
+      return {
+        isValid: false,
+        error: trimmed.includes('@')
+          ? 'Please enter a valid email address'
+          : 'Please enter a valid 10-digit phone number or email address',
+      };
+    }
+    return { isValid: true };
+  }
+
+  if (!/^[\d\s\-()+]+$/.test(trimmed)) {
+    return { isValid: false, error: 'Please enter a valid 10-digit phone number or email address' };
+  }
+
+  const cleanPhone = trimmed.replace(/\D/g, '');
+  if (cleanPhone.length !== 10) {
+    return { isValid: false, error: 'Please enter a valid 10-digit phone number or email address' };
   }
   return { isValid: true };
 };

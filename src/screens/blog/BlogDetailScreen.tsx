@@ -49,6 +49,7 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
   const [commentText, setCommentText] = useState('');
   const [localComments, setLocalComments] = useState<CommentItem[]>([]);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isDescExpanded, setIsDescExpanded] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -276,7 +277,22 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
 
           {/* Main Article Content */}
           <View style={styles.bodyCard}>
-            <Text style={styles.bodyText}>{cleanDescription}</Text>
+            <Text style={styles.bodyText}>
+              {isDescExpanded || cleanDescription.length <= 320
+                ? cleanDescription
+                : `${cleanDescription.slice(0, 320)}...`}
+            </Text>
+            {cleanDescription.length > 320 && (
+              <TouchableOpacity
+                onPress={() => setIsDescExpanded((prev) => !prev)}
+                style={styles.readMoreBtn}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.readMoreText}>
+                  {isDescExpanded ? 'Read Less' : 'Read More >'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Care Helpline Callout Box */}
@@ -332,7 +348,7 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
             <View style={styles.inputRow}>
               <View style={styles.inputFieldContainer}>
                 <Text style={styles.fieldLabel}>
-                  <Text style={{ color: '#EF4444' }}>* </Text>Name
+                  Name <Text style={{ color: '#EF4444' }}>*</Text>
                 </Text>
                 <TextInput
                   style={styles.formInput}
@@ -345,7 +361,7 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
 
               <View style={styles.inputFieldContainer}>
                 <Text style={styles.fieldLabel}>
-                  <Text style={{ color: '#EF4444' }}>* </Text>Email
+                  Email <Text style={{ color: '#EF4444' }}>*</Text>
                 </Text>
                 <TextInput
                   style={styles.formInput}
@@ -361,7 +377,7 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
 
             <View style={styles.inputFieldContainer}>
               <Text style={styles.fieldLabel}>
-                <Text style={{ color: '#EF4444' }}>* </Text>Comment
+                Comment <Text style={{ color: '#EF4444' }}>*</Text>
               </Text>
               <TextInput
                 style={[styles.formInput, styles.commentTextArea]}
@@ -441,7 +457,7 @@ const styles = StyleSheet.create({
   },
   inlineCategoryPill: {
     alignSelf: 'flex-start',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     paddingHorizontal: ws(12),
     paddingVertical: hs(4),
     borderRadius: fs(8),
@@ -465,7 +481,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: hs(14),
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: Colors.border,
     marginBottom: hs(14),
   },
   authorGroup: {
@@ -476,7 +492,7 @@ const styles = StyleSheet.create({
     width: ws(38),
     height: hs(38),
     borderRadius: fs(19),
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: ws(10),
@@ -495,7 +511,7 @@ const styles = StyleSheet.create({
   shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     paddingHorizontal: ws(12),
     paddingVertical: hs(6),
     borderRadius: fs(10),
@@ -518,7 +534,7 @@ const styles = StyleSheet.create({
     paddingVertical: hs(4),
     borderRadius: fs(8),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   tagText: {
     fontSize: fs(11),
@@ -531,7 +547,7 @@ const styles = StyleSheet.create({
     padding: ws(18),
     marginBottom: hs(16),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -545,7 +561,7 @@ const styles = StyleSheet.create({
     lineHeight: fs(24),
   },
   careCallout: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     borderRadius: fs(16),
     padding: ws(16),
     borderLeftWidth: ws(4),
@@ -585,7 +601,7 @@ const styles = StyleSheet.create({
     padding: ws(12),
     marginBottom: hs(10),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   commentHeader: {
     flexDirection: 'row',
@@ -637,7 +653,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(16),
     padding: ws(16),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     marginBottom: hs(24),
   },
   leaveCommentTitle: {
@@ -668,7 +684,7 @@ const styles = StyleSheet.create({
   formInput: {
     backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     borderRadius: fs(10),
     paddingHorizontal: ws(14),
     paddingVertical: Platform.OS === 'ios' ? hs(10) : hs(8),
@@ -705,5 +721,15 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: fs(14),
     ...TYPOGRAPHY.bold,
+  },
+  readMoreBtn: {
+    alignSelf: 'flex-start',
+    marginTop: hs(8),
+    paddingVertical: hs(4),
+  },
+  readMoreText: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
+    color: Colors.primaryColor,
   },
 });

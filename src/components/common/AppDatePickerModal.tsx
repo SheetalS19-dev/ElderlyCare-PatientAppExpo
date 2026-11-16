@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: hs(10),
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: Colors.border,
   },
   headerTitle: {
     flex: 1,
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dayCircleSelected: {
-    backgroundColor: '#2563EB',
+    backgroundColor: Colors.primaryColor,
   },
   dayCircleDisabled: {
     opacity: 0.25,
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: hs(8),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   yearChipActive: {
     backgroundColor: Colors.primaryColor,
@@ -411,12 +411,14 @@ const styles = StyleSheet.create({
     marginTop: hs(14),
     paddingTop: hs(10),
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: Colors.border,
   },
   cancelBtn: {
     flex: 1,
-    height: hs(44),
-    borderRadius: ws(10),
+    flexBasis: 0,
+    minWidth: 0,
+    height: hs(46),
+    borderRadius: fs(12),
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
@@ -428,9 +430,11 @@ const styles = StyleSheet.create({
   },
   confirmBtn: {
     flex: 1,
-    height: hs(44),
+    flexBasis: 0,
+    minWidth: 0,
+    height: hs(46),
     backgroundColor: Colors.primaryColor,
-    borderRadius: ws(10),
+    borderRadius: fs(12),
     justifyContent: 'center',
     alignItems: 'center',
   },

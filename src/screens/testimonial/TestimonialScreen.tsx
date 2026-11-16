@@ -30,6 +30,16 @@ export const TestimonialScreen = ({ navigation }: Props) => {
     return [];
   }, [data]);
 
+  const avgRating = useMemo(() => {
+    if (testimonials.length === 0) return 0;
+    const validRatings = testimonials
+      .map((t) => Number((t as any).ratting ?? (t as any).rating ?? 0))
+      .filter((r) => !isNaN(r) && r > 0);
+    if (validRatings.length === 0) return 0;
+    const sum = validRatings.reduce((acc, r) => acc + r, 0);
+    return sum / validRatings.length;
+  }, [testimonials]);
+
   return (
     <View style={styles.container}>
       <AppHeader title="Patient Reviews" onBackPress={() => navigation.goBack()} />
@@ -48,12 +58,12 @@ export const TestimonialScreen = ({ navigation }: Props) => {
           ]}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
-            testimonials.length > 0 ? (
+            testimonials.length > 0 && avgRating > 0 ? (
               <AppCard style={styles.heroCard}>
                 <View style={styles.heroRow}>
                   <View style={styles.heroRatingBox}>
-                    <Text style={styles.heroRatingScore}>4.9</Text>
-                    <StarRating rating={5} starSize={fs(14)} />
+                    <Text style={styles.heroRatingScore}>{avgRating.toFixed(1)}</Text>
+                    <StarRating rating={avgRating} starSize={fs(14)} />
                     <Text style={styles.heroRatingSub}>Patient Satisfaction</Text>
                   </View>
 
@@ -98,7 +108,9 @@ export const TestimonialScreen = ({ navigation }: Props) => {
                   {!!item.sub_title && <Text style={styles.subtitle}>{item.sub_title}</Text>}
 
                   <View style={styles.ratingRow}>
-                    <StarRating rating={Number(item.ratting ?? 5)} starSize={fs(13)} />
+                    {Number(item.ratting) > 0 && (
+                      <StarRating rating={Number(item.ratting)} starSize={fs(13)} />
+                    )}
                     {!!item.created_at && <Text style={styles.date}>{item.created_at}</Text>}
                   </View>
                 </View>
@@ -125,7 +137,7 @@ const styles = StyleSheet.create({
     marginBottom: hs(16),
     backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   heroRow: {
     flexDirection: 'row',
@@ -160,7 +172,7 @@ const styles = StyleSheet.create({
     width: ws(32),
     height: hs(32),
     borderRadius: fs(16),
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: hs(4),
@@ -183,7 +195,7 @@ const styles = StyleSheet.create({
     padding: ws(16),
     marginBottom: hs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   headerRow: {
     flexDirection: 'row',
@@ -204,11 +216,11 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: Colors.aqua,
   },
   userMeta: {
     flex: 1,

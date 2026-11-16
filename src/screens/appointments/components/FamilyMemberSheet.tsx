@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppDatePickerModal } from '../../../components/common/AppDatePickerModal';
+import { AppDatePickerModal } from '../../../components';
 import { Colors } from '../../../constants';
 import { useAuth } from '../../../context/AuthContext';
 import {
@@ -23,7 +23,7 @@ import {
 } from '../../../redux/apis/bookingApi';
 import type { FamilyMemberModel } from '../../../types';
 import { DateTimeUtils, fs, hs, showToast, TYPOGRAPHY, ws } from '../../../utils';
-import { validateName } from '../../../validation/profileValidation';
+import { validateName, validatePhone } from '../../../validation/authValidation';
 
 export interface FamilyMemberSheetProps {
   visible: boolean;
@@ -138,12 +138,19 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
   };
 
   const handleAdd = async () => {
-    if (!validateName(firstName)) {
-      setError('Enter a valid first name');
+    const fnRes = validateName(firstName, true, 'First name');
+    if (!fnRes.isValid) {
+      setError(fnRes.error || 'Enter a valid first name');
       return;
     }
-    if (!phone || phone.trim().length < 6) {
-      setError('Enter a valid phone number');
+    const lnRes = validateName(lastName, false, 'Last name');
+    if (!lnRes.isValid) {
+      setError(lnRes.error || 'Enter a valid last name');
+      return;
+    }
+    const phoneRes = validatePhone(phone, true);
+    if (!phoneRes.isValid) {
+      setError(phoneRes.error || 'Enter a valid 10-digit phone number');
       return;
     }
     if (!uid) {
@@ -250,10 +257,10 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
               showsVerticalScrollIndicator={false}
               bounces={false}
             >
-              <Text style={[styles.inputLabel, styles.firstInputLabel]}>First Name*</Text>
+              <Text style={[styles.inputLabel, styles.firstInputLabel]}>First Name *</Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="First Name"
+                placeholder="Enter first name"
                 placeholderTextColor="#94A3B8"
                 value={firstName}
                 onChangeText={setFirstName}
@@ -263,7 +270,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
               <Text style={styles.inputLabel}>Last Name</Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="Last Name"
+                placeholder="Enter last name"
                 placeholderTextColor="#94A3B8"
                 value={lastName}
                 onChangeText={setLastName}
@@ -272,9 +279,6 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
 
               <Text style={styles.inputLabel}>Mobile Number</Text>
               <View style={styles.phoneInputRow}>
-                <View style={styles.countryCodeBtn}>
-                  <Text style={styles.dialCodeText}>+91</Text>
-                </View>
                 <TextInput
                   style={styles.phoneInput}
                   placeholder="Enter 10-digit mobile number"
@@ -294,7 +298,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                 activeOpacity={0.7}
               >
                 <Text style={[styles.dateSelectorText, !dob ? styles.dateSelectorPlaceholder : null]}>
-                  {dob ? DateTimeUtils.getDataFormat(dob) || dob : 'Select Date of Birth'}
+                  {dob ? DateTimeUtils.formatDob(dob) : DateTimeUtils.DOB_PLACEHOLDER}
                 </Text>
                 <MaterialIcons name="calendar-today" size={18} color={Colors.primaryColor} />
               </TouchableOpacity>
@@ -393,13 +397,13 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                             {!!item.gender && (
                               <View
                                 style={{
-                                  backgroundColor: '#EFF6FF',
+                                  backgroundColor: Colors.aquaSoft,
                                   paddingHorizontal: ws(6),
                                   paddingVertical: hs(1),
                                   borderRadius: fs(4),
                                 }}
                               >
-                                <Text style={{ fontSize: fs(10), ...TYPOGRAPHY.semiBold, color: '#2563EB' }}>
+                                <Text style={{ fontSize: fs(10), ...TYPOGRAPHY.semiBold, color: Colors.primaryColor }}>
                                   {item.gender}
                                 </Text>
                               </View>
@@ -492,7 +496,7 @@ const styles = StyleSheet.create({
     paddingTop: hs(16),
     paddingBottom: hs(12),
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: Colors.border,
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: fs(20),
     borderTopRightRadius: fs(20),
@@ -511,7 +515,7 @@ const styles = StyleSheet.create({
     width: ws(36),
     height: hs(36),
     borderRadius: fs(18),
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -557,17 +561,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   memberCardActive: {
     borderColor: Colors.primaryColor,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
   },
   memberAvatar: {
     width: ws(40),
     height: hs(40),
     borderRadius: fs(20),
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: ws(12),
@@ -589,7 +593,7 @@ const styles = StyleSheet.create({
   addPatientBtn: {
     backgroundColor: Colors.primaryColor,
     borderRadius: fs(8),
-    height: hs(46),
+    height: hs(45),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -621,9 +625,9 @@ const styles = StyleSheet.create({
   textInput: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     borderRadius: fs(8),
-    height: hs(46),
+    height: hs(45),
     paddingHorizontal: ws(12),
     fontSize: fs(14),
     ...TYPOGRAPHY.regular,
@@ -632,18 +636,18 @@ const styles = StyleSheet.create({
   phoneInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: hs(46),
+    height: hs(45),
     backgroundColor: '#FFFFFF',
     borderRadius: fs(8),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   countryCodeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: ws(10),
     borderRightWidth: 1,
-    borderRightColor: '#E2E8F0',
+    borderRightColor: Colors.border,
     height: '100%',
   },
   flagText: {
@@ -665,11 +669,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: hs(46),
+    height: hs(45),
     backgroundColor: '#FFFFFF',
     borderRadius: fs(8),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     paddingHorizontal: ws(12),
   },
   dateSelectorText: {
@@ -689,7 +693,7 @@ const styles = StyleSheet.create({
     height: hs(40),
     borderRadius: fs(8),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -716,13 +720,16 @@ const styles = StyleSheet.create({
   modalActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: ws(12),
     marginTop: hs(20),
   },
   submitBtn: {
     flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
     backgroundColor: Colors.primaryColor,
-    borderRadius: fs(8),
-    height: hs(46),
+    borderRadius: fs(12),
+    height: hs(48),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -735,13 +742,18 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   cancelBtn: {
-    paddingVertical: hs(12),
-    paddingHorizontal: ws(16),
-    marginRight: ws(10),
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    height: hs(48),
+    borderRadius: fs(12),
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cancelBtnText: {
-    fontSize: fs(13),
-    ...TYPOGRAPHY.medium,
-    color: Colors.secondaryFontColor,
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
+    color: Colors.primaryFontColor,
   },
 });

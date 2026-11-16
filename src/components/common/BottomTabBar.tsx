@@ -32,18 +32,10 @@ export const BottomTabBar: React.FC = memo(() => {
   return (
     <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       <View style={styles.bar}>
-        <TabButton
-          icon="calendar-month"
-          label="Bookings"
-          onPress={() => goAuthGated('MyBookings')}
-        />
-        <TabButton
-          icon="search"
-          label="Search"
-          onPress={() => navigation.navigate('Search', {})}
-        />
+        <TabButton icon="home" label="Home" isActive onPress={() => {}} />
+        <TabButton icon="search" label="Search" onPress={() => navigation.navigate('Search', {})} />
 
-        {/* Center Space for floating Home button */}
+        {/* Center space for the floating Bookings button */}
         <View style={styles.fabSpacer} />
 
         <TabButton
@@ -51,21 +43,17 @@ export const BottomTabBar: React.FC = memo(() => {
           label="Wallet"
           onPress={() => goAuthGated('Wallet')}
         />
-        <TabButton
-          icon="menu"
-          label="Menu"
-          onPress={openMenu}
-        />
+        <TabButton icon="menu" label="Menu" onPress={openMenu} />
       </View>
 
-      {/* Floating Center Home Button */}
+      {/* Floating center button: My Bookings */}
       <View pointerEvents="box-none" style={styles.fabContainer}>
         <TouchableOpacity
           style={styles.fab}
           activeOpacity={0.85}
-          disabled
+          onPress={() => goAuthGated('MyBookings')}
         >
-          <MaterialIcons name="home" size={fs(26)} color={Colors.white} />
+          <MaterialIcons name="calendar-month" size={fs(26)} color={Colors.white} />
         </TouchableOpacity>
       </View>
     </View>
@@ -92,7 +80,7 @@ const TabButton = memo(
       <MaterialIcons
         name={icon as any}
         size={fs(22)}
-        color={isActive ? Colors.primaryColor : '#64748B'}
+        color={isActive ? Colors.primaryColor : Colors.inkSoft}
       />
       <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{label}</Text>
     </TouchableOpacity>
@@ -111,9 +99,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderTopLeftRadius: fs(20),
     borderTopRightRadius: fs(20),
-    shadowColor: '#000',
+    shadowColor: Colors.navy,
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 12,
   },
@@ -137,7 +125,7 @@ const styles = StyleSheet.create({
     marginTop: hs(3),
     fontSize: fs(10),
     ...TYPOGRAPHY.medium,
-    color: '#64748B',
+    color: Colors.inkSoft,
   },
   tabLabelActive: {
     color: Colors.primaryColor,
@@ -157,10 +145,10 @@ const styles = StyleSheet.create({
     width: FAB_SIZE,
     height: FAB_SIZE,
     borderRadius: FAB_SIZE / 2,
-    backgroundColor: Colors.primaryColor,
+    backgroundColor: Colors.navy,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: Colors.primaryColor,
+    shadowColor: Colors.navy,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,

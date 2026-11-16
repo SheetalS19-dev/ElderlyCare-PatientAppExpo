@@ -1,4 +1,3 @@
-// API Endpoints converted from Flutter api_content.dart
 
 const WEB_API_URL = 'https://new.elderlycare.life';
 const BASE_API_URL = `${WEB_API_URL}/api/v1`;
@@ -114,13 +113,18 @@ export const ApiEndpoints = {
 
   // Files
   getPatientFileUrl: `${BASE_API_URL}/get_patient_file`,
+  // NOTE: name follows the add_* convention (add_patient, add_family_member, add_vitals).
+  // Confirm the exact upload route with the backend team.
+  addPatientFileUrl: `${BASE_API_URL}/add_patient_file`,
 
   // Clinic
-  getClinicUrl: `${BASE_API_URL}/get_clinic_page`,
+  getClinicUrl: `${BASE_API_URL}/get_clinic`,
   getClinicByIdUrl: `${BASE_API_URL}/get_clinic`,
 
-  // City
+  // City, State & Postal Code
   getCityUrl: `${BASE_API_URL}/get_city`,
+  getStatesUrl: `${BASE_API_URL}/get_states`,
+  getPostalCodeUrl: `${BASE_API_URL}/get_postal_code`,
   getLocationUrl: `${BASE_API_URL}/get_current_city`,
 
   // Banner & Blogs

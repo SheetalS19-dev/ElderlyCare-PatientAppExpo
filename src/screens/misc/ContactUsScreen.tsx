@@ -1,7 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
-  ImageBackground,
   Linking,
   Platform,
   ScrollView,
@@ -11,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppHeader } from '../../components';
+import { AppHeader, GradientFill } from '../../components';
 import { AppConstants, Colors } from '../../constants';
 import type { RootStackParamList } from '../../navigation/types';
 import { fs, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
@@ -64,13 +63,9 @@ export const ContactUsScreen = ({ navigation }: Props) => {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: hs(80) + Math.max(insets.bottom, hs(24)) }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Support Banner with container_bg */}
-        <ImageBackground
-          source={require('../../../assets/icons/container_bg.png')}
-          style={styles.heroCard}
-          imageStyle={styles.heroCardBg}
-          resizeMode="cover"
-        >
+        {/* Hero Support Banner (navy -> teal theme gradient) */}
+        <View style={styles.heroCard}>
+          <GradientFill id="contactHeroGrad" colors={Colors.headerGradient} />
           <View style={styles.heroRow}>
             <View style={styles.heroTextCol}>
               <Text style={styles.heroTitle}>{AppConstants.appName} Support</Text>
@@ -82,7 +77,7 @@ export const ContactUsScreen = ({ navigation }: Props) => {
               <MaterialIcons name="support-agent" size={fs(32)} color={Colors.white} />
             </View>
           </View>
-        </ImageBackground>
+        </View>
 
         {/* Section Title & Subtitle */}
         <View style={styles.sectionHeader}>
@@ -108,18 +103,18 @@ export const ContactUsScreen = ({ navigation }: Props) => {
 
         {/* Support Email */}
         <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleSupportEmail}>
-          <View style={[styles.iconCircle, { backgroundColor: Colors.blue_EEF2FF }]}>
-            <MaterialIcons name="email" size={fs(22)} color={Colors.blue_6366F1} />
+          <View style={[styles.iconCircle, { backgroundColor: Colors.aqua }]}>
+            <MaterialIcons name="email" size={fs(22)} color={Colors.teal} />
           </View>
           <View style={styles.info}>
             <Text style={styles.label}>SUPPORT EMAIL</Text>
             <Text style={styles.value}>{AppConstants.support.supportEmail}</Text>
             <Text style={styles.subLabel}>For general support and queries</Text>
           </View>
-          <View style={[styles.actionPill, { backgroundColor: Colors.blue_EEF2FF }]}>
-            <MaterialIcons name="mail-outline" size={fs(13)} color={Colors.blue_6366F1} style={{ marginRight: ws(3) }} />
-            <Text style={[styles.actionPillText, { color: Colors.blue_6366F1 }]}>Write</Text>
-            <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.blue_6366F1} />
+          <View style={[styles.actionPill, { backgroundColor: Colors.aqua }]}>
+            <MaterialIcons name="mail-outline" size={fs(13)} color={Colors.teal} style={{ marginRight: ws(3) }} />
+            <Text style={[styles.actionPillText, { color: Colors.teal }]}>Write</Text>
+            <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.teal} />
           </View>
         </TouchableOpacity>
 
@@ -170,20 +165,16 @@ const styles = StyleSheet.create({
     padding: ws(16),
   },
   heroCard: {
-    backgroundColor: Colors.primaryColor,
+    backgroundColor: Colors.navy,
     borderRadius: fs(20),
     padding: ws(20),
     marginBottom: hs(20),
     overflow: 'hidden',
-    shadowColor: Colors.primaryColor,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  heroCardBg: {
-    borderRadius: fs(20),
-    opacity: 0.95,
+    shadowColor: Colors.navy,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6,
   },
   heroRow: {
     flexDirection: 'row',
@@ -319,7 +310,7 @@ const styles = StyleSheet.create({
   wellbeingSubtitle: {
     fontSize: fs(11),
     ...TYPOGRAPHY.regular,
-    color: Colors.blue_3B82F6,
+    color: Colors.primaryColor,
     marginTop: hs(2),
   },
   faqCard: {

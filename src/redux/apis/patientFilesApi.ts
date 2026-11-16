@@ -15,10 +15,9 @@ export const patientFilesApi = baseApi.injectEndpoints({
         const queryParams: any = {
           user_id: params.userId,
         };
-        if (params.searchQuery && params.searchQuery.trim()) {
-          queryParams.search = params.searchQuery.trim();
-          queryParams.search_query = params.searchQuery.trim();
-        }
+        // Note: The backend endpoint crashes with 500 ("Illegal mix of collations")
+        // if search / search_query is passed in the URL.
+        // File search is handled seamlessly client-side in PatientFileScreen.
         if (params.familyMemberId && params.familyMemberId !== 'all') {
           queryParams.family_member_id = params.familyMemberId;
           queryParams.patient_id = params.familyMemberId;
@@ -31,7 +30,15 @@ export const patientFilesApi = baseApi.injectEndpoints({
       },
       providesTags: ['PatientFiles'],
     }),
+    uploadPatientFile: builder.mutation({
+      query: (formData: FormData) => ({
+        url: ApiEndpoints.addPatientFileUrl,
+        method: 'POST',
+        body: formData,
+      }),
+      invalidatesTags: ['PatientFiles'],
+    }),
   }),
 });
 
-export const { useGetPatientFilesQuery } = patientFilesApi as any;
+export const { useGetPatientFilesQuery, useUploadPatientFileMutation } = patientFilesApi as any;

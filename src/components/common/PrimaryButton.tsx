@@ -42,7 +42,7 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: Colors.primaryColor || '#2563EB',
+    backgroundColor: Colors.primaryColor || Colors.primaryColor,
     paddingVertical: hs(14),
     paddingHorizontal: ws(24),
     borderRadius: fs(8),

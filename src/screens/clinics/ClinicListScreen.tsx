@@ -6,11 +6,10 @@ import React, { useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
-  Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -26,19 +25,54 @@ import type { RootStackParamList } from '../../navigation/types';
 import { useGetClinicsQuery } from '../../redux/apis/clinicApi';
 import { useGetCitiesQuery } from '../../redux/apis/doctorApi';
 import type { CityModel, ClinicModel } from '../../types';
-import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
+import {
+  detectDeviceCityName,
+  formatCityDisplayName,
+  fs,
+  getImageUrl,
+  hs,
+  matchCityFromList,
+  showToast,
+  TYPOGRAPHY,
+  ws,
+} from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ClinicList'>;
 
-export const ClinicListScreen = ({ navigation }: Props) => {
+export const ClinicListScreen = ({ navigation, route }: Props) => {
   const insets = useSafeAreaInsets();
+  const rawRouteCityId = (route?.params as any)?.cityId ? String((route.params as any).cityId).trim() : '';
+  const routeCityId =
+    rawRouteCityId && rawRouteCityId !== 'ALL' && rawRouteCityId !== 'undefined' && rawRouteCityId !== 'null'
+      ? rawRouteCityId
+      : '';
+  const routeCityTitle =
+    (route?.params as any)?.cityTitle && (route?.params as any)?.cityTitle !== 'All'
+      ? (route.params as any).cityTitle
+      : '';
+
   const [selectedCity, setSelectedCity] = useState<{ id: string; title: string }>({
-    id: '',
-    title: '',
+    id: routeCityId,
+    title: routeCityTitle,
   });
   const [citySearch, setCitySearch] = useState('');
   const [clinicSearch, setClinicSearch] = useState('');
   const [isCityModalVisible, setIsCityModalVisible] = useState(false);
+  const [deviceLocationCity, setDeviceLocationCity] = useState<string | null>(null);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [isUsingCurrentLocation, setIsUsingCurrentLocation] = useState(false);
+
+  // Sync route params if navigation re-invokes screen
+  React.useEffect(() => {
+    if ((route?.params as any)?.cityId !== undefined) {
+      const raw = String((route.params as any).cityId || '').trim();
+      const valid = raw && raw !== 'ALL' && raw !== 'undefined' && raw !== 'null' ? raw : '';
+      setSelectedCity({
+        id: valid,
+        title: valid ? ((route.params as any)?.cityTitle || '') : '',
+      });
+    }
+  }, [(route?.params as any)?.cityId, (route?.params as any)?.cityTitle]);
 
   // Queries
   const {
@@ -47,9 +81,12 @@ export const ClinicListScreen = ({ navigation }: Props) => {
     isFetching: isClinicsFetching,
     isError: isClinicsError,
     refetch: refetchClinics,
-  } = useGetClinicsQuery({
-    cityId: selectedCity.id,
-  });
+  } = useGetClinicsQuery(
+    {
+      cityId: selectedCity.id || undefined,
+    },
+    { refetchOnMountOrArgChange: true }
+  );
 
   const { data: citiesData } = useGetCitiesQuery(citySearch);
 
@@ -58,14 +95,18 @@ export const ClinicListScreen = ({ navigation }: Props) => {
     let list: ClinicModel[] = [];
     if (Array.isArray(clinicsData)) list = clinicsData;
     else if (Array.isArray(clinicsData?.data)) list = clinicsData.data;
+    else if (Array.isArray((clinicsData as any)?.response)) list = (clinicsData as any).response;
+    else if (Array.isArray((clinicsData as any)?.result)) list = (clinicsData as any).result;
 
     if (!clinicSearch.trim()) return list;
 
-    const query = clinicSearch.toLowerCase();
+    const query = clinicSearch.toLowerCase().trim();
     return list.filter(
       (item) =>
         item.title?.toLowerCase().includes(query) ||
+        item.name?.toLowerCase().includes(query) ||
         item.address?.toLowerCase().includes(query) ||
+        item.city_title?.toLowerCase().includes(query) ||
         (item as any)?.city?.toLowerCase().includes(query)
     );
   }, [clinicsData, clinicSearch]);
@@ -148,7 +189,34 @@ export const ClinicListScreen = ({ navigation }: Props) => {
             refreshing={isClinicsFetching}
             onRefresh={refetchClinics}
             ListEmptyComponent={
-              <EmptyState message={clinicSearch ? 'No clinics match your search.' : 'No clinics available in this area.'} />
+              <View style={{ alignItems: 'center', paddingVertical: hs(30), paddingHorizontal: ws(20) }}>
+                <EmptyState
+                  message={
+                    clinicSearch
+                      ? 'No clinics match your search.'
+                      : selectedCity.title
+                        ? `No clinics available in ${selectedCity.title}.`
+                        : 'No clinics available.'
+                  }
+                />
+                {!!selectedCity.id && (
+                  <TouchableOpacity
+                    style={{
+                      marginTop: hs(14),
+                      backgroundColor: Colors.primaryColor,
+                      paddingHorizontal: ws(18),
+                      paddingVertical: hs(10),
+                      borderRadius: fs(8),
+                    }}
+                    onPress={handleClearCity}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={{ color: Colors.white, fontSize: fs(13), ...TYPOGRAPHY.bold }}>
+                      Explore All Clinics
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             }
             renderItem={({ item }) => (
               <TouchableOpacity
@@ -158,7 +226,7 @@ export const ClinicListScreen = ({ navigation }: Props) => {
               >
                 {item.image ? (
                   <Image
-                    source={{ uri: `${ApiEndpoints.imageUrl}/${item.image}` }}
+                    source={{ uri: getImageUrl(item.image) }}
                     style={styles.clinicImage}
                   />
                 ) : (
@@ -197,17 +265,41 @@ export const ClinicListScreen = ({ navigation }: Props) => {
         visible={isCityModalVisible}
         onClose={() => setIsCityModalVisible(false)}
         cities={cities}
-        selectedCityId={selectedCity.id || 'ALL'}
-        onSelectCity={(cityObj) => {
-          if (cityObj) {
-            const cityTitle = cityObj.state_title
-              ? `${cityObj.title || cityObj.name}, ${cityObj.state_title}`
-              : cityObj.title || cityObj.name || '';
-            setSelectedCity({ id: String(cityObj.id ?? ''), title: cityTitle });
+        selectedCityId={isUsingCurrentLocation && !selectedCity.id ? 'CURRENT' : (selectedCity.id || 'ALL')}
+        currentCityName={deviceLocationCity ?? undefined}
+        isDetectingLocation={isDetectingLocation}
+        activeLocationLabel={selectedCity.title || 'All Cities'}
+        onSelectCity={async (cityObj) => {
+          setIsCityModalVisible(false);
+          if (cityObj === undefined) {
+            setIsUsingCurrentLocation(true);
+            setIsDetectingLocation(true);
+            try {
+              const detected = await detectDeviceCityName();
+              if (detected) {
+                setDeviceLocationCity(detected);
+                const matched = matchCityFromList(detected, cities);
+                if (matched) {
+                  setSelectedCity({ id: String(matched.id ?? ''), title: formatCityDisplayName(matched) });
+                  showToast(`Location set to ${matched.title || detected}`);
+                } else {
+                  setSelectedCity({ id: '', title: '' });
+                  showToast(`Detected ${detected}; showing all clinics`);
+                }
+              } else {
+                setIsUsingCurrentLocation(false);
+                showToast('Could not detect current location');
+              }
+            } finally {
+              setIsDetectingLocation(false);
+            }
+          } else if (cityObj) {
+            setIsUsingCurrentLocation(false);
+            setSelectedCity({ id: String(cityObj.id ?? ''), title: formatCityDisplayName(cityObj) });
           } else {
+            setIsUsingCurrentLocation(false);
             setSelectedCity({ id: '', title: '' });
           }
-          setIsCityModalVisible(false);
         }}
       />
     </View>
@@ -232,7 +324,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(12),
     paddingVertical: hs(8),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   cityIconCircle: {
     width: ws(32),
@@ -240,7 +332,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: ws(10),
@@ -281,7 +373,7 @@ const styles = StyleSheet.create({
     padding: ws(12),
     marginBottom: hs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -300,7 +392,7 @@ const styles = StyleSheet.create({
     height: ws(64),
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -341,7 +433,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },

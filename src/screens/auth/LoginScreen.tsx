@@ -1,25 +1,21 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AppDatePickerModal,
-  AppHeader,
-  CountryCodeItem
+  CountryCodeItem,
+  HeaderBackdrop,
 } from '../../components';
 import { AppConstants, Colors, Images } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
@@ -31,45 +27,54 @@ import {
 } from '../../redux/apis/authApi';
 import { confirmOtp, sendOtp } from '../../services/firebaseAuthService';
 import { storageService } from '../../services/storageService';
-import { DateTimeUtils, fs, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
-import { validateDob, validateEmail, validatePhone, validateStrongPassword } from '../../validation/authValidation';
+import { fs, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
+import {
+  validateDob,
+  validateEmail,
+  validateName,
+  validatePhone,
+  validatePhoneOrEmail,
+  validateStrongPassword,
+} from '../../validation/authValidation';
+import {
+  ForgotPasswordModal,
+  GenderPickerModal,
+  OtpVerifyForm,
+  RegisterForm,
+  SignInForm,
+} from './components';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
-
 type LoginStep = 'form' | 'otp_verify' | 'register';
-type LoginMode = 'password';
 
 const REMEMBER_ME_KEY = '@elderly_care_remember_me';
 const REMEMBER_PHONE_KEY = '@elderly_care_remember_phone';
 const REMEMBER_PASSWORD_KEY = '@elderly_care_remember_password';
 const RESEND_SECONDS = 60;
-const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
+
+const isNotExistsMessage = (msg?: string) =>
+  !!msg && String(msg).toLowerCase().includes('not exist');
 
 export const LoginScreen = ({ navigation, route }: Props) => {
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
 
   const [step, setStep] = useState<LoginStep>('form');
-  const [loginMode, setLoginMode] = useState<LoginMode>('password');
 
-  const [countryCode, setCountryCode] = useState<CountryCodeItem>({
+  const [countryCode] = useState<CountryCodeItem>({
     name: 'India',
     code: 'IN',
     dialCode: AppConstants.defaultCountryCode || '+91',
     flag: '🇮🇳',
   });
 
-  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  // Sign In Fields
   const [phone, setPhone] = useState('');
   const [phoneError, setPhoneError] = useState<string | undefined>();
 
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState<string | undefined>();
   const [showPassword, setShowPassword] = useState(false);
-
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [confirmPasswordError, setConfirmPasswordError] = useState<string | undefined>();
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [rememberMe, setRememberMe] = useState(false);
 
@@ -83,12 +88,17 @@ export const LoginScreen = ({ navigation, route }: Props) => {
   const [otp, setOtp] = useState('');
   const [otpError, setOtpError] = useState<string | undefined>();
 
-  // Register Fields
+  // Register Fields (strictly isolated from Sign In / Remember Me state)
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [regPhone, setRegPhone] = useState('');
   const [gender, setGender] = useState('');
   const [dob, setDob] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showGenderModal, setShowGenderModal] = useState(false);
   const [regErrors, setRegErrors] = useState<Record<string, string>>({});
@@ -146,16 +156,31 @@ export const LoginScreen = ({ navigation, route }: Props) => {
     }, 1000);
   };
 
-  const handleSwitchToRegister = () => {
-    setPassword('');
-    setConfirmPassword('');
-    setPhone('');
+  const resetRegisterForm = () => {
+    setFirstName('');
+    setLastName('');
+    setEmail('');
+    setRegPhone('');
+    setGender('');
+    setDob('');
+    setRegPassword('');
+    setRegConfirmPassword('');
+    setShowRegPassword(false);
+    setShowRegConfirmPassword(false);
     setRegErrors({});
+  };
+
+  const handleSwitchToRegister = () => {
+    resetRegisterForm();
+    setPhoneError(undefined);
+    setPasswordError(undefined);
     setStep('register');
   };
 
   const handleSwitchToLogin = async () => {
     setRegErrors({});
+    setPhoneError(undefined);
+    setPasswordError(undefined);
     setStep('form');
     try {
       const savedRemember = await storageService.getItem<boolean | string>(REMEMBER_ME_KEY);
@@ -185,67 +210,86 @@ export const LoginScreen = ({ navigation, route }: Props) => {
     navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
   };
 
-  // Submit handler
-  const handleSubmit = async () => {
-    if (step === 'register') {
-      await handleSubmitRegister();
-      return;
+  const saveOrClearRememberMe = async (cleanPhone: string, cleanPassword: string) => {
+    try {
+      if (rememberMe) {
+        await storageService.setItem(REMEMBER_ME_KEY, 'true');
+        await storageService.setItem(REMEMBER_PHONE_KEY, cleanPhone);
+        await storageService.setItem(REMEMBER_PASSWORD_KEY, cleanPassword);
+      } else {
+        await storageService.removeItem(REMEMBER_ME_KEY);
+        await storageService.removeItem(REMEMBER_PHONE_KEY);
+        await storageService.removeItem(REMEMBER_PASSWORD_KEY);
+      }
+    } catch {
+      // ignore storage errors
     }
+  };
 
-    if (step === 'otp_verify') {
-      await handleSubmitOtp();
-      return;
+  const handleSuccessLogin = async (token: string, userData: any) => {
+    await login(userData, token);
+    const redirectTo = route.params?.redirectTo;
+    const redirectParams = route.params?.redirectParams;
+
+    if (redirectTo) {
+      navigation.reset({
+        index: 1,
+        routes: [
+          { name: 'Main' },
+          { name: redirectTo as any, params: redirectParams },
+        ],
+      });
+    } else {
+      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
     }
+  };
 
-    // step === 'form'
-    const phoneValid = validatePhone(phone);
-    if (!phoneValid.isValid) {
-      setPhoneError(phoneValid.error);
+  const applyLoginErrorMessage = (msg: string) => {
+    const normalized = msg.toLowerCase();
+    if (normalized.includes('password')) {
+      setPasswordError(msg);
+    } else {
+      setPhoneError(msg);
+    }
+    showToast(msg);
+  };
+
+  const handlePasswordLogin = async () => {
+    const identifierValid = validatePhoneOrEmail(phone);
+    if (!identifierValid.isValid) {
+      setPhoneError(identifierValid.error);
       return;
     }
     setPhoneError(undefined);
-
-    if (rememberMe) {
-      await storageService.setItem(REMEMBER_ME_KEY, 'true');
-      await storageService.setItem(REMEMBER_PHONE_KEY, phone);
-      if (password) {
-        await storageService.setItem(REMEMBER_PASSWORD_KEY, password);
-      }
-    } else {
-      await storageService.removeItem(REMEMBER_ME_KEY);
-      await storageService.removeItem(REMEMBER_PHONE_KEY);
-      await storageService.removeItem(REMEMBER_PASSWORD_KEY);
-    }
 
     if (!password || password.trim().length === 0) {
       setPasswordError('Password is required');
       return;
     }
     setPasswordError(undefined);
-    await handlePasswordLogin();
-  };
 
-  const handlePasswordLogin = async () => {
     setIsBusy(true);
+    const trimmedIdentifier = phone.trim();
+    const cleanIdentifier = trimmedIdentifier.includes('@')
+      ? trimmedIdentifier
+      : trimmedIdentifier.replace(/\D/g, '');
+    const cleanPassword = password.trim();
+
     try {
-      const res = await loginWithPhone({ phone: phone.trim(), password }).unwrap();
+      const res = await loginWithPhone({ phone: cleanIdentifier, password: cleanPassword }).unwrap();
       setIsBusy(false);
-      if (res?.token && res?.data) {
+
+      if (res?.status !== false && res?.token && res?.data) {
+        await saveOrClearRememberMe(cleanIdentifier, cleanPassword);
         showToast('Login Successful');
         await handleSuccessLogin(res.token, res.data);
-      } else if (res?.message === 'Not Exists') {
-        setStep('register');
       } else {
-        showToast(res?.message || 'Login failed. Please check credentials.');
+        applyLoginErrorMessage(res?.message || 'Login failed. Please check credentials.');
       }
     } catch (e: any) {
       setIsBusy(false);
-      const msg = e?.data?.message || e?.error || e?.message || '';
-      if (msg === 'Not Exists' || String(msg).toLowerCase().includes('not exist')) {
-        setStep('register');
-      } else {
-        showToast(msg || 'Login failed. Please try again.');
-      }
+      const msg = e?.data?.message || e?.error || e?.message || 'Login failed. Please try again.';
+      applyLoginErrorMessage(msg);
     }
   };
 
@@ -291,7 +335,7 @@ export const LoginScreen = ({ navigation, route }: Props) => {
       if (res?.token && res?.data) {
         showToast('Login Successful');
         await handleSuccessLogin(res.token, res.data);
-      } else if (res?.message === 'Not Exists') {
+      } else if (isNotExistsMessage(res?.message)) {
         setStep('register');
       } else {
         showToast(res?.message || 'Login failed');
@@ -309,11 +353,23 @@ export const LoginScreen = ({ navigation, route }: Props) => {
 
   const handleSubmitRegister = async () => {
     const errors: Record<string, string> = {};
+    const cleanPhone = regPhone.replace(/\D/g, '');
+    const cleanPassword = regPassword.trim();
+    const cleanConfirm = regConfirmPassword.trim();
 
-    if (!firstName.trim()) errors.firstName = 'First name is required';
-    // Last Name is optional per Point 2
+    const fNameRes = validateName(firstName, true, 'First name');
+    if (!fNameRes.isValid) {
+      errors.firstName = fNameRes.error!;
+    }
 
-    const phoneRes = validatePhone(phone, true);
+    if (lastName.trim()) {
+      const lNameRes = validateName(lastName, false, 'Last name');
+      if (!lNameRes.isValid) {
+        errors.lastName = lNameRes.error!;
+      }
+    }
+
+    const phoneRes = validatePhone(cleanPhone, true);
     if (!phoneRes.isValid) errors.phone = phoneRes.error || 'Invalid phone number';
 
     const emailRes = validateEmail(email, true);
@@ -324,11 +380,11 @@ export const LoginScreen = ({ navigation, route }: Props) => {
     const dobRes = validateDob(dob, true);
     if (!dobRes.isValid) errors.dob = dobRes.error || 'Invalid date of birth';
 
-    const passRes = validateStrongPassword(password);
+    const passRes = validateStrongPassword(cleanPassword);
     if (!passRes.isValid) {
       errors.password = passRes.error || 'Password must be at least 8 characters with uppercase, lowercase, number, and special character';
     }
-    if (password !== confirmPassword) {
+    if (cleanPassword !== cleanConfirm) {
       errors.confirmPassword = 'Passwords do not match';
     }
 
@@ -340,29 +396,57 @@ export const LoginScreen = ({ navigation, route }: Props) => {
 
     setIsBusy(true);
     try {
+      const formattedGender = gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase();
+
+      const payload = {
+        f_name: firstName.trim(),
+        l_name: lastName ? lastName.trim() : '',
+        phone: cleanPhone,
+        isd_code: countryCode.dialCode || '+91',
+        gender: formattedGender,
+        dob: dob.trim(),
+        email: email.trim(),
+        password: cleanPassword,
+      };
+
       const formData = new FormData();
-      formData.append('f_name', firstName.trim());
-      formData.append('l_name', lastName ? lastName.trim() : '');
-      formData.append('phone', phone.trim());
-      formData.append('isd_code', countryCode.dialCode || '+91');
-      const formattedGender = gender ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase() : 'Male';
-      formData.append('gender', formattedGender);
-      formData.append('dob', dob.trim());
-      formData.append('email', email.trim());
-      formData.append('password', password.trim());
+      Object.entries(payload).forEach(([key, value]) => formData.append(key, value));
 
       const res = await registerUser(formData).unwrap();
 
+      if (res?.status === false || String(res?.status) === '0') {
+        setIsBusy(false);
+        showToast(res?.message || 'Registration failed');
+        return;
+      }
+
       showToast('Account Created Successfully!');
+
       if (res?.token && res?.data) {
+        resetRegisterForm();
         setIsBusy(false);
         await handleSuccessLogin(res.token, res.data);
       } else {
-        const loginRes = await loginWithPhone({ phone: phone.trim(), password: password.trim() }).unwrap();
-        setIsBusy(false);
-        if (loginRes?.token && loginRes?.data) {
-          await handleSuccessLogin(loginRes.token, loginRes.data);
-        } else {
+        try {
+          const loginRes = await loginWithPhone({ phone: cleanPhone, password: cleanPassword }).unwrap();
+          setIsBusy(false);
+
+          if (loginRes?.status !== false && loginRes?.token && loginRes?.data) {
+            resetRegisterForm();
+            await handleSuccessLogin(loginRes.token, loginRes.data);
+          } else {
+            resetRegisterForm();
+            setPhone(cleanPhone);
+            setPassword('');
+            showToast(loginRes?.message || 'Account created! Please sign in.');
+            setStep('form');
+          }
+        } catch (loginErr: any) {
+          setIsBusy(false);
+          resetRegisterForm();
+          setPhone(cleanPhone);
+          setPassword('');
+          showToast(loginErr?.data?.message || 'Account created! Please sign in.');
           setStep('form');
         }
       }
@@ -394,32 +478,8 @@ export const LoginScreen = ({ navigation, route }: Props) => {
     }
   };
 
-  const handleSuccessLogin = async (token: string, userData: any) => {
-    await login(userData, token);
-    const redirectTo = route.params?.redirectTo;
-    const redirectParams = route.params?.redirectParams;
-
-    if (redirectTo) {
-      navigation.reset({
-        index: 1,
-        routes: [
-          { name: 'Main' },
-          { name: redirectTo as any, params: redirectParams },
-        ],
-      });
-    } else {
-      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
-    }
-  };
-
   return (
     <View style={styles.container}>
-      {/* Top Header Bar matching AppHeader */}
-      <AppHeader
-        title={step === 'register' ? 'Create Account' : step === 'otp_verify' ? 'OTP Verification' : 'Login'}
-        onBackPress={handleBack}
-      />
-
       <KeyboardAvoidingView
         style={styles.flexOne}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -434,24 +494,28 @@ export const LoginScreen = ({ navigation, route }: Props) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.formCard}>
-            {/* ElderlyCare Logo */}
-            <View style={styles.logoWrapper}>
+          {/* Hero header: navy -> teal gradient with logo, title and subtitle */}
+          <View style={[styles.heroHeader, { paddingTop: Math.max(insets.top + 8, 24) }]}>
+            <HeaderBackdrop id="authHeaderGrad" />
+            <TouchableOpacity style={styles.heroBackBtn} onPress={handleBack} activeOpacity={0.8}>
+              <MaterialIcons name="arrow-back" size={fs(22)} color={Colors.white} />
+            </TouchableOpacity>
+            <View style={styles.heroLogoChip}>
               <Image source={Images.logo} style={styles.logoImage} resizeMode="contain" />
             </View>
-
-            {/* Title & Subtitle */}
-            <Text style={styles.cardTitle}>
-              {step === 'register' ? 'Create Account' : step === 'otp_verify' ? 'OTP Verification' : 'Login to Your Account'}
+            <Text style={styles.heroTitle}>
+              {step === 'register' ? 'Create Account' : step === 'otp_verify' ? 'OTP Verification' : 'Welcome Back 👋'}
             </Text>
-            <Text style={styles.cardSubtitle}>
+            <Text style={styles.heroSubtitle}>
               {step === 'register'
                 ? 'Fill in your details to register as a new patient'
                 : step === 'otp_verify'
                   ? `Enter 6-digit OTP sent to ${fullPhoneNumber}`
-                  : 'Enter your phone number and password to access your account'}
+                  : 'Login to manage your health, appointments and family'}
             </Text>
+          </View>
 
+          <View style={styles.formCard}>
             {/* Mode Switcher Tabs */}
             {step !== 'otp_verify' && (
               <View style={styles.tabContainer}>
@@ -472,557 +536,126 @@ export const LoginScreen = ({ navigation, route }: Props) => {
               </View>
             )}
 
-            {/* STEP 1: LOGIN (Phone & Password) */}
+            {/* STEP 1: LOGIN (Phone or Email & Password) */}
             {step === 'form' && (
-              <View style={styles.inputsSection}>
-                {/* Phone Number Field */}
-                <Text style={styles.inputLabel}>
-                  Phone Number <Text style={styles.requiredAsterisk}>*</Text>
-                </Text>
-                <View
-                  style={[
-                    styles.phoneInputContainer,
-                    phoneError ? styles.inputBorderError : null,
-                  ]}
-                >
-                  <View style={styles.countryCodePickerBtn}>
-                    <Text style={styles.countryCodeText}>+91</Text>
-                  </View>
-                  <View style={styles.phoneDivider} />
-                  <TextInput
-                    style={styles.phoneTextInput}
-                    placeholder="Enter 10-digit phone number"
-                    placeholderTextColor="#94A3B8"
-                    keyboardType="phone-pad"
-                    value={phone}
-                    onChangeText={(text) => {
-                      setPhone(text.replace(/[^0-9]/g, ''));
-                      if (phoneError) setPhoneError(undefined);
-                    }}
-                    maxLength={10}
-                  />
-                </View>
-                {!!phoneError && <Text style={styles.fieldErrorText}>{phoneError}</Text>}
-
-                {/* Password Field */}
-                <View style={styles.passwordSection}>
-                  <Text style={styles.inputLabel}>
-                    Password <Text style={styles.requiredAsterisk}>*</Text>
-                  </Text>
-                  <View
-                    style={[
-                      styles.passwordInputContainer,
-                      passwordError ? styles.inputBorderError : null,
-                    ]}
-                  >
-                    <TextInput
-                      style={styles.passwordTextInput}
-                      placeholder="Enter your password"
-                      placeholderTextColor="#94A3B8"
-                      secureTextEntry={!showPassword}
-                      value={password}
-                      onChangeText={(text) => {
-                        setPassword(text);
-                        if (passwordError) setPasswordError(undefined);
-                      }}
-                    />
-                    <TouchableOpacity
-                      style={styles.eyeIconBtn}
-                      onPress={() => setShowPassword(!showPassword)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons
-                        name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                        size={20}
-                        color="#718096"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  {!!passwordError && (
-                    <Text style={styles.fieldErrorText}>{passwordError}</Text>
-                  )}
-                </View>
-
-                {/* Options Row: Remember Me (Left) & Forgot Password? (Right) */}
-                <View style={styles.formOptionsRow}>
-                  {/* Left: Remember Me */}
-                  <TouchableOpacity
-                    style={styles.rememberMeRow}
-                    activeOpacity={0.8}
-                    onPress={() => setRememberMe(!rememberMe)}
-                  >
-                    <View
-                      style={[
-                        styles.checkbox,
-                        rememberMe ? styles.checkboxActive : null,
-                      ]}
-                    >
-                      {rememberMe && (
-                        <MaterialIcons name="check" size={14} color={Colors.white} />
-                      )}
-                    </View>
-                    <Text style={styles.rememberMeText}>Remember me</Text>
-                  </TouchableOpacity>
-
-                  {/* Right: Forgot Password? */}
-                  <TouchableOpacity
-                    style={styles.forgotPasswordBtn}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      setForgotEmail('');
-                      setForgotEmailError(undefined);
-                      setShowForgotModal(true);
-                    }}
-                  >
-                    <Text style={styles.forgotPasswordText}>Forgot password?</Text>
-                  </TouchableOpacity>
-
-                  {/* Commented out: Login with OTP / Password toggle */}
-                  {/*
-                  <TouchableOpacity
-                    style={styles.toggleModeBtn}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      setLoginMode(loginMode === 'otp' ? 'password' : 'otp');
-                      setPasswordError(undefined);
-                    }}
-                  >
-                    <Text style={styles.toggleModeText}>
-                      {loginMode === 'otp' ? 'Login with Password' : 'Login with OTP'}
-                    </Text>
-                  </TouchableOpacity>
-                  */}
-                </View>
-
-                {/* Submit Login Button */}
-                <TouchableOpacity
-                  style={[styles.submitButton, busy ? styles.buttonDisabled : null]}
-                  onPress={handleSubmit}
-                  disabled={busy}
-                  activeOpacity={0.85}
-                >
-                  {busy ? (
-                    <ActivityIndicator color={Colors.white} size="small" />
-                  ) : (
-                    <Text style={styles.submitButtonText}>Login</Text>
-                  )}
-                </TouchableOpacity>
-
-                {/* Switch to Register */}
-                <View style={styles.switchAuthRow}>
-                  <Text style={styles.switchAuthPrompt}>
-                    Don't have an account?{' '}
-                    <Text style={styles.switchAuthLink} onPress={handleSwitchToRegister}>
-                      Create Account
-                    </Text>
-                  </Text>
-                </View>
-              </View>
+              <SignInForm
+                phone={phone}
+                onPhoneChange={(val) => {
+                  setPhone(val);
+                  if (phoneError) setPhoneError(undefined);
+                }}
+                phoneError={phoneError}
+                password={password}
+                onPasswordChange={(val) => {
+                  setPassword(val);
+                  if (passwordError) setPasswordError(undefined);
+                }}
+                passwordError={passwordError}
+                showPassword={showPassword}
+                onToggleShowPassword={() => setShowPassword(!showPassword)}
+                rememberMe={rememberMe}
+                onToggleRememberMe={() => setRememberMe(!rememberMe)}
+                onOpenForgotModal={() => {
+                  const trimmedPhone = phone.trim();
+                  setForgotEmail(trimmedPhone.includes('@') ? trimmedPhone : '');
+                  setForgotEmailError(undefined);
+                  setShowForgotModal(true);
+                }}
+                onSubmit={handlePasswordLogin}
+                busy={busy}
+                onSwitchToRegister={handleSwitchToRegister}
+              />
             )}
 
             {/* STEP 2: OTP VERIFICATION */}
             {step === 'otp_verify' && (
-              <View style={styles.inputsSection}>
-                <Text style={styles.inputLabel}>Enter 6-digit OTP</Text>
-                <View style={styles.otpContainer}>
-                  <View style={styles.otpBoxesRow}>
-                    {[0, 1, 2, 3, 4, 5].map((index) => {
-                      const digit = otp[index] || '';
-                      const isFocused = otp.length === index;
-                      return (
-                        <View
-                          key={`otp-box-${index}`}
-                          style={[
-                            styles.otpBox,
-                            isFocused ? styles.otpBoxFocused : null,
-                            !!digit ? styles.otpBoxFilled : null,
-                            otpError ? styles.otpBoxError : null,
-                          ]}
-                        >
-                          <Text style={styles.otpDigitText}>{digit}</Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                  <TextInput
-                    style={styles.hiddenOtpInput}
-                    keyboardType="number-pad"
-                    maxLength={6}
-                    value={otp}
-                    onChangeText={(text) => {
-                      const clean = text.replace(/[^0-9]/g, '');
-                      setOtp(clean);
-                      if (otpError) setOtpError(undefined);
-                    }}
-                    autoFocus
-                  />
-                </View>
-                {!!otpError && (
-                  <Text style={[styles.fieldErrorText, { textAlign: 'center', marginTop: 8 }]}>
-                    {otpError}
-                  </Text>
-                )}
-
-                {/* Resend OTP */}
-                <View style={styles.resendRow}>
-                  {resendSeconds > 0 ? (
-                    <Text style={styles.timerText}>
-                      Resend OTP in <Text style={styles.boldTimer}>{resendSeconds}s</Text>
-                    </Text>
-                  ) : (
-                    <TouchableOpacity onPress={handleResendOtp} disabled={busy}>
-                      <Text style={styles.resendBtnText}>Resend OTP</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {/* Submit OTP Button */}
-                <TouchableOpacity
-                  style={[styles.submitButton, busy ? styles.buttonDisabled : null]}
-                  onPress={handleSubmit}
-                  disabled={busy}
-                  activeOpacity={0.85}
-                >
-                  {busy ? (
-                    <ActivityIndicator color={Colors.white} size="small" />
-                  ) : (
-                    <Text style={styles.submitButtonText}>Verify & Login</Text>
-                  )}
-                </TouchableOpacity>
-
-                {/* Change Number */}
-                <TouchableOpacity
-                  style={styles.changePhoneBtn}
-                  onPress={() => setStep('form')}
-                >
-                  <Text style={styles.changePhoneText}>Change phone number</Text>
-                </TouchableOpacity>
-              </View>
+              <OtpVerifyForm
+                otp={otp}
+                onOtpChange={(val) => {
+                  setOtp(val);
+                  if (otpError) setOtpError(undefined);
+                }}
+                otpError={otpError}
+                resendSeconds={resendSeconds}
+                onResendOtp={handleResendOtp}
+                onSubmit={handleSubmitOtp}
+                busy={busy}
+                onChangePhone={() => setStep('form')}
+              />
             )}
 
             {/* STEP 3: CREATE ACCOUNT */}
             {step === 'register' && (
-              <View style={styles.inputsSection}>
-                {/* First Name */}
-                <View style={styles.fullWidthCol}>
-                  <Text style={styles.inputLabel}>
-                    First Name <Text style={styles.requiredAsterisk}>*</Text>
-                  </Text>
-                  <TextInput
-                    style={[styles.singleTextInput, regErrors.firstName ? styles.inputBorderError : null]}
-                    placeholder="First Name"
-                    placeholderTextColor="#94A3B8"
-                    value={firstName}
-                    onChangeText={(text) => {
-                      setFirstName(text);
-                      if (regErrors.firstName) setRegErrors((prev) => ({ ...prev, firstName: '' }));
-                    }}
-                    autoCapitalize="words"
-                  />
-                  {!!regErrors.firstName && <Text style={styles.fieldErrorText}>{regErrors.firstName}</Text>}
-                </View>
-
-                {/* Last Name */}
-                <View style={styles.fullWidthCol}>
-                  <Text style={styles.inputLabel}>Last Name</Text>
-                  <TextInput
-                    style={styles.singleTextInput}
-                    placeholder="Last Name"
-                    placeholderTextColor="#94A3B8"
-                    value={lastName}
-                    onChangeText={setLastName}
-                    autoCapitalize="words"
-                  />
-                </View>
-
-                {/* Email Address */}
-                <View style={styles.fullWidthCol}>
-                  <Text style={styles.inputLabel}>
-                    Email Address <Text style={styles.requiredAsterisk}>*</Text>
-                  </Text>
-                  <TextInput
-                    style={[styles.singleTextInput, regErrors.email ? styles.inputBorderError : null]}
-                    placeholder="Email Address"
-                    placeholderTextColor="#94A3B8"
-                    value={email}
-                    onChangeText={(text) => {
-                      setEmail(text);
-                      if (regErrors.email) setRegErrors((prev) => ({ ...prev, email: '' }));
-                    }}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                  />
-                  {!!regErrors.email && <Text style={styles.fieldErrorText}>{regErrors.email}</Text>}
-                </View>
-
-                {/* Phone Number */}
-                <View style={styles.fullWidthCol}>
-                  <Text style={styles.inputLabel}>
-                    Phone Number <Text style={styles.requiredAsterisk}>*</Text>
-                  </Text>
-                  <View
-                    style={[
-                      styles.phoneInputContainer,
-                      regErrors.phone ? styles.inputBorderError : null,
-                    ]}
-                  >
-                    <View style={styles.countryCodePickerBtn}>
-                      <Text style={styles.countryCodeText}>+91</Text>
-                    </View>
-                    <View style={styles.phoneDivider} />
-                    <TextInput
-                      style={styles.phoneTextInput}
-                      placeholder="Enter 10-digit phone number"
-                      placeholderTextColor="#94A3B8"
-                      value={phone}
-                      onChangeText={(text) => {
-                        setPhone(text.replace(/[^0-9]/g, ''));
-                        if (regErrors.phone) setRegErrors((prev) => ({ ...prev, phone: '' }));
-                      }}
-                      keyboardType="phone-pad"
-                      maxLength={10}
-                    />
-                  </View>
-                  {!!regErrors.phone && <Text style={styles.fieldErrorText}>{regErrors.phone}</Text>}
-                </View>
-
-                {/* Gender */}
-                <View style={styles.fullWidthCol}>
-                  <Text style={styles.inputLabel}>
-                    Select Gender <Text style={styles.requiredAsterisk}>*</Text>
-                  </Text>
-                  <TouchableOpacity
-                    style={[styles.dropdownSelector, regErrors.gender ? styles.inputBorderError : null]}
-                    activeOpacity={0.8}
-                    onPress={() => setShowGenderModal(true)}
-                  >
-                    <Text style={[styles.dropdownSelectorText, !gender && styles.placeholderText]}>
-                      {gender || 'Select Gender'}
-                    </Text>
-                    <MaterialIcons name="keyboard-arrow-down" size={20} color="#718096" />
-                  </TouchableOpacity>
-                  {!!regErrors.gender && <Text style={styles.fieldErrorText}>{regErrors.gender}</Text>}
-                </View>
-
-                {/* Date Of Birth */}
-                <View style={styles.fullWidthCol}>
-                  <Text style={styles.inputLabel}>
-                    Date Of Birth <Text style={styles.requiredAsterisk}>*</Text>
-                  </Text>
-                  <TouchableOpacity
-                    style={[styles.dropdownSelector, regErrors.dob ? styles.inputBorderError : null]}
-                    activeOpacity={0.8}
-                    onPress={() => setShowDatePicker(true)}
-                  >
-                    <Text style={[styles.dropdownSelectorText, !dob && styles.placeholderText]}>
-                      {dob ? DateTimeUtils.getDataFormat(dob) || dob : 'Select Date Of Birth'}
-                    </Text>
-                    <MaterialIcons name="calendar-today" size={16} color="#718096" />
-                  </TouchableOpacity>
-                  {!!regErrors.dob && <Text style={styles.fieldErrorText}>{regErrors.dob}</Text>}
-                </View>
-
-                {/* Row 4: Password */}
-                <View style={styles.fullWidthCol}>
-                  <Text style={styles.inputLabel}>
-                    Password <Text style={styles.requiredAsterisk}>*</Text>
-                  </Text>
-                  <View style={[styles.passwordInputContainer, regErrors.password ? styles.inputBorderError : null]}>
-                    <TextInput
-                      style={styles.passwordTextInput}
-                      placeholder="Password"
-                      placeholderTextColor="#94A3B8"
-                      secureTextEntry={!showPassword}
-                      value={password}
-                      onChangeText={(text) => {
-                        setPassword(text);
-                        if (regErrors.password) setRegErrors((prev) => ({ ...prev, password: '' }));
-                      }}
-                    />
-                    <TouchableOpacity
-                      style={styles.eyeIconBtn}
-                      onPress={() => setShowPassword(!showPassword)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons
-                        name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                        size={20}
-                        color="#718096"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  {!!regErrors.password && <Text style={styles.fieldErrorText}>{regErrors.password}</Text>}
-                </View>
-
-                {/* Row 5: Confirm Password */}
-                <View style={styles.fullWidthCol}>
-                  <Text style={styles.inputLabel}>
-                    Confirm Password <Text style={styles.requiredAsterisk}>*</Text>
-                  </Text>
-                  <View style={[styles.passwordInputContainer, regErrors.confirmPassword ? styles.inputBorderError : null]}>
-                    <TextInput
-                      style={styles.passwordTextInput}
-                      placeholder="Confirm Password"
-                      placeholderTextColor="#94A3B8"
-                      secureTextEntry={!showConfirmPassword}
-                      value={confirmPassword}
-                      onChangeText={(text) => {
-                        setConfirmPassword(text);
-                        if (regErrors.confirmPassword) setRegErrors((prev) => ({ ...prev, confirmPassword: '' }));
-                      }}
-                    />
-                    <TouchableOpacity
-                      style={styles.eyeIconBtn}
-                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons
-                        name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
-                        size={20}
-                        color="#718096"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  {!!regErrors.confirmPassword && <Text style={styles.fieldErrorText}>{regErrors.confirmPassword}</Text>}
-                </View>
-
-                {/* Submit Register Button */}
-                <TouchableOpacity
-                  style={[styles.submitButton, { marginTop: 16 }, busy ? styles.buttonDisabled : null]}
-                  onPress={handleSubmit}
-                  disabled={busy}
-                  activeOpacity={0.85}
-                >
-                  {busy ? (
-                    <ActivityIndicator color={Colors.white} size="small" />
-                  ) : (
-                    <Text style={styles.submitButtonText}>Create Account</Text>
-                  )}
-                </TouchableOpacity>
-
-                {/* Switch to Login */}
-                <View style={styles.switchAuthRow}>
-                  <Text style={styles.switchAuthPrompt}>
-                    Already have an account?{' '}
-                    <Text style={styles.switchAuthLink} onPress={() => setStep('form')}>
-                      Login
-                    </Text>
-                  </Text>
-                </View>
-              </View>
+              <RegisterForm
+                firstName={firstName}
+                onFirstNameChange={(text) => {
+                  setFirstName(text);
+                  if (regErrors.firstName) setRegErrors((prev) => ({ ...prev, firstName: '' }));
+                }}
+                lastName={lastName}
+                onLastNameChange={(text) => {
+                  setLastName(text);
+                  if (regErrors.lastName) setRegErrors((prev) => ({ ...prev, lastName: '' }));
+                }}
+                email={email}
+                onEmailChange={(text) => {
+                  setEmail(text);
+                  if (regErrors.email) setRegErrors((prev) => ({ ...prev, email: '' }));
+                }}
+                phone={regPhone}
+                onPhoneChange={(val) => {
+                  setRegPhone(val);
+                  if (regErrors.phone) setRegErrors((prev) => ({ ...prev, phone: '' }));
+                }}
+                gender={gender}
+                onOpenGenderModal={() => setShowGenderModal(true)}
+                dob={dob}
+                onOpenDatePicker={() => setShowDatePicker(true)}
+                password={regPassword}
+                onPasswordChange={(text) => {
+                  setRegPassword(text);
+                  if (regErrors.password) setRegErrors((prev) => ({ ...prev, password: '' }));
+                }}
+                showPassword={showRegPassword}
+                onToggleShowPassword={() => setShowRegPassword((prev) => !prev)}
+                confirmPassword={regConfirmPassword}
+                onConfirmPasswordChange={(text) => {
+                  setRegConfirmPassword(text);
+                  if (regErrors.confirmPassword) setRegErrors((prev) => ({ ...prev, confirmPassword: '' }));
+                }}
+                showConfirmPassword={showRegConfirmPassword}
+                onToggleShowConfirmPassword={() => setShowRegConfirmPassword((prev) => !prev)}
+                regErrors={regErrors}
+                onSubmit={handleSubmitRegister}
+                busy={busy}
+                onSwitchToLogin={handleSwitchToLogin}
+              />
             )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Forgot Password Modal Matching Screenshot */}
-      <Modal
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal
         visible={showForgotModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowForgotModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setShowForgotModal(false)}
-        >
-          <View style={styles.forgotModalCard}>
-            <Text style={styles.forgotModalTitle}>Forgot Password?</Text>
-            <Text style={styles.forgotModalSubtitle}>
-              Enter your email and we'll send you a reset link.
-            </Text>
-
-            <TextInput
-              style={[
-                styles.forgotEmailInput,
-                forgotEmailError ? styles.inputBorderError : null,
-              ]}
-              placeholder="test@yopmail.com"
-              placeholderTextColor="#94A3B8"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={forgotEmail}
-              onChangeText={(t) => {
-                setForgotEmail(t);
-                if (forgotEmailError) setForgotEmailError(undefined);
-              }}
-            />
-            {!!forgotEmailError && (
-              <Text style={[styles.fieldErrorText, { marginBottom: 8 }]}>
-                {forgotEmailError}
-              </Text>
-            )}
-
-            <View style={styles.forgotModalActions}>
-              <TouchableOpacity
-                style={[styles.sendResetBtn, isSendingReset && styles.buttonDisabled]}
-                activeOpacity={0.85}
-                onPress={handleSendResetLink}
-                disabled={isSendingReset}
-              >
-                {isSendingReset ? (
-                  <ActivityIndicator color={Colors.white} size="small" />
-                ) : (
-                  <Text style={styles.sendResetBtnText}>Send Reset Link</Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.forgotCancelBtn}
-                activeOpacity={0.8}
-                onPress={() => setShowForgotModal(false)}
-              >
-                <Text style={styles.forgotCancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+        onClose={() => setShowForgotModal(false)}
+        forgotEmail={forgotEmail}
+        onEmailChange={(t) => {
+          setForgotEmail(t);
+          if (forgotEmailError) setForgotEmailError(undefined);
+        }}
+        forgotEmailError={forgotEmailError}
+        onSubmit={handleSendResetLink}
+        isSendingReset={isSendingReset}
+      />
 
       {/* Gender Picker Modal */}
-      <Modal
+      <GenderPickerModal
         visible={showGenderModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowGenderModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setShowGenderModal(false)}
-        >
-          <View style={styles.pickerModalContent}>
-            <Text style={styles.pickerModalTitle}>Select Gender</Text>
-            <View style={styles.pickerOptionsList}>
-              {GENDER_OPTIONS.map((item) => {
-                const isSelected = gender === item;
-                return (
-                  <TouchableOpacity
-                    key={item}
-                    style={[styles.pickerOptionItem, isSelected && styles.pickerOptionSelected]}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      setGender(item);
-                      setShowGenderModal(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.pickerOptionText,
-                        isSelected && styles.pickerOptionTextSelected,
-                      ]}
-                    >
-                      {item}
-                    </Text>
-                    {isSelected && <MaterialIcons name="check" size={18} color={Colors.white} />}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+        onClose={() => setShowGenderModal(false)}
+        selectedGender={gender}
+        onSelectGender={setGender}
+      />
 
       {/* Date of Birth Picker Modal */}
       <AppDatePickerModal
@@ -1043,470 +676,77 @@ export const LoginScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.bgColor,
   },
   flexOne: {
     flex: 1,
   },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: ws(16),
-    paddingBottom: hs(10),
-    backgroundColor: Colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+  scrollContent: {
+    paddingBottom: hs(24),
   },
-  backBtn: {
+  heroHeader: {
+    paddingHorizontal: ws(20),
+    paddingBottom: hs(56),
+    borderBottomLeftRadius: fs(30),
+    borderBottomRightRadius: fs(30),
+    overflow: 'hidden',
+    backgroundColor: Colors.navy,
+    alignItems: 'center',
+  },
+  heroBackBtn: {
+    alignSelf: 'flex-start',
     width: ws(40),
-    height: hs(40),
-    borderRadius: fs(20),
+    height: ws(40),
+    aspectRatio: 1,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.38)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  topBarTitle: {
-    fontSize: fs(16),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
-  },
-  scrollContent: {
-    padding: ws(16),
-  },
-  formCard: {
-    backgroundColor: Colors.white,
-    borderRadius: fs(20),
-    padding: ws(20),
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  logoWrapper: {
-    alignItems: 'center',
-    marginBottom: hs(16),
+  heroLogoChip: {
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(8),
+    marginTop: hs(4),
   },
   logoImage: {
     width: ws(140),
     height: hs(60),
   },
-  cardTitle: {
-    fontSize: fs(20),
+  heroTitle: {
+    fontSize: fs(22),
     ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
+    color: Colors.white,
     textAlign: 'center',
-    marginBottom: hs(4),
   },
-  cardSubtitle: {
+  heroSubtitle: {
     fontSize: fs(12),
     ...TYPOGRAPHY.regular,
-    color: Colors.secondaryFontColor,
+    color: '#D6E8F6',
     textAlign: 'center',
     lineHeight: fs(18),
-    marginBottom: hs(20),
+    marginTop: hs(4),
     paddingHorizontal: ws(10),
   },
-  inputsSection: {
-    gap: hs(12),
-  },
-  gridRow: {
-    flexDirection: 'row',
-    gap: ws(10),
-  },
-  gridCol: {
-    flex: 1,
-  },
-  fullWidthCol: {},
-  inputLabel: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.medium,
-    color: Colors.primaryFontColor,
-    marginBottom: hs(5),
-  },
-  requiredAsterisk: {
-    color: '#EF4444',
-    ...TYPOGRAPHY.bold,
-  },
-  singleTextInput: {
-    height: hs(44),
-    backgroundColor: '#F8FAFC',
-    borderRadius: fs(12),
-    paddingHorizontal: ws(14),
-    fontSize: fs(13),
-    ...TYPOGRAPHY.regular,
-    color: Colors.primaryFontColor,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  dropdownSelector: {
-    height: hs(44),
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
-    borderRadius: fs(12),
-    paddingHorizontal: ws(14),
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  dropdownSelectorText: {
-    fontSize: fs(13),
-    ...TYPOGRAPHY.medium,
-    color: Colors.primaryFontColor,
-  },
-  placeholderText: {
-    color: '#94A3B8',
-    ...TYPOGRAPHY.regular,
-  },
-  phoneInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: fs(12),
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    height: hs(46),
-  },
-  countryCodePickerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: ws(12),
-    height: '100%',
-  },
-  countryCodeText: {
-    fontSize: fs(13),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
-  },
-  phoneDivider: {
-    width: ws(1),
-    height: hs(24),
-    backgroundColor: '#CBD5E1',
-  },
-  phoneTextInput: {
-    flex: 1,
-    height: '100%',
-    paddingHorizontal: ws(12),
-    fontSize: fs(13),
-    ...TYPOGRAPHY.regular,
-    color: Colors.primaryFontColor,
-  },
-  passwordSection: {
-    marginTop: hs(2),
-  },
-  passwordInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: fs(12),
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    height: hs(44),
-  },
-  passwordTextInput: {
-    flex: 1,
-    height: '100%',
-    paddingHorizontal: ws(14),
-    fontSize: fs(13),
-    ...TYPOGRAPHY.regular,
-    color: Colors.primaryFontColor,
-  },
-  eyeIconBtn: {
-    paddingHorizontal: ws(12),
-  },
-  inputBorderError: {
-    borderColor: Colors.redColor,
-  },
-  fieldErrorText: {
-    fontSize: fs(11),
-    ...TYPOGRAPHY.regular,
-    color: Colors.redColor,
-    marginTop: hs(3),
-  },
-  formOptionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: hs(4),
-  },
-  rememberMeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ws(6),
-  },
-  checkbox: {
-    width: ws(18),
-    height: hs(18),
-    borderRadius: fs(4),
-    borderWidth: 1.5,
-    borderColor: '#94A3B8',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxActive: {
-    backgroundColor: Colors.primaryColor,
-    borderColor: Colors.primaryColor,
-  },
-  rememberMeText: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.medium,
-    color: Colors.secondaryFontColor,
-  },
-  forgotPasswordBtn: {
-    paddingVertical: hs(4),
-  },
-  forgotPasswordText: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryColor,
-  },
-  toggleModeBtn: {
-    paddingVertical: hs(4),
-  },
-  toggleModeText: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryColor,
-  },
-  submitButton: {
-    backgroundColor: Colors.primaryColor,
-    height: hs(46),
-    borderRadius: fs(12),
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: hs(8),
-    shadowColor: Colors.primaryColor,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  submitButtonText: {
-    fontSize: fs(14),
-    ...TYPOGRAPHY.bold,
-    color: Colors.white,
-  },
-  switchAuthRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: hs(14),
-  },
-  switchAuthPrompt: {
-    fontSize: fs(13),
-    ...TYPOGRAPHY.regular,
-    color: Colors.secondaryFontColor,
-    textAlign: 'center',
-  },
-  switchAuthLink: {
-    fontSize: fs(13),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryColor,
-  },
-  otpContainer: {
-    alignItems: 'center',
-    marginVertical: hs(10),
-    position: 'relative',
-  },
-  otpBoxesRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  otpBox: {
-    width: ws(44),
-    height: hs(48),
-    borderRadius: fs(10),
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  otpBoxFocused: {
-    borderColor: Colors.primaryColor,
-    backgroundColor: '#EFF6FF',
-  },
-  otpBoxFilled: {
-    borderColor: Colors.primaryColor,
-  },
-  otpBoxError: {
-    borderColor: Colors.redColor,
-  },
-  otpDigitText: {
-    fontSize: fs(18),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
-  },
-  hiddenOtpInput: {
-    position: 'absolute',
-    opacity: 0,
-    width: '100%',
-    height: '100%',
-  },
-  resendRow: {
-    alignItems: 'center',
-    marginVertical: hs(8),
-  },
-  timerText: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.regular,
-    color: Colors.secondaryFontColor,
-  },
-  boldTimer: {
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryColor,
-  },
-  resendBtnText: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryColor,
-  },
-  changePhoneBtn: {
-    alignItems: 'center',
-    marginTop: hs(8),
-  },
-  changePhoneText: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.medium,
-    color: Colors.secondaryFontColor,
-    textDecorationLine: 'underline',
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: ws(24),
-  },
-  forgotModalCard: {
-    width: '100%',
-    maxWidth: ws(340),
+  formCard: {
     backgroundColor: Colors.white,
-    borderRadius: fs(20),
-    padding: ws(22),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  forgotModalTitle: {
-    fontSize: fs(18),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
-    textAlign: 'center',
-    marginBottom: hs(6),
-  },
-  forgotModalSubtitle: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.regular,
-    color: Colors.secondaryFontColor,
-    textAlign: 'center',
-    lineHeight: fs(18),
-    marginBottom: hs(18),
-  },
-  forgotEmailInput: {
-    height: hs(44),
-    backgroundColor: '#F8FAFC',
-    borderRadius: fs(12),
-    paddingHorizontal: ws(14),
-    fontSize: fs(13),
-    ...TYPOGRAPHY.regular,
-    color: Colors.primaryFontColor,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: hs(16),
-  },
-  forgotModalActions: {
-    flexDirection: 'row',
-    gap: ws(10),
-  },
-  sendResetBtn: {
-    flex: 1.4,
-    height: hs(42),
-    borderRadius: fs(10),
-    backgroundColor: Colors.primaryColor,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: Colors.primaryColor,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  sendResetBtnText: {
-    fontSize: fs(13),
-    ...TYPOGRAPHY.bold,
-    color: Colors.white,
-  },
-  forgotCancelBtn: {
-    flex: 1,
-    height: hs(42),
-    borderRadius: fs(10),
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  forgotCancelBtnText: {
-    fontSize: fs(13),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
-  },
-  pickerModalContent: {
-    width: '100%',
-    maxWidth: ws(320),
-    backgroundColor: Colors.white,
-    borderRadius: fs(18),
+    borderRadius: fs(24),
     padding: ws(18),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
+    marginHorizontal: ws(16),
+    marginTop: -hs(34),
+    borderWidth: 1,
+    borderColor: '#E3EDF7',
+    shadowColor: Colors.navy,
+    shadowOffset: { width: 0, height: hs(4) },
+    shadowOpacity: 0.1,
+    shadowRadius: fs(12),
     elevation: 5,
-  },
-  pickerModalTitle: {
-    fontSize: fs(14),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
-    marginBottom: hs(12),
-    paddingBottom: hs(8),
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  pickerOptionsList: {
-    gap: hs(6),
-  },
-  pickerOptionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: hs(10),
-    paddingHorizontal: ws(12),
-    borderRadius: fs(10),
-  },
-  pickerOptionSelected: {
-    backgroundColor: Colors.primaryColor,
-  },
-  pickerOptionText: {
-    fontSize: fs(13),
-    ...TYPOGRAPHY.medium,
-    color: Colors.primaryFontColor,
-  },
-  pickerOptionTextSelected: {
-    color: Colors.white,
-    ...TYPOGRAPHY.bold,
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    borderRadius: fs(12),
+    backgroundColor: Colors.aqua,
+    borderRadius: fs(14),
     padding: ws(4),
     marginBottom: hs(20),
   },
@@ -1518,8 +758,8 @@ const styles = StyleSheet.create({
     borderRadius: fs(10),
   },
   tabButtonActive: {
-    backgroundColor: Colors.primaryColor,
-    shadowColor: Colors.primaryColor,
+    backgroundColor: Colors.navy,
+    shadowColor: Colors.navy,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -1528,7 +768,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: fs(14),
     ...TYPOGRAPHY.medium,
-    color: '#475569',
+    color: Colors.navyMid,
   },
   tabTextActive: {
     ...TYPOGRAPHY.bold,

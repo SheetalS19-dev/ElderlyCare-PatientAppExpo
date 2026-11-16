@@ -36,13 +36,23 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
     refetch: refetchClinic,
   } = useGetClinicByIdQuery(clinicId, { skip: !clinicId });
 
-  const { data: doctorsData } = useGetDoctorsByClinicIdQuery(clinicId, { skip: !clinicId });
-
   const clinic: ClinicModel | null = useMemo(() => {
     if (!clinicData) return null;
+    if (Array.isArray(clinicData)) return clinicData[0] ?? null;
     if (typeof clinicData === 'object' && !('data' in clinicData)) return clinicData;
-    return clinicData?.data ?? null;
+    const inner = clinicData?.data;
+    if (Array.isArray(inner)) return inner[0] ?? null;
+    return inner ?? null;
   }, [clinicData]);
+
+  const numericClinicId = useMemo(() => {
+    if (clinic?.id != null) return String(clinic.id);
+    return clinicId && /^\d+$/.test(String(clinicId).trim()) ? String(clinicId).trim() : '';
+  }, [clinic?.id, clinicId]);
+
+  const { data: doctorsData } = useGetDoctorsByClinicIdQuery(numericClinicId, {
+    skip: !numericClinicId,
+  });
 
   const doctors: DoctorModel[] = useMemo(() => {
     if (Array.isArray(doctorsData)) return doctorsData;
@@ -166,7 +176,7 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
             <View style={styles.headerInfo}>
               {!!(clinic.city_title || clinic.city_name) && (
                 <View style={styles.cityPill}>
-                  <MaterialIcons name="location-city" size={fs(12)} color="#2563EB" />
+                  <MaterialIcons name="location-city" size={fs(12)} color={Colors.primaryColor} />
                   <Text style={styles.cityPillText}>{clinic.city_title || clinic.city_name}</Text>
                 </View>
               )}
@@ -198,8 +208,8 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
                   onPress={() => handleOpenUrl(`tel:${cleanPhone}`)}
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.iconCircle, { backgroundColor: '#EFF6FF' }]}>
-                    <Ionicons name="call" size={fs(18)} color="#2563EB" />
+                  <View style={[styles.iconCircle, { backgroundColor: Colors.aquaSoft }]}>
+                    <Ionicons name="call" size={fs(18)} color={Colors.primaryColor} />
                   </View>
                   <Text style={styles.actionLabel}>Call</Text>
                   <Text style={styles.actionSubtext} numberOfLines={1}>
@@ -244,8 +254,8 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
                   }
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.iconCircle, { backgroundColor: '#EFF6FF' }]}>
-                    <Ionicons name="mail" size={fs(18)} color="#2563EB" />
+                  <View style={[styles.iconCircle, { backgroundColor: Colors.aquaSoft }]}>
+                    <Ionicons name="mail" size={fs(18)} color={Colors.primaryColor} />
                   </View>
                   <Text style={styles.actionLabel}>Email</Text>
                   <Text style={styles.actionSubtext} numberOfLines={1}>
@@ -429,7 +439,7 @@ const styles = StyleSheet.create({
     padding: ws(14),
     marginBottom: hs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
@@ -447,7 +457,7 @@ const styles = StyleSheet.create({
     width: ws(68),
     height: ws(68),
     borderRadius: fs(12),
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -456,7 +466,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: ws(4),
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     paddingHorizontal: ws(8),
     paddingVertical: hs(2),
     borderRadius: fs(6),
@@ -466,7 +476,7 @@ const styles = StyleSheet.create({
   cityPillText: {
     fontSize: fs(11),
     ...TYPOGRAPHY.bold,
-    color: '#2563EB',
+    color: Colors.primaryColor,
   },
   clinicTitle: {
     fontSize: fs(15),
@@ -504,7 +514,7 @@ const styles = StyleSheet.create({
     paddingVertical: hs(8),
     paddingHorizontal: ws(2),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   iconCircle: {
     width: ws(36),
@@ -557,7 +567,7 @@ const styles = StyleSheet.create({
   readMoreText: {
     fontSize: fs(12),
     ...TYPOGRAPHY.bold,
-    color: '#2563EB',
+    color: Colors.primaryColor,
   },
 
   // Operating Hours
@@ -620,7 +630,7 @@ const styles = StyleSheet.create({
     gap: ws(6),
   },
   countBadge: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     paddingHorizontal: ws(8),
     paddingVertical: hs(2),
     borderRadius: fs(10),
@@ -628,7 +638,7 @@ const styles = StyleSheet.create({
   countBadgeText: {
     fontSize: fs(11),
     ...TYPOGRAPHY.bold,
-    color: '#2563EB',
+    color: Colors.primaryColor,
   },
   doctorCardItem: {
     flexDirection: 'row',
@@ -638,20 +648,20 @@ const styles = StyleSheet.create({
     padding: ws(10),
     marginBottom: hs(8),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   doctorAvatar: {
     width: ws(48),
     height: ws(48),
     borderRadius: 999,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: Colors.border,
     overflow: 'hidden',
   },
   docAvatarPlaceholder: {
     width: ws(48),
     height: ws(48),
     borderRadius: 999,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -669,7 +679,7 @@ const styles = StyleSheet.create({
   doctorSpec: {
     fontSize: fs(11.5),
     ...TYPOGRAPHY.medium,
-    color: '#2563EB',
+    color: Colors.primaryColor,
     marginTop: hs(1),
     lineHeight: fs(15.5),
   },
@@ -703,7 +713,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderRadius: fs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   emptyDoctorsTitle: {
     fontSize: fs(12.5),

@@ -31,9 +31,6 @@ export interface RazorpayWebModalProps {
   orderId?: string;
 }
 
-// Fallback test key ID if no key is provided by backend
-const TEST_KEY_ID = 'rzp_test_R6kmrnO91ID9yH';
-
 export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
   visible,
   onClose,
@@ -46,7 +43,7 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
   description = 'Payment',
   prefillEmail = '',
   prefillPhone = '',
-  prefillName = 'Patient',
+  prefillName = '',
   orderId = '',
 }) => {
   const insets = useSafeAreaInsets();
@@ -62,8 +59,7 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
     );
   };
 
-  const providedKey = isValidRzpKey(keyId) ? keyId!.trim() : '';
-  const activeKey = providedKey || TEST_KEY_ID;
+  const activeKey = isValidRzpKey(keyId) ? keyId!.trim() : '';
 
   const numAmount = Number(amount);
   const rawPaise = amountInPaise ?? (isNaN(numAmount) ? NaN : Math.round(numAmount * 100));
@@ -71,17 +67,22 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
   // opening a broken checkout that shows a generic error.
   const finalPaise = !isNaN(rawPaise) && rawPaise >= 100 ? Math.round(rawPaise) : 0;
 
-  let cleanPhone = prefillPhone.replace(/[^0-9]/g, '');
+  let cleanPhone = prefillPhone ? prefillPhone.replace(/[^0-9]/g, '') : '';
   if (cleanPhone.length > 10) {
     cleanPhone = cleanPhone.slice(-10);
   }
-  if (!cleanPhone || cleanPhone.length < 10) {
-    cleanPhone = '9999999999';
-  }
 
-  let cleanEmail = prefillEmail.trim();
-  if (!cleanEmail || !cleanEmail.includes('@')) {
-    cleanEmail = 'patient@elderlycare.life';
+  const cleanEmail = prefillEmail.trim();
+
+  const prefillObj: Record<string, string> = {};
+  if (cleanPhone && cleanPhone.length === 10) {
+    prefillObj.contact = cleanPhone;
+  }
+  if (cleanEmail && cleanEmail.includes('@')) {
+    prefillObj.email = cleanEmail;
+  }
+  if (prefillName && prefillName.trim()) {
+    prefillObj.name = prefillName.trim();
   }
 
   // Build the options as a real JS object and serialize with JSON.stringify
@@ -91,12 +92,8 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
     currency: 'INR',
     name,
     description,
-    prefill: {
-      email: cleanEmail,
-      contact: cleanPhone,
-      name: prefillName,
-    },
-    theme: { color: '#2563EB' },
+    prefill: prefillObj,
+    theme: { color: Colors.primaryColor },
   };
   if (orderId && typeof orderId === 'string' && orderId.trim().length > 0) {
     razorpayOptions.order_id = orderId.trim();
@@ -210,6 +207,8 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
 
     if (!${finalPaise} || ${finalPaise} < 100) {
       sendMessage({ status: 'error', error: 'Invalid amount — must be at least ₹1.' });
+    } else if (!${JSON.stringify(activeKey)}) {
+      sendMessage({ status: 'error', error: 'Payment gateway configuration is missing.' });
     } else if (typeof Razorpay === 'undefined') {
       sendMessage({ status: 'error', error: 'Razorpay checkout script failed to load. Check your internet connection.' });
     } else {
@@ -289,12 +288,12 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
       Linking.canOpenURL(url)
         .then((supported) => {
           if (supported) {
-            Linking.openURL(url).catch(() => {});
+            Linking.openURL(url).catch(() => { });
           } else if (url.startsWith('intent://')) {
-            Linking.openURL(url).catch(() => {});
+            Linking.openURL(url).catch(() => { });
           }
         })
-        .catch(() => {});
+        .catch(() => { });
       return false; // Prevent WebView from trying to navigate to custom scheme
     }
     return true;
@@ -309,7 +308,7 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
         !targetUrl.startsWith('about:') &&
         !targetUrl.startsWith('data:')
       ) {
-        Linking.openURL(targetUrl).catch(() => {});
+        Linking.openURL(targetUrl).catch(() => { });
       } else {
         webviewRef.current.injectJavaScript(
           `window.location.href = ${JSON.stringify(targetUrl)}; true;`
@@ -384,7 +383,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: ws(16),
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: Colors.border,
     backgroundColor: Colors.white,
   },
   headerTitle: {

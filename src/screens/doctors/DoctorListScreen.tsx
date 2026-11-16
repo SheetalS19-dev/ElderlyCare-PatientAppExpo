@@ -28,7 +28,7 @@ import {
   useGetDoctorsQuery,
 } from '../../redux/apis/doctorApi';
 import type { DepartmentModel, DoctorModel } from '../../types';
-import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
+import { doctorMatchesDepartment, doctorMatchesSearch, fs, hs, TYPOGRAPHY, ws } from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DoctorList'>;
 
@@ -93,84 +93,23 @@ export const DoctorListScreen = ({ navigation, route }: Props) => {
     else if (Array.isArray((rawDoctorsData as any)?.data)) list = (rawDoctorsData as any).data;
     else if (Array.isArray((rawDoctorsData as any)?.response)) list = (rawDoctorsData as any).response;
 
-    // Filter by department id or title if selected
+    // Strict department filter (id/title must agree with what the card shows)
     if (selectedDeptId || selectedDeptTitle) {
-      const targetId = selectedDeptId ? String(selectedDeptId).trim() : '';
-      const targetTitle = selectedDeptTitle ? selectedDeptTitle.toLowerCase().trim() : '';
-
-      list = list.filter((doc: any) => {
-        const docDeptIds = [
-          doc.dept_id,
-          doc.department_id,
-          doc.deptId,
-          doc.departmentId,
-          doc.department?.id,
-          doc.dept?.id,
-        ]
-          .filter((v) => v !== undefined && v !== null && v !== '')
-          .map((v) => String(v).trim());
-
-        const docDeptTitles = [
-          doc.dept_title,
-          doc.dept_name,
-          doc.department_name,
-          doc.department_title,
-          doc.department?.title,
-          doc.department?.name,
-          doc.dept?.title,
-          doc.dept?.name,
-        ]
-          .filter((v) => typeof v === 'string' && v.trim().length > 0)
-          .map((v) => v.toLowerCase().trim());
-
-        const docSpecializations = [
-          doc.specialization,
-          doc.specialty,
-        ]
-          .filter((v) => typeof v === 'string' && v.trim().length > 0)
-          .map((v) => v.toLowerCase().trim());
-
-        if (targetId && docDeptIds.includes(targetId)) {
-          return true;
-        }
-
-        if (targetTitle) {
-          for (const title of docDeptTitles) {
-            if (title === targetTitle || title.includes(targetTitle)) {
-              return true;
-            }
-          }
-          for (const spec of docSpecializations) {
-            if (spec === targetTitle || spec.includes(targetTitle)) {
-              return true;
-            }
-          }
-        }
-        return false;
-      });
+      // When only the id is known (deep link), resolve the title from the department list
+      const resolvedTitle =
+        selectedDeptTitle ||
+        departments.find((d) => String(d.id) === String(selectedDeptId))?.title ||
+        undefined;
+      list = list.filter((doc: any) => doctorMatchesDepartment(doc, selectedDeptId, resolvedTitle));
     }
 
-    // Filter by search query
+    // Text search combined (AND) with the department filter
     if (debouncedSearch.trim()) {
-      const q = debouncedSearch.toLowerCase().trim();
-      list = list.filter((doc: any) => {
-        const fullName = `${doc.f_name ?? ''} ${doc.l_name ?? ''}`.toLowerCase();
-        const clinic = (doc.clinic_title ?? doc.clinic_name ?? '').toLowerCase();
-        const spec = (doc.specialization ?? '').toLowerCase();
-        const dept = (doc.dept_title ?? doc.dept_name ?? '').toLowerCase();
-        const address = (doc.clinics_address ?? doc.address ?? '').toLowerCase();
-        return (
-          fullName.includes(q) ||
-          clinic.includes(q) ||
-          spec.includes(q) ||
-          dept.includes(q) ||
-          address.includes(q)
-        );
-      });
+      list = list.filter((doc: any) => doctorMatchesSearch(doc, debouncedSearch));
     }
 
     return list;
-  }, [rawDoctorsData, selectedDeptId, selectedDeptTitle, debouncedSearch]);
+  }, [rawDoctorsData, selectedDeptId, selectedDeptTitle, debouncedSearch, departments]);
 
   const handleSelectDepartment = (dept?: DepartmentModel) => {
     if (!dept) {
@@ -214,8 +153,8 @@ export const DoctorListScreen = ({ navigation, route }: Props) => {
               size={18}
               color={Colors.primaryColor}
             />
-            <Text style={styles.deptSelectorText} numberOfLines={1}>
-              {selectedDeptTitle ? selectedDeptTitle : 'All Departments (Select Department)'}
+            <Text style={[styles.deptSelectorText, !selectedDeptTitle && styles.deptSelectorPlaceholder]} numberOfLines={1}>
+              {selectedDeptTitle ? selectedDeptTitle : 'Select Department'}
             </Text>
             {selectedDeptId || selectedDeptTitle ? (
               <TouchableOpacity
@@ -299,7 +238,11 @@ const styles = StyleSheet.create({
   searchWrapper: {
     paddingHorizontal: ws(16),
     paddingTop: hs(12),
-    paddingBottom: hs(6),
+    paddingBottom: hs(10),
+    backgroundColor: Colors.bgColor,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderColor,
+    zIndex: 1,
   },
   deptSelector: {
     flexDirection: 'row',
@@ -320,10 +263,13 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
   },
+  deptSelectorPlaceholder: {
+    color: Colors.secondaryFontColor,
+  },
   listContent: {
     flexGrow: 1,
     paddingHorizontal: ws(16),
-    paddingVertical: hs(8),
+    paddingTop: hs(12),
     paddingBottom: hs(32),
   },
 });

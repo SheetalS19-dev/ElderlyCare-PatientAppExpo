@@ -117,13 +117,13 @@ export const PaymentSheet: React.FC<PaymentSheetProps> = ({
             {/* Summary Details */}
             <View style={styles.summarySection}>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Doctor:</Text>
-                <Text style={styles.summaryValue}>{doctorName}</Text>
+                <Text style={styles.summaryLabel}>Patient:</Text>
+                <Text style={styles.summaryValue}>{patientName}</Text>
               </View>
 
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Patient:</Text>
-                <Text style={styles.summaryValue}>{patientName}</Text>
+                <Text style={styles.summaryLabel}>Doctor:</Text>
+                <Text style={styles.summaryValue}>{doctorName}</Text>
               </View>
 
               <View style={styles.summaryRow}>
@@ -159,7 +159,7 @@ export const PaymentSheet: React.FC<PaymentSheetProps> = ({
               {taxAmount > 0 && (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>
-                    Tax {taxPercent > 0 ? `(${taxPercent}%)` : ''}:
+                    Tax ({taxPercent > 0 ? `${taxPercent}%` : '12%'}):
                   </Text>
                   <Text style={styles.summaryValue}>
                     +{AppConstants.appCurrency}{taxAmount.toFixed(2)}
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     paddingTop: hs(16),
     paddingBottom: hs(12),
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: Colors.border,
   },
   headerTitle: {
     fontSize: fs(16),
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: Colors.border,
     marginVertical: hs(12),
   },
   summarySection: {
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderRadius: fs(10),
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     padding: ws(12),
     marginBottom: hs(10),
   },

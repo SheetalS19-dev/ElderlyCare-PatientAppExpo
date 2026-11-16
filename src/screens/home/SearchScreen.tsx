@@ -1,36 +1,47 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
   FlatList,
-  TouchableOpacity,
   Image,
   StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Ionicons, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
-import type { RootStackParamList } from '../../navigation/types';
 import {
   AppHeader,
-  SearchBox,
-  DoctorCard,
-  LoadingIndicator,
-  EmptyState,
   CitySelectModal,
   DepartmentSelectModal,
+  DoctorCard,
+  EmptyState,
+  LoadingIndicator,
+  SearchBox,
 } from '../../components';
 import { Colors, Typography } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import { useDebounce } from '../../hooks';
-import {
-  useGetDoctorsQuery,
-  useGetDepartmentsQuery,
-  useGetCitiesQuery,
-} from '../../redux/apis/doctorApi';
+import type { RootStackParamList } from '../../navigation/types';
 import { useGetClinicsQuery } from '../../redux/apis/clinicApi';
-import type { DoctorModel, ClinicModel, DepartmentModel, CityModel } from '../../types';
-import { getImageUrl, ws, hs, fs, TYPOGRAPHY } from '../../utils';
+import {
+  useGetCitiesQuery,
+  useGetDepartmentsQuery,
+  useGetDoctorsQuery,
+} from '../../redux/apis/doctorApi';
+import type { CityModel, ClinicModel, DepartmentModel, DoctorModel } from '../../types';
+import {
+  detectDeviceCityName,
+  doctorMatchesDepartment,
+  formatCityDisplayName,
+  fs,
+  getImageUrl,
+  hs,
+  matchCityFromList,
+  showToast,
+  TYPOGRAPHY,
+  ws,
+} from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Search'>;
 
@@ -55,6 +66,9 @@ export const SearchScreen = ({ navigation, route }: Props) => {
     id: '',
     title: '',
   });
+  const [deviceLocationCity, setDeviceLocationCity] = useState<string | null>(null);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [isUsingCurrentLocation, setIsUsingCurrentLocation] = useState(false);
   const [citySearch, setCitySearch] = useState('');
   const [isCityModalVisible, setIsCityModalVisible] = useState(false);
   const [isDeptModalVisible, setIsDeptModalVisible] = useState(false);
@@ -97,10 +111,13 @@ export const SearchScreen = ({ navigation, route }: Props) => {
     data: rawClinicsData,
     isLoading: isClinicsLoading,
     refetch: refetchClinics,
-  } = useGetClinicsQuery({
-    cityId: selectedCity.id || undefined,
-    search: debouncedSearch.trim() || undefined,
-  });
+  } = useGetClinicsQuery(
+    {
+      cityId: selectedCity.id || undefined,
+      search: debouncedSearch.trim() || undefined,
+    },
+    { refetchOnMountOrArgChange: true }
+  );
 
   const { data: rawDeptData } = useGetDepartmentsQuery();
   const { data: citiesData } = useGetCitiesQuery(citySearch);
@@ -126,8 +143,18 @@ export const SearchScreen = ({ navigation, route }: Props) => {
     if (Array.isArray(rawDoctorsData)) list = rawDoctorsData;
     else if (Array.isArray((rawDoctorsData as any)?.data)) list = (rawDoctorsData as any).data;
     else if (Array.isArray((rawDoctorsData as any)?.response)) list = (rawDoctorsData as any).response;
+
+    // Strict department check on top of the backend filter so a doctor is only listed
+    // under the department that their card shows.
+    if (selectedDeptId || selectedDeptTitle) {
+      const resolvedTitle =
+        selectedDeptTitle ||
+        departments.find((d) => String(d.id) === String(selectedDeptId))?.title ||
+        undefined;
+      list = list.filter((doc: any) => doctorMatchesDepartment(doc, selectedDeptId, resolvedTitle));
+    }
     return list;
-  }, [rawDoctorsData]);
+  }, [rawDoctorsData, selectedDeptId, selectedDeptTitle, departments]);
 
   // Master clinics list directly returned from backend API
   const filteredClinics: ClinicModel[] = useMemo(() => {
@@ -135,6 +162,7 @@ export const SearchScreen = ({ navigation, route }: Props) => {
     if (Array.isArray(rawClinicsData)) list = rawClinicsData;
     else if (Array.isArray((rawClinicsData as any)?.data)) list = (rawClinicsData as any).data;
     else if (Array.isArray((rawClinicsData as any)?.response)) list = (rawClinicsData as any).response;
+    else if (Array.isArray((rawClinicsData as any)?.result)) list = (rawClinicsData as any).result;
     return list;
   }, [rawClinicsData]);
 
@@ -148,14 +176,37 @@ export const SearchScreen = ({ navigation, route }: Props) => {
     }
   };
 
-  const handleSelectCity = (city?: CityModel) => {
-    if (!city) {
+  const handleSelectCity = async (city: CityModel | null | undefined) => {
+    setIsCityModalVisible(false);
+    if (city === undefined) {
+      setIsUsingCurrentLocation(true);
+      setIsDetectingLocation(true);
+      try {
+        const detected = await detectDeviceCityName();
+        if (detected) {
+          setDeviceLocationCity(detected);
+          const matched = matchCityFromList(detected, cities);
+          if (matched) {
+            setSelectedCity({ id: String(matched.id ?? ''), title: formatCityDisplayName(matched) });
+            showToast(`Location set to ${matched.title || detected}`);
+          } else {
+            setSelectedCity({ id: '', title: '' });
+            showToast(`Detected ${detected}; showing all cities`);
+          }
+        } else {
+          setIsUsingCurrentLocation(false);
+          showToast('Could not detect current location');
+        }
+      } finally {
+        setIsDetectingLocation(false);
+      }
+    } else if (!city) {
+      setIsUsingCurrentLocation(false);
       setSelectedCity({ id: '', title: '' });
     } else {
-      const cityTitle = city.state_title ? `${city.title}, ${city.state_title}` : city.title ?? '';
-      setSelectedCity({ id: String(city.id ?? ''), title: cityTitle });
+      setIsUsingCurrentLocation(false);
+      setSelectedCity({ id: String(city.id ?? ''), title: formatCityDisplayName(city) });
     }
-    setIsCityModalVisible(false);
   };
 
   const hasCityFilter = Boolean(selectedCity.id);
@@ -231,7 +282,7 @@ export const SearchScreen = ({ navigation, route }: Props) => {
             <Ionicons
               name="location-sharp"
               size={fs(14)}
-              color={hasCityFilter ? Colors.primaryColor : '#64748B'}
+              color={hasCityFilter ? Colors.primaryColor : Colors.inkSoft}
             />
             <Text
               style={[styles.filterChipText, hasCityFilter && styles.filterChipTextActive]}
@@ -261,13 +312,13 @@ export const SearchScreen = ({ navigation, route }: Props) => {
               <MaterialIcons
                 name="medical-services"
                 size={fs(14)}
-                color={hasDeptFilter ? Colors.primaryColor : '#64748B'}
+                color={hasDeptFilter ? Colors.primaryColor : Colors.inkSoft}
               />
               <Text
                 style={[styles.filterChipText, hasDeptFilter && styles.filterChipTextActive]}
                 numberOfLines={1}
               >
-                {selectedDeptTitle || 'All Departments'}
+                {selectedDeptTitle || 'Select Department'}
               </Text>
               {hasDeptFilter ? (
                 <TouchableOpacity
@@ -308,7 +359,7 @@ export const SearchScreen = ({ navigation, route }: Props) => {
             <FlatList
               data={filteredDoctors}
               keyExtractor={(item, index) => `doc-${item.user_id ?? item.id ?? index}`}
-              contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + 50, 90) }]}
+              contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + hs(80), 110) }]}
               showsVerticalScrollIndicator={false}
               ListEmptyComponent={
                 <EmptyState message="No doctors found matching your search criteria" />
@@ -343,7 +394,7 @@ export const SearchScreen = ({ navigation, route }: Props) => {
             <FlatList
               data={filteredClinics}
               keyExtractor={(item, index) => `clinic-${item.id ?? index}`}
-              contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + 50, 90) }]}
+              contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + hs(80), 110) }]}
               showsVerticalScrollIndicator={false}
               ListEmptyComponent={
                 <EmptyState message="No clinics found matching your search criteria" />
@@ -407,8 +458,11 @@ export const SearchScreen = ({ navigation, route }: Props) => {
         visible={isCityModalVisible}
         onClose={() => setIsCityModalVisible(false)}
         cities={cities}
-        selectedCityId={selectedCity.id}
+        selectedCityId={isUsingCurrentLocation && !selectedCity.id ? 'CURRENT' : (selectedCity.id || 'ALL')}
         onSelectCity={handleSelectCity}
+        currentCityName={deviceLocationCity ?? undefined}
+        isDetectingLocation={isDetectingLocation}
+        activeLocationLabel={selectedCity.title || 'All Cities'}
       />
 
       {/* Department Picker Modal */}
@@ -426,15 +480,15 @@ export const SearchScreen = ({ navigation, route }: Props) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgColor },
-  content: { flex: 1, paddingHorizontal: ws(16), paddingTop: hs(10) },
+  content: { flex: 1, paddingHorizontal: ws(16), paddingTop: hs(14) },
   searchBoxOverride: {
     marginBottom: hs(8),
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    borderRadius: fs(10),
-    padding: ws(3),
+    backgroundColor: Colors.aqua,
+    borderRadius: fs(14),
+    padding: ws(4),
     marginBottom: hs(10),
   },
   tab: {
@@ -447,7 +501,7 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     backgroundColor: Colors.white,
-    shadowColor: Colors.shadow,
+    shadowColor: Colors.navy,
     shadowOffset: { width: 0, height: hs(1) },
     shadowOpacity: 0.08,
     shadowRadius: fs(2),
@@ -473,21 +527,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: fs(8),
+    borderRadius: fs(12),
     paddingHorizontal: ws(10),
-    height: hs(38),
+    height: hs(40),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   filterChipActive: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     borderColor: Colors.primaryColor,
   },
   filterChipText: {
     flex: 1,
     fontSize: fs(Typography.fontSize.xs),
     ...TYPOGRAPHY.medium,
-    color: '#334155',
+    color: Colors.ink,
     marginHorizontal: ws(6),
   },
   filterChipTextActive: {
@@ -518,28 +572,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: fs(14),
+    borderRadius: fs(18),
     padding: ws(12),
     marginBottom: hs(10),
-    shadowColor: Colors.shadow,
+    shadowColor: Colors.navy,
     shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.05,
     shadowRadius: fs(5),
     elevation: 2,
     borderWidth: 1,
-    borderColor: Colors.slate_F1F5F9,
+    borderColor: Colors.aqua,
   },
   clinicImage: {
     width: ws(64),
     height: hs(64),
     borderRadius: fs(10),
-    backgroundColor: Colors.slate_F1F5F9,
+    backgroundColor: Colors.aqua,
   },
   placeholderImage: {
     width: ws(64),
     height: hs(64),
     borderRadius: fs(10),
-    backgroundColor: Colors.blue_EEF2FF,
+    backgroundColor: Colors.aqua,
     alignItems: 'center',
     justifyContent: 'center',
   },

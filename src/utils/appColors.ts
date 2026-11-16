@@ -1,7 +1,23 @@
 const Palette = {
   // Brand
-  primary: '#2563EB',
+  primary: '#0A5FB0',
   secondary: '#F96335',
+
+  // New theme (navy -> teal) sampled from the redesigned Home screen
+  navy: '#0C285C',
+  navyMid: '#104074',
+  teal: '#0E7CA8',
+  tealLight: '#74BBD7',
+  aqua: '#DCECF8',
+  aquaSoft: '#EAF3FB',
+  aquaBorder: '#C9DEF0',
+  appBg: '#F6F8FE',
+  sidebarBg: '#060E22',
+  sidebarActive: '#05213D',
+  sidebarAccent: '#34B0E9',
+  sidebarText: '#DCE8F5',
+  ink: '#0B1F44',
+  inkSoft: '#5B6B8C',
 
   // Absolute
   white: '#FFFFFF',
@@ -78,7 +94,7 @@ const Palette = {
 
   // Others
   offwhite_FAF3F0: '#FAF3F0',
-  overlay: '#151835A3',
+  overlay: '#060E22A3',
   sky_blue_DBF1FF: '#DBF1FF',
   purple_E2E4FF: '#E2E4FF',
   green_09A43D: '#09A43D',
@@ -99,43 +115,43 @@ const Palette = {
 // STATIC COLORS
 export const StaticColors = {
   // Header gradient stops
-  headerGradientStart: Palette.blue_151835,
-  headerGradientEnd: Palette.blue_272B54,
+  headerGradientStart: Palette.navy,
+  headerGradientEnd: Palette.teal,
 
   // HomeHeader gradient stops
-  homeHeaderGradientStart: Palette.blue_151835,
-  homeHeaderGradientMid: Palette.blue_272B54,
-  homeHeaderGradientEnd: Palette.blue_54619F,
+  homeHeaderGradientStart: Palette.navy,
+  homeHeaderGradientMid: Palette.navyMid,
+  homeHeaderGradientEnd: Palette.teal,
 
   // Text on headers
   headerTitle: Palette.white,
   headerSubtitle: Palette.white,
-  headerGreeting: Palette.blue_B0BAF9,
+  headerGreeting: '#D6E8F6',
 
   // Icon buttons inside headers
   headerIconBg: 'rgba(255, 255, 255, 0.08)',
   headerIconBorder: 'rgba(255, 255, 255, 0.12)',
 
   // Menu button inside HomeHeader
-  homeMenuBg: Palette.blue_151835A6,
+  homeMenuBg: 'rgba(6, 14, 34, 0.55)',
   homeMenuBorder: Palette.white_FFFFFF1A,
   homeMenuLine: Palette.white,
 
   // Header shadow / border
-  headerShadow: Palette.blue_151835,
+  headerShadow: Palette.navy,
   headerBorderBottom: 'rgba(255, 255, 255, 0.08)',
 
   // Notification badge
   notificationBadgeBg: Palette.orange_FF5317,
-  notificationBadgeBorder: Palette.blue_151835,
+  notificationBadgeBorder: Palette.navy,
 
   // Onboarding / auth screens background (always dark)
-  onboardingBg: Palette.blue_151835,
-  onboardingCard: Palette.blue_272B54,
+  onboardingBg: Palette.sidebarBg,
+  onboardingCard: Palette.sidebarActive,
   onboardingText: Palette.white,
-  onboardingSubText: Palette.blue_B0BAF9,
-  onboardingBorder: Palette.blue_565FBA,
-  onboardingInputBg: Palette.blue_1E2547,
+  onboardingSubText: Palette.tealLight,
+  onboardingBorder: Palette.teal,
+  onboardingInputBg: '#0A1A33',
   onboardingOverlay: Palette.overlay,
 };
 
@@ -144,10 +160,10 @@ export const StaticColors = {
 // ─────────────────────────────────────────────────────────────────────────────
 const LightTheme = {
   // Backgrounds
-  screenBg: '#F4F7FB',
+  screenBg: '#F6F8FE',
   cardBg: Palette.white,
   cardBgSecondary: '#F8FAFC',
-  cardBgTertiary: '#EFF6FF',
+  cardBgTertiary: '#EAF3FB',
 
   // Modal & bottom-sheet surfaces
   modalBg: Palette.white,
@@ -158,8 +174,8 @@ const LightTheme = {
   // Dropdown / picker
   dropdownBg: Palette.white,
   dropdownOptionBg: Palette.blue_232347,
-  dropdownOptionSelectedBg: '#EFF6FF',
-  dropdownBorder: '#E2E8F0',
+  dropdownOptionSelectedBg: '#EAF3FB',
+  dropdownBorder: '#D5E4F2',
   dropdownSearchBg: '#F8FAFC',
 
   // Input fields
@@ -171,8 +187,8 @@ const LightTheme = {
   inputIconTint: '#64748B',
 
   // Text
-  textPrimary: '#0F172A',
-  textSecondary: '#475569',
+  textPrimary: '#0B1F44',
+  textSecondary: '#475A7C',
   textMuted: '#94A3B8',
   textLink: Palette.primary,
   textOnAccent: Palette.white,
@@ -197,23 +213,24 @@ const LightTheme = {
   warningText: '#D97706',
   errorBg: '#FEE2E2',
   errorText: '#DC2626',
-  infoBg: '#EFF6FF',
+  infoBg: '#EAF3FB',
   infoText: Palette.primary,
 
   // Floating action button
-  fabBg: Palette.primary,
+  fabBg: Palette.navy,
   fabIcon: Palette.white,
 
   // Bottom tab bar
   tabBarBg: Palette.white,
-  tabBarBorder: '#E2E8F0',
+  tabBarBorder: '#D5E4F2',
   tabBarActive: Palette.primary,
   tabBarInactive: '#94A3B8',
 
   // Drawer
-  drawerBg: Palette.white,
-  drawerItemActive: '#EFF6FF',
-  drawerItemText: '#0F172A',
+  drawerBg: Palette.sidebarBg,
+  drawerItemActive: Palette.sidebarActive,
+  drawerItemText: Palette.sidebarText,
+  drawerAccent: Palette.sidebarAccent,
 
   // Chat bubbles
   chatBubbleSentBg: Palette.primary,
@@ -223,8 +240,8 @@ const LightTheme = {
   chatBubbleBorder: '#E2E8F0',
 
   // Cards with accent left-border (e.g. checklist, journal)
-  accentCard: '#EFF6FF',
-  accentBrandBorder: '#BFDBFE',
+  accentCard: '#EAF3FB',
+  accentBrandBorder: '#C9DEF0',
   accentWarmBorder: '#FED7AA',
 
   // Switch
@@ -238,9 +255,9 @@ const LightTheme = {
 // ─────────────────────────────────────────────────────────────────────────────
 const DarkTheme = {
   // Backgrounds
-  screenBg: Palette.blue_151835,
-  cardBg: Palette.blue_1E2547,
-  cardBgSecondary: Palette.blue_272B54,
+  screenBg: Palette.sidebarBg,
+  cardBg: '#0A1A33',
+  cardBgSecondary: Palette.sidebarActive,
   cardBgTertiary: Palette.blue_53548F,
 
   // Modal & bottom-sheet surfaces
@@ -299,15 +316,16 @@ const DarkTheme = {
   fabIcon: Palette.white,
 
   // Bottom tab bar
-  tabBarBg: Palette.blue_1E2547,
+  tabBarBg: '#0A1A33',
   tabBarBorder: Palette.blue_272B54,
-  tabBarActive: Palette.blue_7586ED,
+  tabBarActive: Palette.sidebarAccent,
   tabBarInactive: Palette.blue_8281AB,
 
   // Drawer
-  drawerBg: Palette.blue_1E2547,
-  drawerItemActive: Palette.blue_272B54,
-  drawerItemText: Palette.white,
+  drawerBg: Palette.sidebarBg,
+  drawerItemActive: Palette.sidebarActive,
+  drawerItemText: Palette.sidebarText,
+  drawerAccent: Palette.sidebarAccent,
 
   // Chat bubbles
   chatBubbleSentBg: Palette.blue_565FBA,
@@ -331,7 +349,7 @@ const black_00000099_light = 'rgba(0,0,0,0.5)';
 (Palette as any).black_00000099_light = black_00000099_light;
 (Palette as any).black_232347 = '#232347';
 (Palette as any).black_1C1E40 = '#1C1E40';
-(Palette as any).primary = '#2563EB';
+(Palette as any).primary = '#0A5FB0';
 (Palette as any).black_00000099 = '#00000099';
 
 export const AppColors = {
@@ -347,29 +365,42 @@ export const AppColors = {
   white: Palette.white,
   black: Palette.black,
   disabled: Palette.gray_D9D9D9,
-  mainFontColor: Palette.blue_1C1E40,
-  primaryFontColor: Palette.blue_1C1E40,
-  secondaryFontColor: Palette.gray_526286,
+  mainFontColor: Palette.ink,
+  primaryFontColor: Palette.ink,
+  secondaryFontColor: Palette.inkSoft,
   greenFontColor: Palette.green_1B8A3E,
   redColor: Palette.red_C0392B,
   iconColor: Palette.primary,
-  shadow: Palette.blue_151835,
+  shadow: Palette.navy,
 
   // Backgrounds & Containers
-  bgColor: '#F4F7FB',
+  bgColor: '#F6F8FE',
   inputTextBgColor: '#F8FAFC',
-  containerBgColor: '#F4F7FB',
+  containerBgColor: '#F6F8FE',
   cardBgColor: Palette.white,
-  borderColor: '#E2E8F0',
-  border: '#E2E8F0',
-  lightBlueTint: '#EFF6FF',
-  lightBlueBorder: '#BFDBFE',
+  borderColor: '#D5E4F2',
+  border: '#D5E4F2',
+  lightBlueTint: '#EAF3FB',
+  lightBlueBorder: '#C9DEF0',
   transparent: 'transparent',
-  appBarColor: Palette.primary,
-  dashboardNavy: '#0A122C',
+  appBarColor: Palette.navy,
+  dashboardNavy: '#0C285C',
+
+  // New theme tokens
+  navy: Palette.navy,
+  navyMid: Palette.navyMid,
+  teal: Palette.teal,
+  tealLight: Palette.tealLight,
+  aqua: Palette.aqua,
+  aquaSoft: Palette.aquaSoft,
+  aquaBorder: Palette.aquaBorder,
+  ink: Palette.ink,
+  inkSoft: Palette.inkSoft,
+  headerGradient: [Palette.navy, Palette.navyMid, Palette.teal] as const,
+  bannerGradient: [Palette.aqua, Palette.tealLight] as const,
   // Theme & Tailwind Neutral / Brand Tokens
   blue_3B82F6: '#3B82F6',
-  blue_2563EB: '#2563EB',
+  blue_2563EB: '#0A5FB0',
   slate_1E293B: '#1E293B',
   slate_475569: '#475569',
   slate_64748B: '#64748B',
@@ -402,7 +433,7 @@ export const AppColors = {
   badgeSuccessText: '#15803D',
 
   // Charts
-  contentColorCyan: Palette.blue_3AB0FF,
+  contentColorCyan: Palette.teal,
   contentColorBlue: Palette.primary,
   mainGridLineColor: 'rgba(255, 255, 255, 0.1)',
 
@@ -524,4 +555,4 @@ export function getThemeColors(mode: ThemeMode): ThemeColors {
   return mode === 'dark' ? DarkTheme : LightTheme;
 }
 
-export { LightTheme, DarkTheme };
+export { DarkTheme, LightTheme };

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -8,8 +8,7 @@ import {
   View,
 } from 'react-native';
 import { Colors } from '../../../constants';
-import { fs, hs, ws } from '../../../utils/metrics';
-import { TYPOGRAPHY } from '../../../utils/typography';
+import { fs, hs, TYPOGRAPHY, ws } from '../../../utils';
 
 export interface OtpVerifyFormProps {
   otp: string;
@@ -22,7 +21,7 @@ export interface OtpVerifyFormProps {
   onChangePhone: () => void;
 }
 
-export const OtpVerifyForm: React.FC<OtpVerifyFormProps> = ({
+export const OtpVerifyForm = memo(({
   otp,
   onOtpChange,
   otpError,
@@ -31,7 +30,7 @@ export const OtpVerifyForm: React.FC<OtpVerifyFormProps> = ({
   onSubmit,
   busy,
   onChangePhone,
-}) => {
+}: OtpVerifyFormProps) => {
   return (
     <View style={styles.inputsSection}>
       <Text style={styles.inputLabel}>Enter 6-digit OTP</Text>
@@ -45,9 +44,9 @@ export const OtpVerifyForm: React.FC<OtpVerifyFormProps> = ({
                 key={`otp-box-${index}`}
                 style={[
                   styles.otpBox,
-                  isFocused ? styles.otpBoxFocused : null,
-                  !!digit ? styles.otpBoxFilled : null,
-                  otpError ? styles.otpBoxError : null,
+                  isFocused && styles.otpBoxFocused,
+                  !!digit && styles.otpBoxFilled,
+                  !!otpError && styles.otpBoxError,
                 ]}
               >
                 <Text style={styles.otpDigitText}>{digit}</Text>
@@ -60,7 +59,7 @@ export const OtpVerifyForm: React.FC<OtpVerifyFormProps> = ({
           keyboardType="number-pad"
           maxLength={6}
           value={otp}
-          onChangeText={onOtpChange}
+          onChangeText={(text) => onOtpChange(text.replace(/[^0-9]/g, ''))}
           autoFocus
         />
       </View>
@@ -98,43 +97,43 @@ export const OtpVerifyForm: React.FC<OtpVerifyFormProps> = ({
       </TouchableOpacity>
 
       {/* Change Number */}
-      <TouchableOpacity
-        style={styles.changePhoneBtn}
-        onPress={onChangePhone}
-      >
+      <TouchableOpacity style={styles.changePhoneBtn} onPress={onChangePhone}>
         <Text style={styles.changePhoneText}>Change phone number</Text>
       </TouchableOpacity>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   inputsSection: {
-    marginTop: hs(8),
+    gap: hs(12),
   },
   inputLabel: {
-    ...TYPOGRAPHY.bold,
     fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginBottom: hs(6),
+    marginBottom: hs(4),
   },
   otpContainer: {
+    alignItems: 'center',
+    marginVertical: hs(10),
     position: 'relative',
-    marginVertical: hs(12),
   },
   otpBoxesRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: ws(6),
   },
   otpBox: {
-    width: ws(46),
-    height: hs(54),
+    width: ws(44),
+    height: hs(50),
     borderRadius: fs(12),
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#F8FAFC',
-    alignItems: 'center',
+    borderColor: Colors.aquaBorder,
+    backgroundColor: '#F3F8FD',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   otpBoxFocused: {
     borderColor: Colors.primaryColor,
@@ -142,32 +141,37 @@ const styles = StyleSheet.create({
   },
   otpBoxFilled: {
     borderColor: Colors.primaryColor,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#EDF8FB',
   },
   otpBoxError: {
     borderColor: Colors.redColor,
+    backgroundColor: '#FFF5F5',
   },
   otpDigitText: {
-    ...TYPOGRAPHY.bold,
     fontSize: fs(20),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   hiddenOtpInput: {
-    ...StyleSheet.absoluteFill,
-    opacity: 0,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    opacity: 0.01,
   },
   fieldErrorText: {
-    ...TYPOGRAPHY.medium,
     fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.redColor,
   },
   resendRow: {
     alignItems: 'center',
-    marginVertical: hs(14),
+    marginVertical: hs(8),
   },
   timerText: {
+    fontSize: fs(12),
     ...TYPOGRAPHY.regular,
-    fontSize: fs(13),
     color: Colors.secondaryFontColor,
   },
   boldTimer: {
@@ -175,39 +179,39 @@ const styles = StyleSheet.create({
     color: Colors.primaryColor,
   },
   resendBtnText: {
+    fontSize: fs(12),
     ...TYPOGRAPHY.bold,
-    fontSize: fs(13),
     color: Colors.primaryColor,
   },
   submitButton: {
-    backgroundColor: Colors.primaryColor,
+    backgroundColor: Colors.navy,
+    height: hs(48),
     borderRadius: fs(14),
-    height: hs(50),
-    alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.primaryColor,
+    alignItems: 'center',
+    marginTop: hs(8),
+    shadowColor: Colors.navy,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.28,
     shadowRadius: 8,
     elevation: 4,
   },
   buttonDisabled: {
-    backgroundColor: '#94A3B8',
-    elevation: 0,
-    shadowOpacity: 0,
+    opacity: 0.7,
   },
   submitButtonText: {
+    fontSize: fs(14),
     ...TYPOGRAPHY.bold,
-    fontSize: fs(15),
     color: Colors.white,
   },
   changePhoneBtn: {
     alignItems: 'center',
-    marginTop: hs(16),
+    marginTop: hs(8),
   },
   changePhoneText: {
-    ...TYPOGRAPHY.bold,
-    fontSize: fs(13),
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
+    textDecorationLine: 'underline',
   },
 });

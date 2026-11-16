@@ -31,30 +31,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'PrescriptionList'>;
 const formatRxDateTime = (createdAt?: string) => {
   if (!createdAt) return '--';
   const str = String(createdAt).trim();
-  const dateObj = new Date(str);
-
-  if (!isNaN(dateObj.getTime())) {
-    const day = String(dateObj.getDate()).padStart(2, '0');
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const year = dateObj.getFullYear();
-
-    let hours = dateObj.getHours();
-    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    const hoursStr = String(hours).padStart(2, '0');
-
-    return `${day}/${month}/${year} ${hoursStr}:${minutes} ${ampm}`;
-  }
-
-  const clean = str.split('T')[0].split(' ')[0];
-  if (clean.includes('-')) {
-    const parts = clean.split('-');
-    if (parts.length === 3 && parts[0].length === 4) {
-      return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
-    }
-  }
   return DateTimeUtils.getDataFormatWithTime(str) || str;
 };
 

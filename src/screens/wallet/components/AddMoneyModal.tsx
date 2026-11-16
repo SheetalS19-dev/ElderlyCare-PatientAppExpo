@@ -77,7 +77,7 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
                 <MaterialIcons name="account-balance-wallet" size={fs(22)} color={Colors.primaryColor} />
               </View>
               <View>
-                <Text style={styles.sheetTitle}>Add Money To Wallet</Text>
+                <Text style={styles.sheetTitle}>Add Money to Wallet</Text>
                 <View style={styles.balancePill}>
                   <Text style={styles.balancePillLabel}>Balance: </Text>
                   <Text style={styles.balancePillValue}>{AppConstants.appCurrency}{walletBalance.toFixed(2)}</Text>
@@ -95,7 +95,7 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: hs(16) }}
           >
-            <Text style={styles.inputSectionLabel}>Select Payment Method</Text>
+            <Text style={styles.inputSectionLabel}>Payment Method</Text>
             <View style={styles.methodGrid}>
               {PAYMENT_METHODS.map((m) => {
                 const isSelected = selectedMethod === m.key;
@@ -122,15 +122,15 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
               })}
             </View>
 
-            <Text style={styles.inputSectionLabel}>Enter Amount (₹)</Text>
+            <Text style={styles.inputSectionLabel}>Amount (₹)</Text>
             <AppTextField
-              placeholder="Enter amount in rupees"
+              placeholder="Enter amount (₹100 – ₹5,000)"
               keyboardType="decimal-pad"
               value={amount}
               onChangeText={(v) => onAmountChange(v.replace(/[^0-9.]/g, ''))}
               error={amountError}
+              containerStyle={styles.amountFieldContainer}
             />
-            <Text style={styles.hintText}>Minimum 100 ₹ required to place this order</Text>
 
             <Text style={styles.quickAmountLabel}>Quick Select</Text>
             <View style={styles.chipRow}>
@@ -154,7 +154,7 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
                 activeOpacity={0.8}
                 onPress={onClose}
               >
-                <Text style={styles.closeBtnText}>Close</Text>
+                <Text style={styles.closeBtnText} numberOfLines={1}>Close</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -167,7 +167,7 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
                   <ActivityIndicator size="small" color={Colors.white} />
                 ) : (
                   <>
-                    <Text style={styles.confirmAddBtnText}>Add Money</Text>
+                    <Text style={styles.confirmAddBtnText} numberOfLines={1}>Add Money</Text>
                     <MaterialIcons name="arrow-forward" size={fs(16)} color={Colors.white} />
                   </>
                 )}
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -267,11 +267,11 @@ const styles = StyleSheet.create({
     borderRadius: fs(12),
     padding: ws(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     position: 'relative',
   },
   methodCardActive: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     borderColor: Colors.primaryColor,
   },
   methodIconBox: {
@@ -306,25 +306,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  hintText: {
-    ...TYPOGRAPHY.regular,
-    fontSize: fs(11),
-    color: Colors.secondaryFontColor,
-    marginTop: hs(-4),
-    marginBottom: hs(8),
+  amountFieldContainer: {
+    marginVertical: 0,
+    marginTop: hs(2),
+    marginBottom: hs(10),
   },
   quickAmountLabel: {
     ...TYPOGRAPHY.medium,
     fontSize: fs(12),
     color: Colors.secondaryFontColor,
-    marginTop: hs(10),
+    marginTop: hs(4),
     marginBottom: hs(6),
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: ws(8),
-    marginBottom: hs(20),
+    marginBottom: hs(18),
   },
   chip: {
     paddingVertical: hs(6),
@@ -332,7 +330,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(20),
     backgroundColor: '#F1F5F9',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   chipActive: {
     backgroundColor: Colors.primaryColor,
@@ -351,12 +349,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: ws(12),
-    marginTop: hs(10),
+    marginTop: hs(8),
   },
   closeBtn: {
     flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
     height: hs(48),
     borderRadius: fs(12),
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
@@ -364,10 +366,12 @@ const styles = StyleSheet.create({
   closeBtnText: {
     ...TYPOGRAPHY.bold,
     fontSize: fs(14),
-    color: Colors.secondaryFontColor,
+    color: Colors.primaryFontColor,
   },
   confirmAddBtn: {
-    flex: 2,
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
     height: hs(48),
     borderRadius: fs(12),
     backgroundColor: Colors.primaryColor,

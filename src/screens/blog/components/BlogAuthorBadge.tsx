@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     width: ws(36),
     height: ws(36),
     borderRadius: ws(18),
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -73,12 +73,12 @@ const styles = StyleSheet.create({
     marginTop: hs(1),
   },
   categoryBadge: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     paddingHorizontal: ws(10),
     paddingVertical: hs(4),
     borderRadius: ws(8),
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: Colors.aquaBorder,
   },
   categoryText: {
     fontSize: fs(10),

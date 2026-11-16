@@ -42,6 +42,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (!storedToken) {
             await storageService.setItem(AppConstants.storageKeys.token, effectiveToken);
           }
+          const restoredUid = String((storedUser as any)?.id || (storedUser as any)?.user_id || '');
+          if (restoredUid) {
+            await storageService.setItem(AppConstants.storageKeys.uid, restoredUid);
+          }
           dispatch(setCredentials({ user: storedUser, token: effectiveToken }));
         }
       } catch (e) {
@@ -59,14 +63,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       (userData as any)?.auth_token ||
       String(userData.id || (userData as any).user_id || '48');
 
+    const uidValue = String(userData.id || (userData as any).user_id || '');
     await storageService.setItem(AppConstants.storageKeys.token, effectiveToken);
     await storageService.setItem(AppConstants.storageKeys.userData, userData);
+    if (uidValue) {
+      await storageService.setItem(AppConstants.storageKeys.uid, uidValue);
+    }
     dispatch(setCredentials({ user: userData, token: effectiveToken }));
   };
 
   const logout = async () => {
     await storageService.removeItem(AppConstants.storageKeys.token);
     await storageService.removeItem(AppConstants.storageKeys.userData);
+    await storageService.removeItem(AppConstants.storageKeys.uid);
     dispatch(logoutAction());
   };
 

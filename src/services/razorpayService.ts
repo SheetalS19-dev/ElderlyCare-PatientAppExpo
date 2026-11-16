@@ -27,18 +27,23 @@ export interface RazorpayOptions {
 export const startRazorpayPayment = async (options: RazorpayOptions) => {
   try {
     const rawKey = options.key || options.keyId || '';
-    const key = rawKey && rawKey.trim().length > 5 ? rawKey.trim() : 'rzp_test_R6kmrnO91ID9yH';
+    const key = rawKey && rawKey.trim().length > 5 ? rawKey.trim() : '';
+    if (!key) {
+      throw new Error('Payment gateway key is not configured.');
+    }
     const orderId = options.order_id || options.orderId;
 
     const rawPhone = options.prefill?.contact || options.prefillPhone || options.phone || '';
     let phoneDigits = rawPhone.replace(/[^0-9]/g, '');
     if (phoneDigits.length > 10) phoneDigits = phoneDigits.slice(-10);
-    if (!phoneDigits || phoneDigits.length < 10) phoneDigits = '9999999999';
 
-    let userEmail = (options.prefill?.email || options.prefillEmail || options.email || '').trim();
-    if (!userEmail || !userEmail.includes('@')) userEmail = 'patient@elderlycare.life';
+    const userEmail = (options.prefill?.email || options.prefillEmail || options.email || '').trim();
+    const name = (options.prefill?.name || options.name || '').trim();
 
-    const name = (options.prefill?.name || options.name || 'Patient').trim();
+    const prefillObj: Record<string, string> = {};
+    if (phoneDigits && phoneDigits.length === 10) prefillObj.contact = phoneDigits;
+    if (userEmail && userEmail.includes('@')) prefillObj.email = userEmail;
+    if (name) prefillObj.name = name;
 
     // amount can arrive already-in-paise (amountInPaise-style callers) or in rupees.
     // Standardize: treat options.amount as RUPEES unless caller explicitly says otherwise.
@@ -57,8 +62,8 @@ export const startRazorpayPayment = async (options: RazorpayOptions) => {
       key,
       amount: String(paise), // <-- paise, not rupees
       name: options.name || 'ElderlyCare',
-      prefill: { email: userEmail, contact: phoneDigits, name },
-      theme: { color: '#2563EB' },
+      prefill: prefillObj,
+      theme: options.theme || { color: '#2563EB' },
       send_sms_hash: true,
       retry: { enabled: true, max_count: 1 },
     };

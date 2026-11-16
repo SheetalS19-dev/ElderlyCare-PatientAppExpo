@@ -19,6 +19,7 @@ import {
   LoadingIndicator,
 } from '../../components';
 import { ApiEndpoints, AppConstants, Colors, Typography } from '../../constants';
+import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
 import { useGetNotificationsByDateQuery } from '../../redux/apis/notificationApi';
 import {
@@ -27,27 +28,38 @@ import {
 } from '../../redux/apis/userApi';
 import { storageService } from '../../services/storageService';
 import type { NotificationModel } from '../../types';
-import { DateTimeUtils, ws, hs, fs, TYPOGRAPHY } from '../../utils';
+import {
+  DateTimeUtils,
+  extractNotificationsList,
+  fs,
+  hs,
+  markNotificationsLocallySeen,
+  TYPOGRAPHY,
+  ws,
+} from '../../utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notification'>;
 
 export const NotificationScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
-  const [userId, setUserId] = useState<string>('');
+  const { user: authUser, updateUser: updateAuthUser } = useAuth();
+  const [storedUid, setStoredUid] = useState<string>('');
 
   useEffect(() => {
     storageService.getItem<string>(AppConstants.storageKeys.uid).then((uid) => {
-      if (uid) setUserId(uid);
+      if (uid) setStoredUid(String(uid));
     });
   }, []);
+
+  const userId = String(authUser?.id ?? (authUser as any)?.user_id ?? storedUid ?? '');
 
   const { data: userProfile } = useGetUserProfileQuery(userId, { skip: !userId });
   const [updateNotificationSeen] = useUpdateNotificationSeenMutation();
 
   const userCreatedAt = useMemo(() => {
-    const user = userProfile?.data ?? userProfile;
-    return user?.created_at ?? '2020-01-01';
-  }, [userProfile]);
+    const profileUser = userProfile?.data ?? userProfile;
+    return String(profileUser?.created_at ?? authUser?.created_at ?? '');
+  }, [userProfile, authUser?.created_at]);
 
   const {
     data: notificationsData,
@@ -57,20 +69,29 @@ export const NotificationScreen = ({ navigation }: Props) => {
     refetch,
   } = useGetNotificationsByDateQuery(
     { uid: userId, date: userCreatedAt },
-    { skip: !userId }
+    { skip: !userId || !userCreatedAt, refetchOnMountOrArgChange: true }
+  );
+
+  const notifications: NotificationModel[] = useMemo(
+    () => extractNotificationsList(notificationsData),
+    [notificationsData]
   );
 
   useEffect(() => {
-    if (userId) {
+    if (!userId || isLoading) return;
+    let isMounted = true;
+    const syncSeen = async () => {
+      const seenIso = await markNotificationsLocallySeen(userId, notifications);
+      if (isMounted && authUser) {
+        updateAuthUser({ ...authUser, notification_seen_at: seenIso });
+      }
       updateNotificationSeen(userId);
-    }
-  }, [userId, updateNotificationSeen]);
-
-  const notifications: NotificationModel[] = useMemo(() => {
-    if (Array.isArray(notificationsData)) return notificationsData;
-    if (Array.isArray(notificationsData?.data)) return notificationsData.data;
-    return [];
-  }, [notificationsData]);
+    };
+    syncSeen();
+    return () => {
+      isMounted = false;
+    };
+  }, [userId, isLoading, notifications.length]);
 
   const handleNotificationPress = async (item: NotificationModel) => {
     if (item.file_id) {
@@ -90,7 +111,7 @@ export const NotificationScreen = ({ navigation }: Props) => {
 
   const getNotificationIconInfo = (item: NotificationModel) => {
     if (item.appointment_id) {
-      return { icon: 'event', color: Colors.primaryColor, bg: '#EFF6FF' };
+      return { icon: 'event', color: Colors.primaryColor, bg: Colors.aquaSoft };
     }
     if (item.prescription_id) {
       return { icon: 'description', color: '#0284C7', bg: '#E0F2FE' };
@@ -101,7 +122,7 @@ export const NotificationScreen = ({ navigation }: Props) => {
     if (item.file_id) {
       return { icon: 'folder', color: '#8B5CF6', bg: '#EDE9FE' };
     }
-    return { icon: 'notifications', color: Colors.primaryColor, bg: '#EFF6FF' };
+    return { icon: 'notifications', color: Colors.primaryColor, bg: Colors.aquaSoft };
   };
 
   return (
@@ -120,7 +141,7 @@ export const NotificationScreen = ({ navigation }: Props) => {
           showsVerticalScrollIndicator={false}
           refreshing={isFetching}
           onRefresh={refetch}
-          ListEmptyComponent={<EmptyState message="You have no notifications yet" />}
+          ListEmptyComponent={<EmptyState message="You haven't received any notifications yet." />}
           renderItem={({ item }) => {
             const iconInfo = getNotificationIconInfo(item);
             return (
@@ -175,7 +196,7 @@ const styles = StyleSheet.create({
     padding: ws(14),
     marginBottom: hs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.04,
@@ -226,7 +247,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },

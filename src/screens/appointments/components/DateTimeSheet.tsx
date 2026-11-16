@@ -427,7 +427,7 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
                     }}
                     activeOpacity={0.85}
                   >
-                    <MaterialIcons name="calendar-today" size={16} color="#2563EB" />
+                    <MaterialIcons name="calendar-today" size={16} color={Colors.primaryColor} />
                     <Text style={styles.chooseAnotherDateText}>Choose another date</Text>
                   </TouchableOpacity>
 
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
     paddingTop: hs(8),
     paddingBottom: hs(12),
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: Colors.border,
     backgroundColor: '#FFFFFF',
   },
   headerTitle: {
@@ -582,7 +582,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     paddingVertical: hs(6),
   },
   dateCardActive: {
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: Colors.border,
     marginVertical: hs(16),
   },
   slotsSection: {
@@ -674,14 +674,14 @@ const styles = StyleSheet.create({
     gap: ws(8),
     backgroundColor: Colors.white,
     borderWidth: 1.5,
-    borderColor: '#2563EB',
+    borderColor: Colors.primaryColor,
     borderRadius: fs(12),
     marginBottom: hs(10),
   },
   chooseAnotherDateText: {
     fontSize: fs(13),
     ...TYPOGRAPHY.bold,
-    color: '#2563EB',
+    color: Colors.primaryColor,
   },
   viewNextDateBtn: {
     width: '100%',
@@ -708,7 +708,7 @@ const styles = StyleSheet.create({
     paddingVertical: hs(9),
     borderRadius: fs(10),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   legendItem: {
     flexDirection: 'row',
@@ -754,7 +754,7 @@ const styles = StyleSheet.create({
     paddingBottom: hs(6),
     backgroundColor: Colors.white,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: Colors.border,
   },
   continueBtn: {
     height: hs(48),

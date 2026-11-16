@@ -39,6 +39,8 @@ export const appointmentApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: (_r: any, _e: any, { appointment_id }: any) => [
         'Appointment',
+        'User',
+        'WalletTxn',
         { type: 'CancellationHistory', id: String(appointment_id) },
       ],
     }),
@@ -51,6 +53,8 @@ export const appointmentApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: (_r: any, _e: any, { appointment_id }: any) => [
         'Appointment',
+        'User',
+        'WalletTxn',
         { type: 'CancellationHistory', id: String(appointment_id) },
       ],
     }),

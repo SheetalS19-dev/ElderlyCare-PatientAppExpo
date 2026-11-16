@@ -5,11 +5,19 @@ export type RootStackParamList = {
   Menu: undefined;
   Search: { searchQuery?: string; initialTab?: 'doctors' | 'clinics'; selectedDeptId?: string; selectedDeptTitle?: string } | undefined;
   DoctorList: { categoryId?: string; search?: string; selectedDeptId?: string; selectedDeptTitle?: string; searchQuery?: string } | undefined;
-  DoctorDetails: { doctorId?: string | number; doctId?: string | number };
-  BookAppointment: { doctorId?: string | number; doctId?: string | number; clinicId?: string | number; initialMode?: 'clinic' | 'video' | 'emergency' };
+  DoctorDetails: { doctorId?: string | number; doctId?: string | number; isReschedule?: boolean; rescheduledFromAppId?: string | number };
+  BookAppointment: {
+    doctorId?: string | number;
+    doctId?: string | number;
+    clinicId?: string | number;
+    initialMode?: 'clinic' | 'video' | 'emergency';
+    isReschedule?: boolean;
+    rescheduledFromAppId?: string | number;
+    initialMemberId?: string | number;
+  };
   ClinicList: undefined;
   Clinic: { clinicId: string | number };
-  MyBookings: undefined;
+  MyBookings: { initialTab?: 'upcoming' | 'closed'; initialSubFilter?: string } | undefined;
   AppointmentDetails: { appointmentId?: string | number; appId?: string | number };
   Wallet: undefined;
   EditProfile: undefined;

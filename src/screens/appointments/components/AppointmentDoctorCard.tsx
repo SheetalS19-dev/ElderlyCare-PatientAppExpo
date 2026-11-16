@@ -16,7 +16,7 @@ export const AppointmentDoctorCard: React.FC<Props> = ({ appointment }) => {
     appointment.doctor_name || (appointment as any)?.doct_name || (appointment as any)?.doctor?.name || 'Doctor'
   );
   const doctImg = (appointment as any)?.doctor_image || (appointment as any)?.doctor?.image;
-  const deptName = appointment.department_name || (appointment as any)?.doctor?.dept_name || 'General Physician';
+  const deptName = appointment.department_name || (appointment as any)?.doctor?.dept_name || '';
   const hospitalAddr = (appointment as any)?.hospital_address || (appointment as any)?.doctor?.hospital_address || '';
 
   return (
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     padding: ws(16),
     marginBottom: hs(14),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.03,

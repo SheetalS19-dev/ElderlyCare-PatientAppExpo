@@ -18,6 +18,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingIndicator,
+  SearchBox,
 } from '../../components';
 import { Colors } from '../../constants';
 import type { RootStackParamList } from '../../navigation/types';
@@ -101,6 +102,13 @@ export const BlogListScreen = ({ navigation }: Props) => {
     return map;
   }, [categories]);
 
+  const formatTagLabel = (rawTag: string) => {
+    const clean = String(rawTag || '').trim();
+    if (!clean) return '';
+    if (clean.toLowerCase() === 'surgey') return 'Surgery';
+    return clean.charAt(0).toUpperCase() + clean.slice(1);
+  };
+
   // Filtered blogs list
   const filteredBlogs = useMemo(() => {
     return rawBlogs.filter((blog) => {
@@ -173,22 +181,12 @@ export const BlogListScreen = ({ navigation }: Props) => {
           ListHeaderComponent={
             <>
               {/* Search Bar */}
-              <View style={styles.searchContainer}>
-                <MaterialIcons name="search" size={fs(20)} color={Colors.primaryColor} style={styles.searchIcon} />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Search health articles, topics..."
-                  placeholderTextColor={Colors.secondaryFontColor}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  clearButtonMode="while-editing"
-                />
-                {!!searchQuery && (
-                  <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <MaterialIcons name="cancel" size={fs(18)} color={Colors.secondaryFontColor} />
-                  </TouchableOpacity>
-                )}
-              </View>
+              <SearchBox
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search health articles, topics..."
+                containerStyle={styles.searchContainer}
+              />
 
               {/* Dynamic Categories Section */}
               <View style={styles.sectionHeaderRow}>
@@ -282,7 +280,7 @@ export const BlogListScreen = ({ navigation }: Props) => {
                               isSelected && styles.tagChipTextActive,
                             ]}
                           >
-                            {tag}
+                            #{formatTagLabel(tag)}
                           </Text>
                         </TouchableOpacity>
                       );
@@ -293,11 +291,11 @@ export const BlogListScreen = ({ navigation }: Props) => {
 
               {/* Filter feedback info */}
               <View style={styles.articlesHeaderRow}>
-                <Text style={styles.articlesHeaderTitle}>
+                <Text style={styles.articlesHeaderTitle} numberOfLines={1}>
                   {selectedCategory != null
-                    ? `${categoryMap.get(String(selectedCategory)) || 'Category'} Articles`
+                    ? `Category: ${categoryMap.get(String(selectedCategory)) || 'Health Care'}`
                     : selectedTag != null
-                      ? `Articles tagged "${selectedTag}"`
+                      ? `Tagged: ${formatTagLabel(selectedTag)}`
                       : 'Latest Articles'}
                 </Text>
                 <Text style={styles.articlesCountBadge}>
@@ -380,7 +378,7 @@ export const BlogListScreen = ({ navigation }: Props) => {
                       <View style={styles.cardTagsRow}>
                         {blogTags.slice(0, 3).map((tag, idx) => (
                           <View key={`b-tag-${idx}`} style={styles.cardTagPill}>
-                            <Text style={styles.cardTagText}>#{tag}</Text>
+                            <Text style={styles.cardTagText}>#{formatTagLabel(tag)}</Text>
                           </View>
                         ))}
                         {blogTags.length > 3 && (
@@ -440,7 +438,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(14),
     height: hs(46),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     marginBottom: hs(16),
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
@@ -484,7 +482,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(12),
     backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   categoryChipActive: {
     backgroundColor: Colors.primaryColor,
@@ -505,9 +503,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(12),
     paddingVertical: hs(6),
     borderRadius: fs(16),
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: Colors.aqua,
   },
   tagChipActive: {
     backgroundColor: Colors.primaryColor,
@@ -549,7 +547,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: fs(18),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   imageContainer: {
     width: '100%',
@@ -577,7 +575,7 @@ const styles = StyleSheet.create({
   },
   inlineCategoryPill: {
     alignSelf: 'flex-start',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     paddingHorizontal: ws(10),
     paddingVertical: hs(4),
     borderRadius: fs(8),
@@ -618,7 +616,7 @@ const styles = StyleSheet.create({
     paddingVertical: hs(2),
     borderRadius: fs(6),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   cardTagText: {
     fontSize: fs(10),
@@ -648,7 +646,7 @@ const styles = StyleSheet.create({
     width: ws(24),
     height: hs(24),
     borderRadius: fs(12),
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: ws(6),
@@ -687,7 +685,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(16),
     paddingVertical: hs(8),
     borderRadius: fs(10),
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     borderWidth: 1,
     borderColor: Colors.primaryColor,
   },

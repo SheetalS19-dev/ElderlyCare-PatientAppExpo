@@ -46,8 +46,8 @@ export const AboutUsScreen = ({ navigation }: Props) => {
         {/* Our Mission Card */}
         <AppCard style={styles.missionCard}>
           <View style={styles.sectionHeaderRow}>
-            <View style={[styles.sectionIconCircle, { backgroundColor: '#EFF6FF' }]}>
-              <MaterialIcons name="flag" size={fs(18)} color="#2563EB" />
+            <View style={[styles.sectionIconCircle, { backgroundColor: Colors.aquaSoft }]}>
+              <MaterialIcons name="flag" size={fs(18)} color={Colors.primaryColor} />
             </View>
             <Text style={styles.sectionTitle}>Our Mission</Text>
           </View>
@@ -66,7 +66,7 @@ export const AboutUsScreen = ({ navigation }: Props) => {
         <View style={styles.featureGrid}>
           <AppCard style={styles.gridCard}>
               <View style={styles.gridCardHeaderRow}>
-                <View style={[styles.gridIconCircle, { backgroundColor: '#EFF6FF' }]}>
+                <View style={[styles.gridIconCircle, { backgroundColor: Colors.aquaSoft }]}>
                   <MaterialIcons name="event-available" size={fs(18)} color={Colors.primaryColor} />
                 </View>
                 <Text style={styles.gridCardTitle}>Online Bookings</Text>
@@ -88,8 +88,8 @@ export const AboutUsScreen = ({ navigation }: Props) => {
         <View style={styles.featureGrid}>
           <AppCard style={styles.gridCard}>
               <View style={styles.gridCardHeaderRow}>
-                <View style={[styles.gridIconCircle, { backgroundColor: '#EFF6FF' }]}>
-                  <MaterialIcons name="description" size={fs(18)} color="#2563EB" />
+                <View style={[styles.gridIconCircle, { backgroundColor: Colors.aquaSoft }]}>
+                  <MaterialIcons name="description" size={fs(18)} color={Colors.primaryColor} />
                 </View>
                 <Text style={styles.gridCardTitle}>Digital Vault</Text>
               </View>
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     marginBottom: hs(14),
     backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -141,18 +141,18 @@ const styles = StyleSheet.create({
     width: ws(72),
     height: ws(72),
     borderRadius: 999,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: hs(12),
     borderWidth: 1.5,
-    borderColor: '#DBEAFE',
+    borderColor: Colors.aqua,
   },
   brandIconInnerCircle: {
     width: ws(54),
     height: ws(54),
     borderRadius: 999,
-    backgroundColor: '#DBEAFE',
+    backgroundColor: Colors.aqua,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(16),
     backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(14),
     backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   gridCardHeaderRow: {
     flexDirection: 'row',

@@ -1,7 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
-  ImageBackground,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppHeader } from '../../components';
+import { AppHeader, GradientFill } from '../../components';
 import { Colors, Typography } from '../../constants';
 import type { RootStackParamList } from '../../navigation/types';
 import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
@@ -85,13 +84,9 @@ export const VitalsScreen = ({ navigation }: Props) => {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 20, 30) }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Health Banner with container_bg */}
-        <ImageBackground
-          source={require('../../../assets/icons/container_bg.png')}
-          style={styles.heroCard}
-          imageStyle={styles.heroCardBg}
-          resizeMode="cover"
-        >
+        {/* Hero Health Banner (navy -> teal theme gradient) */}
+        <View style={styles.heroCard}>
+          <GradientFill id="vitalsHeroGrad" colors={Colors.headerGradient} />
           <View style={styles.heroRow}>
             <View style={styles.heroTextCol}>
               <Text style={styles.heroTitle}>Daily Health Monitoring</Text>
@@ -103,7 +98,7 @@ export const VitalsScreen = ({ navigation }: Props) => {
               <MaterialIcons name="health-and-safety" size={32} color={Colors.white} />
             </View>
           </View>
-        </ImageBackground>
+        </View>
 
         {/* Section Title */}
         <View style={styles.sectionHeader}>
@@ -159,20 +154,16 @@ const styles = StyleSheet.create({
     padding: ws(16),
   },
   heroCard: {
-    backgroundColor: Colors.primaryColor,
+    backgroundColor: Colors.navy,
     borderRadius: fs(20),
     padding: ws(20),
     marginBottom: hs(20),
     overflow: 'hidden',
-    shadowColor: Colors.primaryColor,
-    shadowOffset: { width: 0, height: hs(4) },
-    shadowOpacity: 0.2,
-    shadowRadius: fs(8),
-    elevation: 4,
-  },
-  heroCardBg: {
-    borderRadius: fs(20),
-    opacity: 0.95,
+    shadowColor: Colors.navy,
+    shadowOffset: { width: 0, height: hs(6) },
+    shadowOpacity: 0.25,
+    shadowRadius: fs(10),
+    elevation: 6,
   },
   heroRow: {
     flexDirection: 'row',
@@ -229,10 +220,10 @@ const styles = StyleSheet.create({
     padding: ws(14),
     marginBottom: hs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: Colors.shadow,
+    borderColor: Colors.aquaBorder,
+    shadowColor: Colors.navy,
     shadowOffset: { width: 0, height: hs(2) },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.06,
     shadowRadius: fs(6),
     elevation: 2,
   },
@@ -289,7 +280,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: ws(10),

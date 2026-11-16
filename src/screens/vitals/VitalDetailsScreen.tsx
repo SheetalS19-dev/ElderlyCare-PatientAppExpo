@@ -15,14 +15,11 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle, Line, Rect, Text as SvgText } from 'react-native-svg';
 import { useDispatch } from 'react-redux';
 import {
   AppButton,
-  AppCard,
   AppDatePickerModal,
   AppHeader,
-  AppTextField,
   AppTimePickerModal,
   EmptyState,
   ErrorState,
@@ -44,6 +41,12 @@ import {
 } from '../../redux/apis/vitalsApi';
 import type { FamilyMemberModel, UserModel, VitalModel } from '../../types';
 import { DateTimeUtils, fs, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
+import {
+  VitalHistoryItemCard,
+  VitalLatestSummaryCard,
+  VitalMemberSelector,
+  VitalTrendChart,
+} from './components';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VitalDetails'>;
 
@@ -215,9 +218,22 @@ export const VitalDetailsScreen = ({ navigation, route }: Props) => {
     else if (Array.isArray((rawVitals as any)?.result)) list = (rawVitals as any).result;
 
     return [...list].sort((a, b) => {
-      const timeA = new Date(a.date || a.created_at || 0).getTime();
-      const timeB = new Date(b.date || b.created_at || 0).getTime();
-      return timeB - timeA;
+      const dateA = a.date ? a.date.split('T')[0] : '';
+      const timeA = a.time ? a.time.slice(0, 5) : '00:00';
+      const dtA = dateA
+        ? new Date(`${dateA}T${timeA.length === 5 ? timeA + ':00' : timeA}`).getTime()
+        : (new Date(a.created_at || 0).getTime() || 0);
+
+      const dateB = b.date ? b.date.split('T')[0] : '';
+      const timeB = b.time ? b.time.slice(0, 5) : '00:00';
+      const dtB = dateB
+        ? new Date(`${dateB}T${timeB.length === 5 ? timeB + ':00' : timeB}`).getTime()
+        : (new Date(b.created_at || 0).getTime() || 0);
+
+      if (dtB !== dtA && !isNaN(dtB) && !isNaN(dtA)) {
+        return dtB - dtA;
+      }
+      return (Number(b.id) || 0) - (Number(a.id) || 0);
     });
   }, [rawVitals]);
 
@@ -351,34 +367,42 @@ export const VitalDetailsScreen = ({ navigation, route }: Props) => {
     }
 
     if (vitalName === 'Blood Pressure') {
+      let sysNum = 0;
+      let diaNum = 0;
       if (!systolic.trim()) {
-        errors.systolic = 'Systolic BP is required';
+        errors.systolic = 'Systolic BP is required (Accepted range: 40–300 mmHg)';
       } else {
-        const sys = parseFloat(systolic.trim());
-        if (isNaN(sys) || sys < 40 || sys > 300) {
+        sysNum = parseFloat(systolic.trim());
+        if (isNaN(sysNum) || sysNum < 40 || sysNum > 300) {
           errors.systolic = 'Systolic BP must be between 40 and 300 mmHg';
         }
       }
 
       if (!diastolic.trim()) {
-        errors.diastolic = 'Diastolic BP is required';
+        errors.diastolic = 'Diastolic BP is required (Accepted range: 30–200 mmHg)';
       } else {
-        const dia = parseFloat(diastolic.trim());
-        if (isNaN(dia) || dia < 30 || dia > 200) {
+        diaNum = parseFloat(diastolic.trim());
+        if (isNaN(diaNum) || diaNum < 30 || diaNum > 200) {
           errors.diastolic = 'Diastolic BP must be between 30 and 200 mmHg';
         }
       }
+
+      if (!errors.systolic && !errors.diastolic && sysNum > 0 && diaNum > 0 && sysNum <= diaNum) {
+        errors.systolic = 'Systolic BP must be greater than Diastolic BP';
+      }
     } else if (vitalName === 'Sugar') {
-      if (!value.trim() && !sugarRandom.trim()) {
-        errors.value = 'Please enter Fasting or Random sugar value';
+      const hasFasting = !!value.trim();
+      const hasRandom = !!sugarRandom.trim();
+      if (!hasFasting && !hasRandom) {
+        errors.value = 'Please enter Fasting or Random sugar value (Accepted range: 20–1000 mg/dL)';
       } else {
-        if (value.trim()) {
+        if (hasFasting) {
           const fasting = parseFloat(value.trim());
           if (isNaN(fasting) || fasting < 20 || fasting > 1000) {
             errors.value = 'Fasting sugar must be between 20 and 1000 mg/dL';
           }
         }
-        if (sugarRandom.trim()) {
+        if (hasRandom) {
           const random = parseFloat(sugarRandom.trim());
           if (isNaN(random) || random < 20 || random > 1000) {
             errors.sugarRandom = 'Random sugar must be between 20 and 1000 mg/dL';
@@ -387,29 +411,29 @@ export const VitalDetailsScreen = ({ navigation, route }: Props) => {
       }
     } else if (vitalName === 'Weight') {
       if (!value.trim()) {
-        errors.value = 'Weight is required';
+        errors.value = 'Weight is required (Accepted range: 1–500 kg)';
       } else {
         const wt = parseFloat(value.trim());
         if (isNaN(wt) || wt < 1 || wt > 500) {
-          errors.value = `${value.trim()} kg is outside accepted range (1–500 kg)`;
+          errors.value = 'Weight must be between 1 and 500 kg';
         }
       }
     } else if (vitalName === 'Temperature') {
       if (!value.trim()) {
-        errors.value = 'Temperature is required';
+        errors.value = 'Temperature is required (Accepted range: 70–115 °F)';
       } else {
         const temp = parseFloat(value.trim());
         if (isNaN(temp) || temp < 70 || temp > 115) {
-          errors.value = `${value.trim()} °F is outside accepted range (70–115 °F)`;
+          errors.value = 'Temperature must be between 70 and 115 °F';
         }
       }
     } else if (vitalName === 'SpO2') {
       if (!value.trim()) {
-        errors.value = 'SpO2 percentage is required';
+        errors.value = 'SpO2 percentage is required (Accepted range: 70–100%)';
       } else {
         const spo2 = parseFloat(value.trim());
-        if (isNaN(spo2) || spo2 < 1 || spo2 > 100) {
-          errors.value = 'SpO2 percentage must be between 1% and 100%';
+        if (isNaN(spo2) || spo2 < 70 || spo2 > 100) {
+          errors.value = 'SpO2 percentage must be between 70% and 100%';
         }
       }
     }
@@ -513,27 +537,28 @@ export const VitalDetailsScreen = ({ navigation, route }: Props) => {
 
   const renderVitalValue = (item: VitalModel) => {
     if (vitalName === 'Blood Pressure') {
-      return `${item.bp_systolic ?? '--'} / ${item.bp_diastolic ?? '--'} mmHg`;
+      if (!item.bp_systolic && !item.bp_diastolic) return 'N/A';
+      return `${item.bp_systolic ?? ''} / ${item.bp_diastolic ?? ''} mmHg`;
     }
     if (vitalName === 'Sugar') {
       const parts = [];
       if (item.sugar_fasting) parts.push(`Fasting: ${item.sugar_fasting} mg/dL`);
       if (item.sugar_random) parts.push(`Random: ${item.sugar_random} mg/dL`);
-      return parts.length > 0 ? parts.join('  •  ') : '-- mg/dL';
+      return parts.length > 0 ? parts.join('  •  ') : 'N/A';
     }
-    if (vitalName === 'Weight') return `${item.weight ?? (item as any)?.value ?? '--'} kg`;
-    if (vitalName === 'Temperature') return `${item.temperature ?? (item as any)?.value ?? '--'} °F`;
-    if (vitalName === 'SpO2') return `${item.spo2 ?? (item as any)?.value ?? '--'} %`;
-    return '--';
+    if (vitalName === 'Weight') return `${item.weight ?? (item as any)?.value ?? ''} kg`.trim();
+    if (vitalName === 'Temperature') return `${item.temperature ?? (item as any)?.value ?? ''} °F`.trim();
+    if (vitalName === 'SpO2') return `${item.spo2 ?? (item as any)?.value ?? ''} %`.trim();
+    return 'N/A';
   };
 
   const getVitalIcon = () => {
     if (vitalName === 'Blood Pressure') return { icon: 'favorite', color: Colors.redColor, bg: '#FEE2E2' };
     if (vitalName === 'Sugar') return { icon: 'opacity', color: '#8B5CF6', bg: '#EDE9FE' };
-    if (vitalName === 'Weight') return { icon: 'fitness-center', color: '#2563EB', bg: '#EFF6FF' };
+    if (vitalName === 'Weight') return { icon: 'fitness-center', color: Colors.primaryColor, bg: Colors.aquaSoft };
     if (vitalName === 'Temperature') return { icon: 'thermostat', color: '#D97706', bg: '#FEF3C7' };
     if (vitalName === 'SpO2') return { icon: 'air', color: '#0284C7', bg: '#E0F2FE' };
-    return { icon: 'favorite', color: Colors.primaryColor, bg: '#EFF6FF' };
+    return { icon: 'favorite', color: Colors.primaryColor, bg: Colors.aquaSoft };
   };
 
   const iconInfo = getVitalIcon();
@@ -608,8 +633,8 @@ export const VitalDetailsScreen = ({ navigation, route }: Props) => {
     if (vitalName === 'Weight') {
       return {
         label: 'Latest reading',
-        color: '#2563EB',
-        bgColor: '#EFF6FF',
+        color: Colors.primaryColor,
+        bgColor: Colors.aquaSoft,
         icon: 'fitness-center',
         normalRangeText: 'Track weight changes over time',
       };
@@ -786,8 +811,8 @@ export const VitalDetailsScreen = ({ navigation, route }: Props) => {
     return {
       diffText: '0.0 kg',
       label: 'No Change',
-      color: '#2563EB',
-      bgColor: '#EFF6FF',
+      color: Colors.primaryColor,
+      bgColor: Colors.aquaSoft,
       icon: 'trending-flat' as keyof typeof MaterialIcons.glyphMap,
     };
   }, [vitalName, vitals]);
@@ -860,7 +885,7 @@ export const VitalDetailsScreen = ({ navigation, route }: Props) => {
       }
 
       // Check change against previous chronological reading
-      let changeColor = '#2563EB';
+      let changeColor = Colors.primaryColor;
       if (idx > 0) {
         const prevVal = parseFloat(String(valid[idx - 1].weight || (valid[idx - 1] as any)?.value || 0));
         const diff = val - prevVal;
@@ -889,71 +914,18 @@ export const VitalDetailsScreen = ({ navigation, route }: Props) => {
       <AppHeader title={`${vitalName} Tracker`} onBackPress={() => navigation.goBack()} />
 
       {/* Dropdown heading changed to "Name" */}
-      {familyList.length > 0 && (
-        <View style={styles.memberDropdownSection}>
-          <Text style={styles.memberDropdownLabel}>Name</Text>
-          <View style={styles.memberDropdownContainer}>
-            <TouchableOpacity
-              style={[
-                styles.memberDropdownField,
-                showMemberDropdown && styles.memberDropdownFieldOpen,
-              ]}
-              activeOpacity={0.85}
-              onPress={() => setShowMemberDropdown((prev) => !prev)}
-            >
-              <Text style={styles.memberDropdownFieldText} numberOfLines={1}>
-                {selectedMemberDisplayName}
-              </Text>
-              <MaterialIcons
-                name={showMemberDropdown ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
-                size={fs(20)}
-                color={Colors.primaryColor}
-              />
-            </TouchableOpacity>
-
-            {showMemberDropdown && (
-              <View style={styles.memberDropdownMenuCard}>
-                <ScrollView
-                  nestedScrollEnabled
-                  bounces={false}
-                  showsVerticalScrollIndicator={false}
-                  style={{ maxHeight: hs(220) }}
-                >
-                  {familyList.map((mem) => {
-                    const isSelected = String(mem.id) === activeFamilyId;
-                    const displayName = getMemberDisplayName(mem);
-
-                    return (
-                      <TouchableOpacity
-                        key={`dropdown-mem-${mem.id}`}
-                        style={[
-                          styles.memberDropdownMenuItem,
-                          isSelected && styles.memberDropdownMenuItemActive,
-                        ]}
-                        activeOpacity={0.7}
-                        onPress={() => {
-                          setSelectedFamilyId(String(mem.id));
-                          setShowMemberDropdown(false);
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.memberDropdownMenuItemText,
-                            isSelected && styles.memberDropdownMenuItemTextActive,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {displayName}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            )}
-          </View>
-        </View>
-      )}
+      <VitalMemberSelector
+        familyList={familyList}
+        activeFamilyId={activeFamilyId}
+        selectedMemberDisplayName={selectedMemberDisplayName}
+        showMemberDropdown={showMemberDropdown}
+        onToggleDropdown={() => setShowMemberDropdown((prev) => !prev)}
+        onSelectMember={(id) => {
+          setSelectedFamilyId(id);
+          setShowMemberDropdown(false);
+        }}
+        getMemberDisplayName={getMemberDisplayName}
+      />
 
       {/* Date Filter Bar */}
       <View style={styles.dateFilterRow}>
@@ -962,7 +934,7 @@ export const VitalDetailsScreen = ({ navigation, route }: Props) => {
           onPress={() => setShowFilterPickerModal(true)}
           activeOpacity={0.8}
         >
-          <MaterialIcons name="calendar-today" size={15} color="#2563EB" />
+          <MaterialIcons name="calendar-today" size={15} color={Colors.primaryColor} />
           <Text style={styles.filterDropdownBtnText}>
             {activeFilter === 'Custom' && customFilterDate
               ? DateTimeUtils.getDataFormat(customFilterDate)
@@ -974,7 +946,7 @@ export const VitalDetailsScreen = ({ navigation, route }: Props) => {
                     ? 'Today'
                     : 'All Records'}
           </Text>
-          <MaterialIcons name="keyboard-arrow-down" size={18} color="#2563EB" />
+          <MaterialIcons name="keyboard-arrow-down" size={18} color={Colors.primaryColor} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -1003,458 +975,68 @@ export const VitalDetailsScreen = ({ navigation, route }: Props) => {
             <View>
               {/* Latest Vital Hero Card */}
               {latestVital && (
-                <AppCard style={styles.heroCard}>
-                  <View style={styles.heroHeaderRow}>
-                    <View
-                      style={[
-                        styles.heroIconCircle,
-                        {
-                          backgroundColor:
-                            vitalName === 'Weight' && heroWeightTrend
-                              ? heroWeightTrend.bgColor
-                              : iconInfo.bg,
-                        },
-                      ]}
-                    >
-                      <MaterialIcons
-                        name={
-                          (vitalName === 'Weight' && heroWeightTrend
-                            ? heroWeightTrend.icon
-                            : iconInfo.icon) as any
-                        }
-                        size={24}
-                        color={
-                          vitalName === 'Weight' && heroWeightTrend
-                            ? heroWeightTrend.color
-                            : iconInfo.color
-                        }
-                      />
-                    </View>
-                    <View style={styles.heroTitleCol}>
-                      <Text style={styles.heroLabel}>Latest {vitalName}</Text>
-                        <Text style={styles.heroTime} numberOfLines={1}>
-                          {formatVitalDateTime(
-                            latestVital.date || latestVital.created_at,
-                            latestVital.time
-                          )}
-                        </Text>
-                    </View>
-
-                        {/* Non-weight status badge in header row */}
-                        {vitalName !== 'Weight' && (
-                          <View
-                            style={[
-                              styles.statusBadge,
-                              { backgroundColor: latestStatus.bgColor },
-                            ]}
-                          >
-                    <MaterialIcons
-                      name={latestStatus.icon}
-                      size={13}
-                      color={latestStatus.color}
-                      style={{ marginRight: ws(3) }}
-                    />
-                    <Text
-                      style={[
-                        styles.statusBadgeText,
-                        { color: latestStatus.color },
-                      ]}
-                    >
-                      {latestStatus.label}
-                    </Text>
-                  </View>
-                    )}
-
-                  {/* Delete action button */}
-                  {!!latestVital.id && (
-                    <View style={styles.heroActionBtns}>
-                      <TouchableOpacity
-                        style={styles.actionIconBtnDelete}
-                        onPress={() => handleDelete(String(latestVital.id))}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <MaterialIcons name="delete-outline" size={15} color="#EF4444" />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-
-                  {/* Value and Normal Range column layout */}
-              <View style={styles.heroBottomContainer}>
-                {vitalName === 'Sugar' ? (
-                  <View style={styles.heroSugarColsRow}>
-                    <View style={styles.heroSugarCol}>
-                      <Text style={styles.heroSugarColLabel}>Fasting</Text>
-                      <Text style={styles.heroSugarColValue}>
-                        {latestVital.sugar_fasting ? `${latestVital.sugar_fasting}` : '--'}
-                        <Text style={styles.heroSugarColUnit}> mg/dL</Text>
-                      </Text>
-                    </View>
-                    <View style={styles.heroSugarDivider} />
-                    <View style={styles.heroSugarCol}>
-                      <Text style={styles.heroSugarColLabel}>Random</Text>
-                      <Text style={styles.heroSugarColValue}>
-                        {latestVital.sugar_random ? `${latestVital.sugar_random}` : '--'}
-                        <Text style={styles.heroSugarColUnit}> mg/dL</Text>
-                      </Text>
-                    </View>
-                  </View>
-                ) : (
-                      <View style={styles.heroValueAndBadgeRow}>
-                        <Text style={styles.heroValueText}>
-                          {renderVitalValue(latestVital)}
-                        </Text>
-
-                        {/* Weight status badge moved beside weight value to give title row full width */}
-                        {vitalName === 'Weight' && heroWeightTrend && (
-                          <View
-                            style={[
-                              styles.statusBadge,
-                              {
-                                backgroundColor: heroWeightTrend.bgColor,
-                                paddingHorizontal: ws(10),
-                                paddingVertical: hs(4),
-                              },
-                            ]}
-                          >
-                            <MaterialIcons
-                              name={heroWeightTrend.icon as any}
-                              size={14}
-                              color={heroWeightTrend.color}
-                              style={{ marginRight: ws(4) }}
-                            />
-                            <Text
-                              style={[
-                                styles.statusBadgeText,
-                                {
-                                  color: heroWeightTrend.color,
-                                  fontSize: fs(11.5),
-                                },
-                              ]}
-                            >
-                              {`${heroWeightTrend.label} (${heroWeightTrend.diffText})`}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                )}
-
-                {latestStatus.normalRangeText ? (
-                  <View style={styles.heroRangeRow}>
-                    <MaterialIcons
-                      name="info-outline"
-                      size={13}
-                      color="#64748B"
-                      style={{ marginRight: ws(4) }}
-                    />
-                    <Text style={styles.heroRangeText}>{latestStatus.normalRangeText}</Text>
-                  </View>
-                ) : null}
-              </View>
-            </AppCard>
+                <VitalLatestSummaryCard
+                  latestVital={latestVital}
+                  vitalName={vitalName}
+                  iconInfo={iconInfo}
+                  latestStatus={latestStatus}
+                  heroWeightTrend={heroWeightTrend}
+                  onDelete={handleDelete}
+                  renderVitalValue={renderVitalValue}
+                />
               )}
 
-      {/* Weight Trend Chart for Weight Tracker */}
-      {vitalName === 'Weight' && (
-        <AppCard style={styles.chartCard}>
-          <View style={styles.chartTitleRow}>
-            <View style={styles.chartTitleLeft}>
-              <MaterialIcons name="show-chart" size={18} color="#2563EB" />
-              <Text style={styles.chartTitleText}>Weight Trend</Text>
+              {/* Weight Trend Chart for Weight Tracker */}
+              {vitalName === 'Weight' && (
+                <VitalTrendChart
+                  chartPoints={chartPoints}
+                  yTicks={yTicks}
+                  chartW={chartW}
+                  chartH={chartH}
+                />
+              )}
+
+              {/* History Section Header: only shown if there are earlier records */}
+              {historyVitals.length > 0 && (
+                <View style={styles.historySectionHeaderRow}>
+                  <Text style={styles.historySectionTitle}>
+                    {vitalName === 'Temperature'
+                      ? 'Temperature History'
+                      : vitalName === 'Weight'
+                        ? `Recent Entries (${historyVitals.length} Entries)`
+                        : `${vitalName} History`}
+                  </Text>
+                </View>
+              )}
             </View>
-            {/* Chart Legend: Red for Decrease, Green for Increase */}
-            <View style={styles.chartLegendRow}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-                <Text style={styles.legendText}>Decrease</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
-                <Text style={styles.legendText}>Increase</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.chartContainer}>
-            {chartPoints.length === 0 ? (
-              <View style={styles.emptyChartBox}>
-                <Text style={styles.emptyChartText}>
-                  No weight logs recorded in this period.
-                </Text>
-              </View>
-            ) : (
-              <Svg width={chartW} height={chartH}>
-                {/* Grid Lines */}
-                {yTicks.map((tick, idx) => {
-                  const yPos =
-                    hs(18) +
-                    (idx / (yTicks.length - 1)) * (chartH - hs(18) - hs(22));
-                  return (
-                    <React.Fragment key={`grid-${idx}`}>
-                      <Line
-                        x1={ws(34)}
-                        y1={yPos}
-                        x2={chartW - ws(20)}
-                        y2={yPos}
-                        stroke="#E2E8F0"
-                        strokeDasharray="3,3"
-                        strokeWidth={1}
-                      />
-                      <SvgText
-                        x={ws(28)}
-                        y={yPos + hs(3)}
-                        fontSize={fs(9)}
-                        fill="#94A3B8"
-                        textAnchor="end"
-                      >
-                        {tick}
-                      </SvgText>
-                    </React.Fragment>
-                  );
-                })}
-
-                {/* Chart Line Segments: colored RED for decrease, GREEN for increase */}
-                {chartPoints.map((pt, idx) => {
-                  if (idx === 0) return null;
-                  const prevPt = chartPoints[idx - 1];
-                  return (
-                    <Line
-                      key={`seg-${idx}`}
-                      x1={prevPt.x}
-                      y1={prevPt.y}
-                      x2={pt.x}
-                      y2={pt.y}
-                      stroke={pt.changeColor}
-                      strokeWidth={3}
-                      strokeLinecap="round"
-                    />
-                  );
-                })}
-
-                {/* Chart Dots & Value Tooltip */}
-                {chartPoints.map((pt, idx) => (
-                  <React.Fragment key={`pt-${idx}`}>
-                    <Circle
-                      cx={pt.x}
-                      cy={pt.y}
-                      r={pt.isLatest ? 5.5 : 4}
-                      fill={pt.changeColor}
-                      stroke="#FFFFFF"
-                      strokeWidth={2}
-                    />
-                    {pt.isLatest && (
-                      <React.Fragment>
-                        <Rect
-                          x={pt.x - ws(26)}
-                          y={pt.y - hs(22)}
-                          width={ws(52)}
-                          height={hs(16)}
-                          rx={fs(5)}
-                          fill={pt.changeColor}
-                        />
-                        <SvgText
-                          x={pt.x}
-                          y={pt.y - hs(10)}
-                          fontSize={fs(9)}
-                          fill="#FFFFFF"
-                          textAnchor="middle"
-                          fontWeight="bold"
-                        >
-                          {`${pt.val} kg`}
-                        </SvgText>
-                      </React.Fragment>
-                    )}
-
-                    <SvgText
-                      x={pt.x}
-                      y={chartH - hs(6)}
-                      fontSize={fs(9)}
-                      fill="#94A3B8"
-                      textAnchor="middle"
-                    >
-                      {pt.label}
-                    </SvgText>
-                  </React.Fragment>
-                ))}
-              </Svg>
-            )}
-          </View>
-        </AppCard>
-      )}
-
-      {/* History Section Header: only shown if there are earlier records */}
-      {historyVitals.length > 0 && (
-        <View style={styles.historySectionHeaderRow}>
-          <Text style={styles.historySectionTitle}>
-            {vitalName === 'Temperature'
-              ? 'Temperature History'
-              : vitalName === 'Weight'
-                ? `Recent Entries (${historyVitals.length} Entries)`
-                : `${vitalName} History`}
-          </Text>
-        </View>
-      )}
-    </View>
           }
-ListEmptyComponent = {
-  latestVital? null: (
-    <EmptyState message={`No ${vitalName} records found.`} />
-  )
-}
-renderItem = {({ item }) => {
-  const itemStatus = getVitalStatus(item);
+          ListEmptyComponent={
+            latestVital ? null : (
+              <EmptyState message={`No ${vitalName} records found.`} />
+            )
+          }
+          renderItem={({ item }) => {
+            const itemStatus = getVitalStatus(item);
+            let prevEntry: VitalModel | undefined;
+            if (vitalName === 'Weight') {
+              const itemTime = new Date(item.date || item.created_at || 0).getTime();
+              prevEntry = vitals.find((v) => {
+                const t = new Date(v.date || v.created_at || 0).getTime();
+                return t < itemTime && (v.weight || (v as any)?.value);
+              });
+            }
 
-  // Compute weight change for this history entry
-  let isDecreased = false;
-  let isIncreased = false;
-  let weightDiffStr = '';
-
-  if (vitalName === 'Weight') {
-    const currentVal = parseFloat(String(item.weight || (item as any)?.value || ''));
-    const itemTime = new Date(item.date || item.created_at || 0).getTime();
-    const prevEntry = vitals.find((v) => {
-      const t = new Date(v.date || v.created_at || 0).getTime();
-      return t < itemTime && (v.weight || (v as any)?.value);
-    });
-    const prevVal = prevEntry
-      ? parseFloat(String(prevEntry.weight || (prevEntry as any)?.value || ''))
-      : NaN;
-
-    if (!isNaN(currentVal) && !isNaN(prevVal)) {
-      const diff = currentVal - prevVal;
-      if (diff < -0.01) {
-        isDecreased = true;
-        weightDiffStr = `${diff.toFixed(1)} kg`;
-      } else if (diff > 0.01) {
-        isIncreased = true;
-        weightDiffStr = `+${diff.toFixed(1)} kg`;
-      }
-    }
-  }
-
-  // Red for decrease, Green for increase
-  const itemWeightColor = isDecreased ? '#EF4444' : isIncreased ? '#10B981' : '#2563EB';
-  const itemWeightBg = isDecreased ? '#FEE2E2' : isIncreased ? '#ECFDF5' : '#EFF6FF';
-  const itemWeightIcon = isDecreased
-    ? 'trending-down'
-    : isIncreased
-      ? 'trending-up'
-      : 'fitness-center';
-
-  return (
-      <AppCard style={styles.compactHistoryCard}>
-        <View style={styles.historyRow}>
-          <View
-            style={[
-              styles.itemIconCircle,
-              {
-                backgroundColor:
-                  vitalName === 'Weight' ? itemWeightBg : iconInfo.bg,
-              },
-            ]}
-          >
-            <MaterialIcons
-              name={(vitalName === 'Weight' ? itemWeightIcon : iconInfo.icon) as any}
-              size={18}
-              color={vitalName === 'Weight' ? itemWeightColor : iconInfo.color}
-            />
-          </View>
-
-          <View style={styles.historyInfo}>
-            <View style={styles.historyValueAndStatusRow}>
-              {vitalName === 'Sugar' ? (
-                <View style={styles.historySugarValuesCol}>
-                  <Text style={styles.historyValueText}>
-                    Fasting: {item.sugar_fasting ? `${item.sugar_fasting} mg/dL` : '--'}
-                  </Text>
-                  {!!item.sugar_random && (
-                    <Text style={styles.historySubValueText}>
-                      Random: {`${item.sugar_random} mg/dL`}
-                    </Text>
-                  )}
-                </View>
-              ) : (
-                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                  <Text
-                    style={styles.historyValueText}
-                    numberOfLines={1}
-                  >
-                    {renderVitalValue(item)}
-                  </Text>
-
-                  {/* Weight badge: Red for decrease, Green for increase */}
-                  {vitalName === 'Weight' && (isDecreased || isIncreased) && (
-                    <View
-                      style={[
-                        styles.historyStatusBadge,
-                        { backgroundColor: itemWeightBg, marginLeft: ws(6) },
-                      ]}
-                    >
-                      <MaterialIcons
-                        name={itemWeightIcon as any}
-                        size={11}
-                        color={itemWeightColor}
-                        style={{ marginRight: ws(2) }}
-                      />
-                      <Text
-                        style={[
-                          styles.historyStatusText,
-                          { color: itemWeightColor, fontWeight: '700' },
-                        ]}
-                      >
-                        {weightDiffStr}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
-
-              {/* History Status Pill for non-weight readings */}
-              {vitalName !== 'Weight' && itemStatus && (
-                <View
-                  style={[
-                    styles.historyStatusBadge,
-                    { backgroundColor: itemStatus.bgColor },
-                  ]}
-                >
-                  <MaterialIcons
-                    name={itemStatus.icon}
-                    size={10}
-                    color={itemStatus.color}
-                    style={{ marginRight: ws(3) }}
-                  />
-                  <Text
-                    style={[
-                      styles.historyStatusText,
-                      { color: itemStatus.color },
-                    ]}
-                  >
-                    {itemStatus.label}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            <Text style={styles.historyDateText}>
-              {formatVitalDateTime(item.date || item.created_at, item.time)}
-            </Text>
-          </View>
-
-          {/* Delete action button */}
-          <View style={styles.actionRow}>
-            {!!item.id && (
-              <TouchableOpacity
-                style={styles.actionIconBtnDelete}
-                onPress={() => handleDelete(String(item.id))}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <MaterialIcons name="delete-outline" size={16} color="#EF4444" />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      </AppCard>
-      );
+            return (
+              <VitalHistoryItemCard
+                item={item}
+                vitalName={vitalName}
+                iconInfo={iconInfo}
+                itemStatus={itemStatus}
+                prevEntry={prevEntry}
+                onDelete={handleDelete}
+                renderVitalValue={renderVitalValue}
+              />
+            );
           }}
         />
       )}
@@ -1586,7 +1168,7 @@ renderItem = {({ item }) => {
                 </View>
               </View>
 
-              {/* Metric Value Inputs with inline errors displayed below respective fields */}
+              {/* Metric Value Inputs with inline errors and field-specific hints displayed below respective fields */}
               {vitalName === 'Blood Pressure' ? (
                 <View style={styles.modalFieldGroup}>
                   <Text style={styles.modalFieldLabel}>Systolic (mmHg) *</Text>
@@ -1617,8 +1199,9 @@ renderItem = {({ item }) => {
                       <Text style={styles.errorText}>{fieldErrors.systolic}</Text>
                     </View>
                   )}
+                  <Text style={styles.helperText}>Accepted range: 40–300 mmHg</Text>
 
-                  <Text style={[styles.modalFieldLabel, { marginTop: hs(8) }]}>Diastolic (mmHg) *</Text>
+                  <Text style={[styles.modalFieldLabel, { marginTop: hs(10) }]}>Diastolic (mmHg) *</Text>
                   <View
                     style={[
                       styles.inputWithIconContainer,
@@ -1646,14 +1229,11 @@ renderItem = {({ item }) => {
                       <Text style={styles.errorText}>{fieldErrors.diastolic}</Text>
                     </View>
                   )}
-
-                  <Text style={styles.helperText}>
-                    Accepted range: Sys 40–300, Dia 30–200 mmHg
-                  </Text>
+                  <Text style={styles.helperText}>Accepted range: 30–200 mmHg</Text>
                 </View>
               ) : vitalName === 'Sugar' ? (
                 <View style={styles.modalFieldGroup}>
-                  <Text style={styles.modalFieldLabel}>Fasting (mg/dL) *</Text>
+                  <Text style={styles.modalFieldLabel}>Fasting (mg/dL)</Text>
                   <View
                     style={[
                       styles.inputWithIconContainer,
@@ -1668,8 +1248,8 @@ renderItem = {({ item }) => {
                       value={value}
                       onChangeText={(t) => {
                         setValue(t);
-                        if (fieldErrors.value) {
-                          setFieldErrors((prev) => ({ ...prev, value: '' }));
+                        if (fieldErrors.value || fieldErrors.sugarRandom) {
+                          setFieldErrors((prev) => ({ ...prev, value: '', sugarRandom: '' }));
                         }
                       }}
                     />
@@ -1681,8 +1261,9 @@ renderItem = {({ item }) => {
                       <Text style={styles.errorText}>{fieldErrors.value}</Text>
                     </View>
                   )}
+                  <Text style={styles.helperText}>Accepted range: 20–1000 mg/dL</Text>
 
-                  <Text style={[styles.modalFieldLabel, { marginTop: hs(8) }]}>Random (mg/dL)</Text>
+                  <Text style={[styles.modalFieldLabel, { marginTop: hs(10) }]}>Random (mg/dL)</Text>
                   <View
                     style={[
                       styles.inputWithIconContainer,
@@ -1697,8 +1278,8 @@ renderItem = {({ item }) => {
                       value={sugarRandom}
                       onChangeText={(t) => {
                         setSugarRandom(t);
-                        if (fieldErrors.sugarRandom) {
-                          setFieldErrors((prev) => ({ ...prev, sugarRandom: '' }));
+                        if (fieldErrors.sugarRandom || fieldErrors.value) {
+                          setFieldErrors((prev) => ({ ...prev, sugarRandom: '', value: '' }));
                         }
                       }}
                     />
@@ -1710,8 +1291,7 @@ renderItem = {({ item }) => {
                       <Text style={styles.errorText}>{fieldErrors.sugarRandom}</Text>
                     </View>
                   )}
-
-                  <Text style={styles.helperText}>Accepted range: 20–1000 mg/dL</Text>
+                  <Text style={styles.helperText}>Accepted range: 20–1000 mg/dL (Optional)</Text>
                 </View>
               ) : vitalName === 'Temperature' ? (
                 <View style={styles.modalFieldGroup}>
@@ -1765,7 +1345,7 @@ renderItem = {({ item }) => {
                     <MaterialIcons
                       name="fitness-center"
                       size={18}
-                      color={fieldErrors.value ? '#EF4444' : '#2563EB'}
+                      color={fieldErrors.value ? '#EF4444' : Colors.primaryColor}
                       style={{ marginRight: ws(8) }}
                     />
                     <TextInput
@@ -1793,7 +1373,7 @@ renderItem = {({ item }) => {
                 </View>
               ) : (
                 <View style={styles.modalFieldGroup}>
-                  <Text style={styles.modalFieldLabel}>{`${vitalName} *`}</Text>
+                  <Text style={styles.modalFieldLabel}>{vitalName === 'SpO2' ? 'SpO2 (%) *' : `${vitalName} *`}</Text>
                   <View
                     style={[
                       styles.inputWithIconContainer,
@@ -1813,12 +1393,16 @@ renderItem = {({ item }) => {
                         }
                       }}
                     />
+                    {vitalName === 'SpO2' && <Text style={styles.inputUnitSuffix}>%</Text>}
                   </View>
                   {!!fieldErrors.value && (
                     <View style={styles.errorRow}>
                       <MaterialIcons name="error-outline" size={13} color="#EF4444" />
                       <Text style={styles.errorText}>{fieldErrors.value}</Text>
                     </View>
+                  )}
+                  {vitalName === 'SpO2' && (
+                    <Text style={styles.helperText}>Accepted range: 70–100% (Normal: 95–100%)</Text>
                   )}
                 </View>
               )}
@@ -1919,7 +1503,7 @@ renderItem = {({ item }) => {
                         : 'Today'}
                 </Text>
                 {activeFilter === f && (
-                  <MaterialIcons name="check" size={18} color="#2563EB" />
+                  <MaterialIcons name="check" size={18} color={Colors.primaryColor} />
                 )}
               </TouchableOpacity>
             ))}
@@ -1946,91 +1530,6 @@ renderItem = {({ item }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgColor },
 
-  // Patient Name Dropdown
-  memberDropdownSection: {
-    paddingHorizontal: ws(16),
-    paddingTop: hs(12),
-    paddingBottom: hs(12),
-    backgroundColor: Colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    zIndex: 1000,
-  },
-  memberDropdownLabel: {
-    fontSize: fs(11),
-    ...TYPOGRAPHY.bold,
-    color: '#64748B',
-    marginBottom: hs(6),
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  memberDropdownContainer: {
-    position: 'relative',
-    zIndex: 1000,
-  },
-  memberDropdownField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.white,
-    borderRadius: fs(10),
-    borderWidth: 1.5,
-    borderColor: Colors.blue_3B82F6,
-    paddingHorizontal: ws(14),
-    paddingVertical: hs(10),
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: hs(1) },
-    shadowOpacity: 0.05,
-    shadowRadius: fs(3),
-    elevation: 2,
-  },
-  memberDropdownFieldOpen: {
-    borderColor: Colors.primaryColor,
-  },
-  memberDropdownFieldText: {
-    fontSize: fs(13.5),
-    ...TYPOGRAPHY.medium,
-    color: Colors.primaryFontColor,
-    flex: 1,
-    marginRight: ws(8),
-  },
-  memberDropdownMenuCard: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    marginTop: hs(4),
-    backgroundColor: Colors.white,
-    borderRadius: fs(12),
-    borderWidth: 1,
-    borderColor: Colors.borderColor,
-    padding: ws(6),
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: hs(4) },
-    shadowOpacity: 0.15,
-    shadowRadius: fs(10),
-    elevation: 10,
-    zIndex: 1000,
-  },
-  memberDropdownMenuItem: {
-    paddingVertical: hs(10),
-    paddingHorizontal: ws(12),
-    borderRadius: fs(8),
-    marginBottom: hs(2),
-  },
-  memberDropdownMenuItemActive: {
-    backgroundColor: Colors.primaryColor,
-  },
-  memberDropdownMenuItemText: {
-    fontSize: fs(13),
-    ...TYPOGRAPHY.medium,
-    color: Colors.slate_1E293B,
-  },
-  memberDropdownMenuItemTextActive: {
-    ...TYPOGRAPHY.bold,
-    color: Colors.white,
-  },
-
   // Date Filter Bar
   dateFilterRow: {
     flexDirection: 'row',
@@ -2046,17 +1545,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: ws(6),
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     paddingHorizontal: ws(12),
     paddingVertical: hs(6),
     borderRadius: fs(16),
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: Colors.aqua,
   },
   filterDropdownBtnText: {
     fontSize: fs(12),
     ...TYPOGRAPHY.bold,
-    color: '#2563EB',
+    color: Colors.primaryColor,
   },
   filterCalendarBtn: {
     flexDirection: 'row',
@@ -2067,7 +1566,7 @@ const styles = StyleSheet.create({
     paddingVertical: hs(6),
     borderRadius: fs(16),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   filterCalendarBtnText: {
     fontSize: fs(12),
@@ -2077,180 +1576,6 @@ const styles = StyleSheet.create({
 
   // List Content
   listContent: { flexGrow: 1, padding: ws(16) },
-
-  // Compact Hero Card
-  heroCard: {
-    padding: ws(14),
-    borderRadius: fs(16),
-    marginBottom: hs(12),
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  heroHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: hs(8),
-  },
-  heroActionBtns: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ws(6),
-    marginLeft: ws(8),
-  },
-  heroIconCircle: {
-    width: ws(42),
-    height: ws(42),
-    aspectRatio: 1,
-    borderRadius: 999,
-    overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: ws(10),
-  },
-  heroTitleCol: {
-    flex: 1,
-  },
-  heroLabel: {
-    fontSize: fs(11),
-    ...TYPOGRAPHY.medium,
-    color: Colors.secondaryFontColor,
-  },
-  heroTime: {
-    marginTop: hs(2),
-    fontSize: fs(11.5),
-    ...TYPOGRAPHY.regular,
-    color: '#64748B',
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: ws(8),
-    paddingVertical: hs(4),
-    borderRadius: fs(10),
-  },
-  statusBadgeText: {
-    fontSize: fs(11),
-    ...TYPOGRAPHY.bold,
-  },
-  heroBottomContainer: {
-    marginTop: hs(6),
-  },
-  heroSugarColsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: fs(12),
-    paddingVertical: hs(8),
-    paddingHorizontal: ws(12),
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: hs(4),
-  },
-  heroSugarCol: {
-    flex: 1,
-  },
-  heroSugarColLabel: {
-    fontSize: fs(11),
-    ...TYPOGRAPHY.medium,
-    color: '#64748B',
-    marginBottom: hs(2),
-  },
-  heroSugarColValue: {
-    fontSize: fs(19),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
-  },
-  heroSugarColUnit: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.medium,
-    color: '#64748B',
-  },
-  heroSugarDivider: {
-    width: 1,
-    height: '75%',
-    backgroundColor: '#E2E8F0',
-    marginHorizontal: ws(10),
-  },
-  heroValueAndBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  heroValueText: {
-    fontSize: fs(24),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
-  },
-  heroRangeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: hs(6),
-  },
-  heroRangeText: {
-    fontSize: fs(11),
-    ...TYPOGRAPHY.medium,
-    color: '#64748B',
-  },
-
-  // Weight Trend Chart Card
-  chartCard: {
-    padding: ws(12),
-    borderRadius: fs(16),
-    marginBottom: hs(12),
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  chartTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: hs(8),
-  },
-  chartTitleLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ws(6),
-  },
-  chartTitleText: {
-    fontSize: fs(13),
-    ...TYPOGRAPHY.bold,
-    color: '#1E293B',
-  },
-  chartLegendRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ws(10),
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ws(4),
-  },
-  legendDot: {
-    width: ws(7),
-    height: ws(7),
-    borderRadius: 999,
-  },
-  legendText: {
-    fontSize: fs(10),
-    ...TYPOGRAPHY.medium,
-    color: '#64748B',
-  },
-  chartContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyChartBox: {
-    height: hs(100),
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyChartText: {
-    fontSize: fs(12),
-    color: '#94A3B8',
-  },
 
   // History Section Header
   historySectionHeaderRow: {
@@ -2264,84 +1589,6 @@ const styles = StyleSheet.create({
     fontSize: fs(13),
     ...TYPOGRAPHY.bold,
     color: '#334155',
-  },
-
-  // Compact History Card
-  compactHistoryCard: {
-    marginBottom: hs(10),
-    borderRadius: fs(14),
-    paddingVertical: hs(12),
-    paddingHorizontal: ws(14),
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  historyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  itemIconCircle: {
-    width: ws(38),
-    height: ws(38),
-    aspectRatio: 1,
-    borderRadius: 999,
-    overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: ws(12),
-  },
-  historyInfo: {
-    flex: 1,
-    marginRight: ws(16),
-  },
-  historyValueAndStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: ws(8),
-  },
-  historySugarValuesCol: {
-    flex: 1,
-    marginRight: ws(6),
-    gap: hs(1),
-  },
-  historyValueText: {
-    fontSize: fs(14),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
-  },
-  historySubValueText: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.medium,
-    color: Colors.secondaryFontColor,
-  },
-  historyStatusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: ws(8),
-    paddingVertical: hs(3),
-    borderRadius: fs(6),
-  },
-  historyStatusText: {
-    fontSize: fs(10),
-    ...TYPOGRAPHY.bold,
-  },
-  historyDateText: {
-    marginTop: hs(3),
-    fontSize: fs(11),
-    color: Colors.secondaryFontColor,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ws(8),
-  },
-  actionIconBtnDelete: {
-    width: ws(32),
-    height: ws(32),
-    borderRadius: 999,
-    backgroundColor: '#FEF2F2',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 
   // FAB
@@ -2410,7 +1657,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(12),
     paddingVertical: hs(10),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   memberBoxReadOnly: {
     backgroundColor: '#F1F5F9',
@@ -2492,16 +1739,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: hs(12),
     paddingBottom: hs(4),
-    gap: ws(10),
+    gap: ws(12),
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
   cancelBtn: {
     flex: 1,
-    height: hs(44),
+    flexBasis: 0,
+    minWidth: 0,
+    height: hs(48),
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: fs(10),
+    borderRadius: fs(12),
     backgroundColor: '#F1F5F9',
     borderWidth: 1,
     borderColor: '#CBD5E1',
@@ -2511,7 +1760,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
-  saveBtn: { flex: 1.2, height: hs(44), borderRadius: fs(10) },
+  saveBtn: { flex: 1, flexBasis: 0, minWidth: 0, height: hs(48), borderRadius: fs(12) },
 
   // Filter Quick Sheet Modal Styles
   pickerModalBackdrop: {
@@ -2546,7 +1795,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(8),
   },
   filterMenuItemActive: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
   },
   filterMenuItemText: {
     fontSize: fs(13),
@@ -2555,6 +1804,6 @@ const styles = StyleSheet.create({
   },
   filterMenuItemTextActive: {
     ...TYPOGRAPHY.bold,
-    color: '#2563EB',
+    color: Colors.primaryColor,
   },
 });

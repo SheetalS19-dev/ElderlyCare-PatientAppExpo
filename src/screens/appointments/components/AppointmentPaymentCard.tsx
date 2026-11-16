@@ -11,8 +11,8 @@ interface Props {
 
 export const AppointmentPaymentCard: React.FC<Props> = ({ appointment }) => {
   const amount = Number(appointment.amount || (appointment as any)?.total_amount || 0);
-  const paymentStatus = appointment.payment_status || 'Paid';
-  const paymentMethod = (appointment as any)?.payment_type || (appointment as any)?.payment_method || 'Online';
+  const paymentStatus = appointment.payment_status || 'Pending';
+  const paymentMethod = (appointment as any)?.payment_type || (appointment as any)?.payment_method || '--';
   const txnId = (appointment as any)?.payment_transaction_id || (appointment as any)?.transaction_id || '';
 
   const isPaid = paymentStatus.toLowerCase() === 'paid' || paymentStatus === '1';
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     padding: ws(16),
     marginBottom: hs(14),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.03,

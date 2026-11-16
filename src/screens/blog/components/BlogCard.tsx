@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     borderRadius: ws(16),
     marginBottom: hs(14),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     overflow: 'hidden',
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: hs(2) },
@@ -99,12 +99,12 @@ const styles = StyleSheet.create({
   },
   categoryBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     paddingHorizontal: ws(10),
     paddingVertical: hs(4),
     borderRadius: ws(8),
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: Colors.aquaBorder,
     marginBottom: hs(8),
   },
   categoryBadgeText: {

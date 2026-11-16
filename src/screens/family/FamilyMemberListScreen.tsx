@@ -36,9 +36,23 @@ import {
 import { useGetUserProfileQuery } from '../../redux/apis/userApi';
 import type { FamilyMemberModel, UserModel } from '../../types';
 import { DateTimeUtils, fs, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
-import { validateDob, validatePhone } from '../../validation/authValidation';
+import { validateDob, validateName, validatePhone } from '../../validation/authValidation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FamilyMemberList'>;
+
+const RELATION_OPTIONS = [
+  'Husband',
+  'Wife',
+  'Father',
+  'Mother',
+  'Son',
+  'Daughter',
+  'Brother',
+  'Sister',
+  'Grandfather',
+  'Grandmother',
+  'Other',
+];
 
 function calculateAge(dobStr?: string): string | null {
   if (!dobStr) return null;
@@ -161,6 +175,16 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
   const [gender, setGender] = useState('Male');
   const [dob, setDob] = useState('');
   const [relation, setRelation] = useState('');
+  const [showRelationList, setShowRelationList] = useState(false);
+  const [errors, setErrors] = useState<{
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    dob?: string;
+  }>({});
+
+  const clearError = (key: 'firstName' | 'lastName' | 'phone' | 'dob') =>
+    setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev));
 
   const openAddModal = () => {
     setEditingId(null);
@@ -170,6 +194,8 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
     setGender('Male');
     setDob('');
     setRelation('');
+    setErrors({});
+    setShowRelationList(false);
     setCountryCode({
       name: 'India',
       code: 'IN',
@@ -188,6 +214,8 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
     setDob(item.dob ?? '');
     const itemRelation = (item as any).relation || item.relationship || '';
     setRelation(itemRelation.toLowerCase() === 'family member' ? '' : itemRelation);
+    setErrors({});
+    setShowRelationList(false);
     if (item.isd_code) {
       setCountryCode((prev) => ({
         ...prev,
@@ -198,26 +226,22 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
   };
 
   const handleSubmit = async () => {
-    if (!firstName.trim()) {
-      showToast('Enter First Name');
-      return;
-    }
-    // Last Name is optional per Point 2
-
+    const nextErrors: typeof errors = {};
+    const fnRes = validateName(firstName, true, 'First name');
+    if (!fnRes.isValid) nextErrors.firstName = fnRes.error;
+    // Last name is optional, but when entered it follows the same rules.
+    const lnRes = validateName(lastName, false, 'Last name');
+    if (!lnRes.isValid) nextErrors.lastName = lnRes.error;
     if (phone.trim()) {
       const phoneRes = validatePhone(phone, true);
-      if (!phoneRes.isValid) {
-        showToast(phoneRes.error || 'Please enter a valid 10-digit phone number');
-        return;
-      }
+      if (!phoneRes.isValid) nextErrors.phone = phoneRes.error;
     }
     if (dob.trim()) {
       const dobRes = validateDob(dob, false);
-      if (!dobRes.isValid) {
-        showToast(dobRes.error || 'Invalid date of birth');
-        return;
-      }
+      if (!dobRes.isValid) nextErrors.dob = dobRes.error;
     }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     if (!uid) {
       showToast('User session expired. Please log in again.');
@@ -323,7 +347,7 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
             const initial = memberName ? memberName.charAt(0).toUpperCase() : 'M';
             const genderVal = item.gender || (isSelf ? currentUser?.gender : '');
             const phoneVal = item.phone
-              ? `${item.isd_code ? `${item.isd_code} ` : ''}${item.phone}`
+              ? `${item.phone}`
               : (isSelf ? currentUser?.phone : '');
 
             // DB Relation (Husband, Wife, Father, etc.) - if not present, don't show any chip
@@ -403,7 +427,7 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
                             <MaterialIcons
                               name={isFemale ? 'female' : 'male'}
                               size={fs(12)}
-                              color={isFemale ? '#DB2777' : '#2563EB'}
+                              color={isFemale ? '#DB2777' : Colors.primaryColor}
                               style={{ marginRight: ws(2) }}
                             />
                             <Text style={styles.miniMetaText}>{genderVal}</Text>
@@ -514,33 +538,38 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
               {/* 2-Column Row for First Name and Last Name */}
               <View style={styles.twoColRow}>
                 <View style={styles.col}>
-                  <Text style={[styles.inputLabel, styles.firstInputLabel]}>First Name*</Text>
+                  <Text style={[styles.inputLabel, styles.firstInputLabel]}>First Name *</Text>
                   <TextInput
                     style={styles.textInput}
-                    placeholder="First Name"
+                    placeholder="Enter first name"
                     placeholderTextColor="#94A3B8"
                     value={firstName}
-                    onChangeText={setFirstName}
+                    onChangeText={(v) => {
+                      setFirstName(v);
+                      clearError('firstName');
+                    }}
                   />
+                  {!!errors.firstName && <Text style={styles.errorText}>{errors.firstName}</Text>}
                 </View>
 
                 <View style={styles.col}>
                   <Text style={[styles.inputLabel, styles.firstInputLabel]}>Last Name</Text>
                   <TextInput
                     style={styles.textInput}
-                    placeholder="Last Name"
+                    placeholder="Enter last name"
                     placeholderTextColor="#94A3B8"
                     value={lastName}
-                    onChangeText={setLastName}
+                    onChangeText={(v) => {
+                      setLastName(v);
+                      clearError('lastName');
+                    }}
                   />
+                  {!!errors.lastName && <Text style={styles.errorText}>{errors.lastName}</Text>}
                 </View>
               </View>
 
               <Text style={styles.inputLabel}>Mobile Number</Text>
               <View style={styles.phoneInputRow}>
-                <View style={styles.countryCodeBtn}>
-                  <Text style={styles.dialCodeText}>+91</Text>
-                </View>
                 <TextInput
                   style={styles.phoneInput}
                   placeholder="Enter 10-digit mobile number"
@@ -548,9 +577,13 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
                   keyboardType="phone-pad"
                   maxLength={10}
                   value={phone}
-                  onChangeText={(v) => setPhone(v.replace(/[^0-9]/g, ''))}
+                  onChangeText={(v) => {
+                    setPhone(v.replace(/[^0-9]/g, ''));
+                    clearError('phone');
+                  }}
                 />
               </View>
+              {!!errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
 
               {/* Date of Birth Selection Tile */}
               <Text style={styles.inputLabel}>Date of Birth</Text>
@@ -560,10 +593,11 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
                 activeOpacity={0.7}
               >
                 <Text style={[styles.dateSelectorText, !dob ? styles.dateSelectorPlaceholder : null]}>
-                  {dob ? DateTimeUtils.getDataFormat(dob) || dob : 'Select Date of Birth'}
+                  {dob ? DateTimeUtils.formatDob(dob) : DateTimeUtils.DOB_PLACEHOLDER}
                 </Text>
                 <MaterialIcons name="calendar-today" size={16} color={Colors.primaryColor} />
               </TouchableOpacity>
+              {!!errors.dob && <Text style={styles.errorText}>{errors.dob}</Text>}
 
               {/* Gender Selector */}
               <Text style={styles.inputLabel}>Gender</Text>
@@ -582,41 +616,42 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
               </View>
 
               {/* Relation Selector */}
-              <Text style={styles.inputLabel}>Relation (Optional)</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g. Husband, Wife, Father, Mother..."
-                placeholderTextColor="#94A3B8"
-                value={relation}
-                onChangeText={setRelation}
-              />
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.quickRelationRow}
+              <Text style={styles.inputLabel}>Relation</Text>
+              <TouchableOpacity
+                style={styles.dateSelectorTile}
+                onPress={() => setShowRelationList((v) => !v)}
+                activeOpacity={0.7}
               >
-                {['Husband', 'Wife', 'Father', 'Mother', 'Son', 'Daughter', 'Brother', 'Sister', 'Spouse'].map(
-                  (rel) => (
-                    <TouchableOpacity
-                      key={rel}
-                      style={[
-                        styles.quickRelationChip,
-                        relation.toLowerCase() === rel.toLowerCase() && styles.quickRelationChipActive,
-                      ]}
-                      onPress={() => setRelation(rel)}
-                    >
-                      <Text
-                        style={[
-                          styles.quickRelationText,
-                          relation.toLowerCase() === rel.toLowerCase() && styles.quickRelationTextActive,
-                        ]}
+                <Text style={[styles.dateSelectorText, !relation ? styles.dateSelectorPlaceholder : null]}>
+                  {relation || 'Select relation'}
+                </Text>
+                <MaterialIcons
+                  name={showRelationList ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                  size={20}
+                  color={Colors.primaryColor}
+                />
+              </TouchableOpacity>
+              {showRelationList && (
+                <View style={styles.relationDropdown}>
+                  {RELATION_OPTIONS.map((rel) => {
+                    const active = relation.toLowerCase() === rel.toLowerCase();
+                    return (
+                      <TouchableOpacity
+                        key={rel}
+                        style={[styles.relationOption, active && styles.relationOptionActive]}
+                        onPress={() => {
+                          setRelation(rel);
+                          setShowRelationList(false);
+                        }}
                       >
-                        {rel}
-                      </Text>
-                    </TouchableOpacity>
-                  )
-                )}
-              </ScrollView>
+                        <Text style={[styles.relationOptionText, active && styles.relationOptionTextActive]}>
+                          {rel}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
 
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowModal(false)}>
@@ -626,6 +661,8 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
                   title={editingId ? 'Update Member' : 'Save Member'}
                   loading={isSubmitting}
                   onPress={handleSubmit}
+                  height={hs(48)}
+                  borderRadius={fs(12)}
                   style={styles.saveBtn}
                 />
               </View>
@@ -640,7 +677,10 @@ export const FamilyMemberListScreen = ({ navigation }: Props) => {
         onClose={() => setShowDatePicker(false)}
         initialDate={dob}
         maxDate={new Date()}
-        onSelectDate={(dateStr) => setDob(dateStr)}
+        onSelectDate={(dateStr) => {
+          setDob(dateStr);
+          clearError('dob');
+        }}
         title="Select Date of Birth"
       />
     </View>
@@ -657,7 +697,7 @@ const styles = StyleSheet.create({
     paddingVertical: hs(12),
     backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
@@ -684,8 +724,8 @@ const styles = StyleSheet.create({
     borderColor: '#A7F3D0',
   },
   avatarCircleMale: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
+    backgroundColor: Colors.aquaSoft,
+    borderColor: Colors.aquaBorder,
   },
   avatarCircleFemale: {
     backgroundColor: '#FDF2F8',
@@ -699,7 +739,7 @@ const styles = StyleSheet.create({
     color: '#059669',
   },
   avatarTextMale: {
-    color: '#2563EB',
+    color: Colors.primaryColor,
   },
   avatarTextFemale: {
     color: '#DB2777',
@@ -736,9 +776,9 @@ const styles = StyleSheet.create({
     color: '#047857',
   },
   relationDbBadge: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: Colors.aquaBorder,
     paddingHorizontal: ws(6),
     paddingVertical: hs(2),
     borderRadius: fs(5),
@@ -789,7 +829,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#F1F5F9',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -815,7 +855,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(12),
     backgroundColor: '#F1F5F9',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   quickRelationChipActive: {
     backgroundColor: Colors.primaryColor,
@@ -874,7 +914,7 @@ const styles = StyleSheet.create({
     width: ws(32),
     height: ws(32),
     borderRadius: 999,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -898,7 +938,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderRadius: fs(8),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     paddingHorizontal: ws(10),
     fontSize: fs(13),
     color: '#1E293B',
@@ -911,14 +951,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderRadius: fs(8),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   countryCodeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: ws(8),
     borderRightWidth: 1,
-    borderRightColor: '#E2E8F0',
+    borderRightColor: Colors.border,
     height: '100%',
   },
   flagText: {
@@ -945,7 +985,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderRadius: fs(8),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     paddingHorizontal: ws(10),
   },
   dateSelectorText: {
@@ -971,7 +1011,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   genderChipSelected: {
     backgroundColor: Colors.primaryColor,
@@ -990,18 +1030,57 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: hs(14),
+    gap: ws(12),
   },
   cancelBtn: {
-    paddingVertical: hs(10),
-    paddingHorizontal: ws(14),
-    marginRight: ws(8),
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    height: hs(48),
+    borderRadius: fs(12),
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cancelText: {
-    fontSize: fs(13),
-    color: Colors.secondaryFontColor,
-    ...TYPOGRAPHY.medium,
+    fontSize: fs(14),
+    color: Colors.primaryFontColor,
+    ...TYPOGRAPHY.bold,
   },
   saveBtn: {
     flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+  },
+  errorText: {
+    fontSize: fs(11),
+    color: Colors.redColor,
+    marginTop: hs(3),
+    ...TYPOGRAPHY.regular,
+  },
+  relationDropdown: {
+    marginTop: hs(4),
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: fs(8),
+    backgroundColor: Colors.white,
+    maxHeight: hs(180),
+    overflow: 'hidden',
+  },
+  relationOption: {
+    paddingVertical: hs(9),
+    paddingHorizontal: ws(12),
+  },
+  relationOptionActive: {
+    backgroundColor: Colors.lightBlueTint,
+  },
+  relationOptionText: {
+    fontSize: fs(13),
+    color: '#1E293B',
+    ...TYPOGRAPHY.regular,
+  },
+  relationOptionTextActive: {
+    color: Colors.primaryColor,
+    ...TYPOGRAPHY.bold,
   },
 });

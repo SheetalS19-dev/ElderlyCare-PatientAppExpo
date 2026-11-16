@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -51,7 +51,12 @@ export const DepartmentSelectModal: React.FC<DepartmentSelectModalProps> = ({
     });
   }, [departments, searchQuery]);
 
-  const isAllSelected = !selectedDeptId && !selectedDeptTitle;
+  const hasSelection = !!selectedDeptId || !!selectedDeptTitle;
+
+  // Always open with an empty search so the list starts unfiltered
+  useEffect(() => {
+    if (!visible) setSearchQuery('');
+  }, [visible]);
 
   const handleSelect = (dept: DepartmentModel | null | undefined) => {
     onSelectDepartment(dept);
@@ -125,44 +130,6 @@ export const DepartmentSelectModal: React.FC<DepartmentSelectModalProps> = ({
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {/* All Departments Option */}
-            {!searchQuery.trim() && (
-              <TouchableOpacity
-                style={[styles.deptRow, isAllSelected && styles.deptRowSelected]}
-                activeOpacity={0.7}
-                onPress={() => handleSelect(undefined)}
-              >
-                <View style={styles.deptRowLeft}>
-                  <View
-                    style={[
-                      styles.deptIconWrap,
-                      isAllSelected && styles.deptIconWrapSelected,
-                    ]}
-                  >
-                    <MaterialIcons
-                      name="medical-services"
-                      size={fs(18)}
-                      color={isAllSelected ? Colors.white : Colors.primaryColor}
-                    />
-                  </View>
-                  <View>
-                    <Text
-                      style={[
-                        styles.deptNameText,
-                        isAllSelected && styles.deptNameTextSelected,
-                      ]}
-                    >
-                      All Departments
-                    </Text>
-                    <Text style={styles.deptDescText}>Show doctors across all departments</Text>
-                  </View>
-                </View>
-                {isAllSelected && (
-                  <MaterialIcons name="check-circle" size={fs(20)} color={Colors.primaryColor} />
-                )}
-              </TouchableOpacity>
-            )}
-
             {filteredDepts.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <MaterialIcons
@@ -179,7 +146,7 @@ export const DepartmentSelectModal: React.FC<DepartmentSelectModalProps> = ({
                 const deptIdStr = dept.id != null ? String(dept.id) : '';
                 const deptTitle = dept.title || dept.name || '';
                 const isSelected =
-                  !isAllSelected &&
+                  hasSelection &&
                   ((selectedDeptId && String(selectedDeptId) === deptIdStr) ||
                     (selectedDeptTitle &&
                       deptTitle.toLowerCase() === selectedDeptTitle.toLowerCase()));
@@ -284,7 +251,7 @@ const styles = StyleSheet.create({
   modalSheetTitle: {
     fontSize: fs(17),
     ...TYPOGRAPHY.bold,
-    color: '#0F172A',
+    color: Colors.ink,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -295,7 +262,7 @@ const styles = StyleSheet.create({
     paddingVertical: hs(8),
     marginVertical: hs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   searchIcon: {
     marginRight: ws(8),
@@ -321,7 +288,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   deptRowSelected: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
   },
   deptRowLeft: {
     flexDirection: 'row',

@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import { memo } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -9,14 +9,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { CountryCodeItem } from '../../../components';
 import { Colors } from '../../../constants';
-import { fs, hs, ws } from '../../../utils/metrics';
-import { TYPOGRAPHY } from '../../../utils/typography';
+import { fs, hs, TYPOGRAPHY, ws } from '../../../utils';
 
 export interface SignInFormProps {
-  countryCode: CountryCodeItem;
-  onOpenCountryPicker: () => void;
   phone: string;
   onPhoneChange: (val: string) => void;
   phoneError?: string;
@@ -33,9 +29,7 @@ export interface SignInFormProps {
   onSwitchToRegister: () => void;
 }
 
-export const SignInForm: React.FC<SignInFormProps> = ({
-  countryCode,
-  onOpenCountryPicker,
+export const SignInForm = memo(({
   phone,
   onPhoneChange,
   phoneError,
@@ -50,33 +44,25 @@ export const SignInForm: React.FC<SignInFormProps> = ({
   onSubmit,
   busy,
   onSwitchToRegister,
-}) => {
+}: SignInFormProps) => {
   return (
     <View style={styles.inputsSection}>
-      {/* Phone Number Field */}
+      {/* Phone Number or Email Field */}
       <Text style={styles.inputLabel}>
-        Mobile Phone Number <Text style={styles.requiredAsterisk}>*</Text>
+        Phone Number or Email <Text style={styles.requiredAsterisk}>*</Text>
       </Text>
-      <View
-        style={[
-          styles.phoneInputContainer,
-          phoneError ? styles.inputBorderError : null,
-        ]}
-      >
-        <View style={styles.countryCodePickerBtn}>
-          <Text style={styles.countryCodeText}>+91</Text>
-        </View>
-        <View style={styles.phoneDivider} />
-        <TextInput
-          style={styles.phoneTextInput}
-          placeholder="Enter 10-digit phone number"
-          placeholderTextColor="#94A3B8"
-          keyboardType="phone-pad"
-          value={phone}
-          onChangeText={onPhoneChange}
-          maxLength={10}
-        />
-      </View>
+      <TextInput
+        style={[styles.singleTextInput, phoneError ? styles.inputBorderError : null]}
+        placeholder="Enter phone number or email"
+        placeholderTextColor={Colors.inkSoft}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
+        autoComplete="username"
+        textContentType="username"
+        value={phone}
+        onChangeText={onPhoneChange}
+      />
       {!!phoneError && <Text style={styles.fieldErrorText}>{phoneError}</Text>}
 
       {/* Password Field */}
@@ -84,17 +70,15 @@ export const SignInForm: React.FC<SignInFormProps> = ({
         <Text style={styles.inputLabel}>
           Password <Text style={styles.requiredAsterisk}>*</Text>
         </Text>
-        <View
-          style={[
-            styles.passwordInputContainer,
-            passwordError ? styles.inputBorderError : null,
-          ]}
-        >
+        <View style={[styles.passwordInputContainer, passwordError ? styles.inputBorderError : null]}>
           <TextInput
             style={styles.passwordTextInput}
             placeholder="Enter your password"
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={Colors.inkSoft}
             secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="password"
             value={password}
             onChangeText={onPasswordChange}
           />
@@ -105,14 +89,12 @@ export const SignInForm: React.FC<SignInFormProps> = ({
           >
             <Ionicons
               name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-              size={fs(20)}
-              color="#718096"
+              size={20}
+              color={Colors.inkSoft}
             />
           </TouchableOpacity>
         </View>
-        {!!passwordError && (
-          <Text style={styles.fieldErrorText}>{passwordError}</Text>
-        )}
+        {!!passwordError && <Text style={styles.fieldErrorText}>{passwordError}</Text>}
       </View>
 
       {/* Options Row: Remember Me (Left) & Forgot Password? (Right) */}
@@ -122,15 +104,8 @@ export const SignInForm: React.FC<SignInFormProps> = ({
           activeOpacity={0.8}
           onPress={onToggleRememberMe}
         >
-          <View
-            style={[
-              styles.checkbox,
-              rememberMe ? styles.checkboxActive : null,
-            ]}
-          >
-            {rememberMe && (
-              <MaterialIcons name="check" size={fs(14)} color={Colors.white} />
-            )}
+          <View style={[styles.checkbox, rememberMe ? styles.checkboxActive : null]}>
+            {rememberMe && <MaterialIcons name="check" size={14} color={Colors.white} />}
           </View>
           <Text style={styles.rememberMeText}>Remember me</Text>
         </TouchableOpacity>
@@ -159,168 +134,150 @@ export const SignInForm: React.FC<SignInFormProps> = ({
       </TouchableOpacity>
 
       {/* Switch to Register */}
-      <Text style={styles.switchAuthRow}>
-        <Text style={styles.switchAuthPrompt}>Don't have an account? </Text>
-        <Text style={styles.switchAuthLink} onPress={onSwitchToRegister}>
-          Create Account
+      <View style={styles.switchAuthRow}>
+        <Text style={styles.switchAuthPrompt}>
+          Don't have an account?{' '}
+          <Text style={styles.switchAuthLink} onPress={onSwitchToRegister}>
+            Create Account
+          </Text>
         </Text>
-      </Text>
+      </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   inputsSection: {
-    marginTop: hs(8),
+    gap: hs(12),
   },
   inputLabel: {
-    ...TYPOGRAPHY.bold,
     fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginBottom: hs(6),
+    marginBottom: hs(4),
   },
   requiredAsterisk: {
     color: '#EF4444',
     ...TYPOGRAPHY.bold,
   },
-  phoneInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+  singleTextInput: {
+    height: hs(44),
+    backgroundColor: '#F3F8FD',
     borderRadius: fs(12),
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    height: hs(50),
-    paddingHorizontal: ws(12),
-  },
-  countryCodePickerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingRight: ws(4),
-  },
-  countryCodeText: {
-    ...TYPOGRAPHY.bold,
-    fontSize: fs(14),
-    color: Colors.primaryFontColor,
-  },
-  phoneDivider: {
-    width: 1,
-    height: hs(24),
-    backgroundColor: '#CBD5E1',
-    marginHorizontal: ws(10),
-  },
-  phoneTextInput: {
-    flex: 1,
+    paddingHorizontal: ws(14),
+    fontSize: fs(13),
     ...TYPOGRAPHY.regular,
-    fontSize: fs(14),
     color: Colors.primaryFontColor,
-    paddingVertical: 0,
+    borderWidth: 1,
+    borderColor: Colors.aquaBorder,
   },
   passwordSection: {
-    marginTop: hs(14),
+    marginTop: hs(4),
   },
   passwordInputContainer: {
+    height: hs(44),
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F3F8FD',
     borderRadius: fs(12),
+    paddingHorizontal: ws(14),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    height: hs(50),
-    paddingHorizontal: ws(12),
+    borderColor: Colors.aquaBorder,
   },
   passwordTextInput: {
     flex: 1,
+    fontSize: fs(13),
     ...TYPOGRAPHY.regular,
-    fontSize: fs(14),
     color: Colors.primaryFontColor,
     paddingVertical: 0,
   },
   eyeIconBtn: {
-    padding: ws(6),
+    padding: ws(4),
   },
   inputBorderError: {
     borderColor: Colors.redColor,
+    backgroundColor: '#FFF5F5',
   },
   fieldErrorText: {
-    ...TYPOGRAPHY.medium,
     fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.redColor,
-    marginTop: hs(4),
+    marginTop: hs(2),
   },
   formOptionsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: hs(14),
-    marginBottom: hs(18),
+    alignItems: 'center',
+    marginTop: hs(2),
+    marginBottom: hs(4),
   },
   rememberMeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: ws(8),
   },
   checkbox: {
     width: ws(18),
-    height: ws(18),
+    height: hs(18),
     borderRadius: fs(4),
     borderWidth: 1.5,
-    borderColor: '#94A3B8',
-    alignItems: 'center',
+    borderColor: Colors.inkSoft,
     justifyContent: 'center',
-    marginRight: ws(8),
-    backgroundColor: Colors.white,
+    alignItems: 'center',
   },
   checkboxActive: {
     backgroundColor: Colors.primaryColor,
     borderColor: Colors.primaryColor,
   },
   rememberMeText: {
-    ...TYPOGRAPHY.medium,
     fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
   },
   forgotPasswordBtn: {
     paddingVertical: hs(4),
   },
   forgotPasswordText: {
-    ...TYPOGRAPHY.bold,
     fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
   submitButton: {
-    backgroundColor: Colors.primaryColor,
+    backgroundColor: Colors.navy,
+    height: hs(48),
     borderRadius: fs(14),
-    height: hs(50),
-    alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.primaryColor,
+    alignItems: 'center',
+    marginTop: hs(8),
+    shadowColor: Colors.navy,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.28,
     shadowRadius: 8,
     elevation: 4,
   },
   buttonDisabled: {
-    backgroundColor: '#94A3B8',
-    elevation: 0,
-    shadowOpacity: 0,
+    opacity: 0.7,
   },
   submitButtonText: {
+    fontSize: fs(14),
     ...TYPOGRAPHY.bold,
-    fontSize: fs(15),
     color: Colors.white,
   },
   switchAuthRow: {
-    textAlign: 'center',
-    marginTop: hs(18),
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: hs(14),
   },
   switchAuthPrompt: {
-    ...TYPOGRAPHY.regular,
     fontSize: fs(13),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
+    textAlign: 'center',
   },
   switchAuthLink: {
-    ...TYPOGRAPHY.bold,
     fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
 });

@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { memo } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -10,9 +10,7 @@ import {
   View,
 } from 'react-native';
 import { Colors } from '../../../constants';
-import { DateTimeUtils } from '../../../utils';
-import { fs, hs, ws } from '../../../utils/metrics';
-import { TYPOGRAPHY } from '../../../utils/typography';
+import { DateTimeUtils, fs, hs, TYPOGRAPHY, ws } from '../../../utils';
 
 export interface RegisterFormProps {
   firstName: string;
@@ -41,7 +39,7 @@ export interface RegisterFormProps {
   onSwitchToLogin: () => void;
 }
 
-export const RegisterForm: React.FC<RegisterFormProps> = ({
+export const RegisterForm = memo(({
   firstName,
   onFirstNameChange,
   lastName,
@@ -66,7 +64,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
   onSubmit,
   busy,
   onSwitchToLogin,
-}) => {
+}: RegisterFormProps) => {
   return (
     <View style={styles.inputsSection}>
       {/* First Name */}
@@ -76,8 +74,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
         </Text>
         <TextInput
           style={[styles.singleTextInput, regErrors.firstName ? styles.inputBorderError : null]}
-          placeholder="First Name"
-          placeholderTextColor="#94A3B8"
+          placeholder="Enter your first name"
+          placeholderTextColor={Colors.inkSoft}
           value={firstName}
           onChangeText={onFirstNameChange}
           autoCapitalize="words"
@@ -89,13 +87,14 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
       <View style={styles.fullWidthCol}>
         <Text style={styles.inputLabel}>Last Name</Text>
         <TextInput
-          style={styles.singleTextInput}
-          placeholder="Last Name"
-          placeholderTextColor="#94A3B8"
+          style={[styles.singleTextInput, regErrors.lastName ? styles.inputBorderError : null]}
+          placeholder="Enter your last name"
+          placeholderTextColor={Colors.inkSoft}
           value={lastName}
           onChangeText={onLastNameChange}
           autoCapitalize="words"
         />
+        {!!regErrors.lastName && <Text style={styles.fieldErrorText}>{regErrors.lastName}</Text>}
       </View>
 
       {/* Email Address */}
@@ -105,8 +104,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
         </Text>
         <TextInput
           style={[styles.singleTextInput, regErrors.email ? styles.inputBorderError : null]}
-          placeholder="Email Address"
-          placeholderTextColor="#94A3B8"
+          placeholder="Enter your email ID"
+          placeholderTextColor={Colors.inkSoft}
           value={email}
           onChangeText={onEmailChange}
           keyboardType="email-address"
@@ -120,28 +119,22 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
         <Text style={styles.inputLabel}>
           Phone Number <Text style={styles.requiredAsterisk}>*</Text>
         </Text>
-        <View style={[styles.phoneInputContainer, regErrors.phone ? styles.inputBorderError : null]}>
-          <View style={styles.countryCodePickerBtn}>
-            <Text style={styles.countryCodeText}>+91</Text>
-          </View>
-          <View style={styles.phoneDivider} />
-          <TextInput
-            style={styles.phoneTextInput}
-            placeholder="Phone Number"
-            placeholderTextColor="#94A3B8"
-            value={phone}
-            onChangeText={(text) => onPhoneChange(text.replace(/[^0-9]/g, ''))}
-            keyboardType="phone-pad"
-            maxLength={10}
-          />
-        </View>
+        <TextInput
+          style={[styles.singleTextInput, regErrors.phone ? styles.inputBorderError : null]}
+          placeholder="Enter your mobile number"
+          placeholderTextColor={Colors.inkSoft}
+          value={phone}
+          onChangeText={(text) => onPhoneChange(text.replace(/[^0-9]/g, ''))}
+          keyboardType="phone-pad"
+          maxLength={10}
+        />
         {!!regErrors.phone && <Text style={styles.fieldErrorText}>{regErrors.phone}</Text>}
       </View>
 
       {/* Gender */}
       <View style={styles.fullWidthCol}>
         <Text style={styles.inputLabel}>
-          Select Gender <Text style={styles.requiredAsterisk}>*</Text>
+          Gender <Text style={styles.requiredAsterisk}>*</Text>
         </Text>
         <TouchableOpacity
           style={[styles.dropdownSelector, regErrors.gender ? styles.inputBorderError : null]}
@@ -151,7 +144,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
           <Text style={[styles.dropdownSelectorText, !gender && styles.placeholderText]}>
             {gender || 'Select Gender'}
           </Text>
-          <MaterialIcons name="keyboard-arrow-down" size={fs(20)} color="#718096" />
+          <MaterialIcons name="keyboard-arrow-down" size={20} color={Colors.inkSoft} />
         </TouchableOpacity>
         {!!regErrors.gender && <Text style={styles.fieldErrorText}>{regErrors.gender}</Text>}
       </View>
@@ -167,9 +160,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
           onPress={onOpenDatePicker}
         >
           <Text style={[styles.dropdownSelectorText, !dob && styles.placeholderText]}>
-            {dob ? DateTimeUtils.getDataFormat(dob) || dob : 'Select Date Of Birth'}
+            {dob ? DateTimeUtils.formatDob(dob) : DateTimeUtils.DOB_PLACEHOLDER}
           </Text>
-          <MaterialIcons name="calendar-today" size={fs(16)} color="#718096" />
+          <MaterialIcons name="calendar-today" size={16} color={Colors.inkSoft} />
         </TouchableOpacity>
         {!!regErrors.dob && <Text style={styles.fieldErrorText}>{regErrors.dob}</Text>}
       </View>
@@ -182,9 +175,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
         <View style={[styles.passwordInputContainer, regErrors.password ? styles.inputBorderError : null]}>
           <TextInput
             style={styles.passwordTextInput}
-            placeholder="Password"
-            placeholderTextColor="#94A3B8"
+            placeholder="Enter your password"
+            placeholderTextColor={Colors.inkSoft}
             secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="password"
             value={password}
             onChangeText={onPasswordChange}
           />
@@ -195,8 +191,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
           >
             <Ionicons
               name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-              size={fs(20)}
-              color="#718096"
+              size={20}
+              color={Colors.inkSoft}
             />
           </TouchableOpacity>
         </View>
@@ -211,9 +207,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
         <View style={[styles.passwordInputContainer, regErrors.confirmPassword ? styles.inputBorderError : null]}>
           <TextInput
             style={styles.passwordTextInput}
-            placeholder="Confirm Password"
-            placeholderTextColor="#94A3B8"
+            placeholder="Confirm your password"
+            placeholderTextColor={Colors.inkSoft}
             secureTextEntry={!showConfirmPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="password"
             value={confirmPassword}
             onChangeText={onConfirmPasswordChange}
           />
@@ -224,8 +223,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
           >
             <Ionicons
               name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
-              size={fs(20)}
-              color="#718096"
+              size={20}
+              color={Colors.inkSoft}
             />
           </TouchableOpacity>
         </View>
@@ -247,159 +246,131 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
       </TouchableOpacity>
 
       {/* Switch to Login */}
-      <Text style={styles.switchAuthRow}>
-        <Text style={styles.switchAuthPrompt}>Already have an account? </Text>
-        <Text style={styles.switchAuthLink} onPress={onSwitchToLogin}>
-          Login
+      <View style={styles.switchAuthRow}>
+        <Text style={styles.switchAuthPrompt}>
+          Already have an account?{' '}
+          <Text style={styles.switchAuthLink} onPress={onSwitchToLogin}>
+            Login
+          </Text>
         </Text>
-      </Text>
+      </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   inputsSection: {
-    marginTop: hs(8),
+    gap: hs(12),
   },
   fullWidthCol: {
-    marginBottom: hs(12),
+    width: '100%',
   },
   inputLabel: {
-    ...TYPOGRAPHY.bold,
     fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginBottom: hs(6),
+    marginBottom: hs(4),
   },
   requiredAsterisk: {
     color: '#EF4444',
     ...TYPOGRAPHY.bold,
   },
   singleTextInput: {
-    backgroundColor: '#F8FAFC',
+    height: hs(44),
+    backgroundColor: '#F3F8FD',
     borderRadius: fs(12),
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    height: hs(50),
     paddingHorizontal: ws(14),
-    ...TYPOGRAPHY.regular,
-    fontSize: fs(14),
-    color: Colors.primaryFontColor,
-  },
-  phoneInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: fs(12),
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    height: hs(50),
-  },
-  countryCodePickerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: ws(12),
-    height: '100%',
-  },
-  countryCodeText: {
     fontSize: fs(13),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
-  },
-  phoneDivider: {
-    width: ws(1),
-    height: hs(24),
-    backgroundColor: '#CBD5E1',
-  },
-  phoneTextInput: {
-    flex: 1,
-    height: '100%',
-    paddingHorizontal: ws(12),
-    fontSize: fs(14),
     ...TYPOGRAPHY.regular,
     color: Colors.primaryFontColor,
+    borderWidth: 1,
+    borderColor: Colors.aquaBorder,
+  },
+  dropdownSelector: {
+    height: hs(44),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F3F8FD',
+    borderRadius: fs(12),
+    paddingHorizontal: ws(14),
+    borderWidth: 1,
+    borderColor: Colors.aquaBorder,
+  },
+  dropdownSelectorText: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.medium,
+    color: Colors.primaryFontColor,
+  },
+  placeholderText: {
+    color: Colors.inkSoft,
+    ...TYPOGRAPHY.regular,
   },
   passwordInputContainer: {
+    height: hs(44),
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F3F8FD',
     borderRadius: fs(12),
+    paddingHorizontal: ws(14),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    height: hs(50),
-    paddingHorizontal: ws(12),
+    borderColor: Colors.aquaBorder,
   },
   passwordTextInput: {
     flex: 1,
+    fontSize: fs(13),
     ...TYPOGRAPHY.regular,
-    fontSize: fs(14),
     color: Colors.primaryFontColor,
     paddingVertical: 0,
   },
   eyeIconBtn: {
-    padding: ws(6),
-  },
-  dropdownSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
-    borderRadius: fs(12),
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    height: hs(50),
-    paddingHorizontal: ws(14),
-  },
-  dropdownSelectorText: {
-    ...TYPOGRAPHY.regular,
-    fontSize: fs(14),
-    color: Colors.primaryFontColor,
-  },
-  placeholderText: {
-    color: '#94A3B8',
+    padding: ws(4),
   },
   inputBorderError: {
     borderColor: Colors.redColor,
+    backgroundColor: '#FFF5F5',
   },
   fieldErrorText: {
-    ...TYPOGRAPHY.medium,
     fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
     color: Colors.redColor,
-    marginTop: hs(4),
+    marginTop: hs(2),
   },
   submitButton: {
-    backgroundColor: Colors.primaryColor,
+    backgroundColor: Colors.navy,
+    height: hs(48),
     borderRadius: fs(14),
-    height: hs(50),
-    alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.primaryColor,
+    alignItems: 'center',
+    shadowColor: Colors.navy,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.28,
     shadowRadius: 8,
     elevation: 4,
   },
   buttonDisabled: {
-    backgroundColor: '#94A3B8',
-    elevation: 0,
-    shadowOpacity: 0,
+    opacity: 0.7,
   },
   submitButtonText: {
+    fontSize: fs(14),
     ...TYPOGRAPHY.bold,
-    fontSize: fs(15),
     color: Colors.white,
   },
   switchAuthRow: {
-    textAlign: 'center',
-    marginTop: hs(18),
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: hs(14),
   },
   switchAuthPrompt: {
-    ...TYPOGRAPHY.regular,
     fontSize: fs(13),
+    ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
+    textAlign: 'center',
   },
   switchAuthLink: {
-    ...TYPOGRAPHY.bold,
     fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
 });

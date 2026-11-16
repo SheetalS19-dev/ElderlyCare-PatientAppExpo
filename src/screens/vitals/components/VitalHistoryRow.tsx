@@ -20,11 +20,13 @@ export const VitalHistoryRow: React.FC<Props> = ({
   onEdit,
   onDelete,
 }) => {
-  let displayVal = '--';
+  let displayVal = 'N/A';
   let unit = '';
 
   if (vitalName === 'Blood Pressure') {
-    displayVal = `${vital.bp_systolic || '--'}/${vital.bp_diastolic || '--'}`;
+    if (vital.bp_systolic || vital.bp_diastolic) {
+      displayVal = `${vital.bp_systolic || '0'}/${vital.bp_diastolic || '0'}`;
+    }
     unit = 'mmHg';
   } else if (vitalName === 'Sugar') {
     if (vital.sugar_fasting) {
@@ -35,18 +37,18 @@ export const VitalHistoryRow: React.FC<Props> = ({
     }
     unit = 'mg/dL';
   } else if (vitalName === 'Weight') {
-    displayVal = String(vital.weight || (vital as any).value || '--');
+    displayVal = String(vital.weight || (vital as any).value || 'N/A');
     unit = 'kg';
   } else if (vitalName === 'Temperature') {
-    displayVal = String(vital.temperature || (vital as any).value || '--');
+    displayVal = String(vital.temperature || (vital as any).value || 'N/A');
     unit = '°F';
   } else if (vitalName === 'SpO2') {
-    displayVal = String(vital.spo2 || (vital as any).value || '--');
+    displayVal = String(vital.spo2 || (vital as any).value || 'N/A');
     unit = '%';
   }
 
-  const dateFormatted = DateTimeUtils.getDataFormat(vital.date || vital.created_at) || vital.date || '--';
-  const timeFormatted = vital.time ? vital.time.slice(0, 5) : '--';
+  const dateFormatted = DateTimeUtils.getDataFormat(vital.date || vital.created_at) || vital.date || '';
+  const timeFormatted = vital.time ? vital.time.slice(0, 5) : '';
 
   return (
     <View style={styles.card}>
@@ -78,7 +80,7 @@ const styles = StyleSheet.create({
     padding: ws(14),
     marginBottom: hs(10),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

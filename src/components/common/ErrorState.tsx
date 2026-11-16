@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     marginTop: hs(16),
     paddingHorizontal: ws(20),
     paddingVertical: hs(10),
-    backgroundColor: Colors.primaryColor || '#2563EB',
+    backgroundColor: Colors.primaryColor || Colors.primaryColor,
     borderRadius: fs(8),
   },
   retryText: {

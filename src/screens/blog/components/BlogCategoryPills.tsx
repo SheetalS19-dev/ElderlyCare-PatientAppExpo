@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     borderRadius: ws(20),
     backgroundColor: '#F1F5F9',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   pillActive: {
     backgroundColor: Colors.primaryColor,

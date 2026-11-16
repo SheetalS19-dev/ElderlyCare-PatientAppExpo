@@ -106,7 +106,7 @@ export const SkeletonDetail: React.FC = () => {
 
 const styles = StyleSheet.create({
   skeleton: {
-    backgroundColor: '#E2E8F0',
+    backgroundColor: Colors.border,
   },
   cardContainer: {
     backgroundColor: Colors.white,

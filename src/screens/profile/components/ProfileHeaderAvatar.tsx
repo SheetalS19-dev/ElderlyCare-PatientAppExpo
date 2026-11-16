@@ -65,7 +65,7 @@ export const ProfileHeaderAvatar: React.FC<Props> = ({
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.profileName}>{fullName || 'Patient Name'}</Text>
+      <Text style={styles.profileName}>{fullName || 'Patient'}</Text>
       {!!email && <Text style={styles.profileEmail}>{email}</Text>}
     </View>
   );
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: hs(16),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.04,

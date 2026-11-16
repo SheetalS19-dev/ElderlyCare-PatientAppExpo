@@ -22,19 +22,44 @@ import {
   AppDatePickerModal,
   AppHeader,
   LoadingIndicator,
+  SearchableSelectModal,
+  type SearchableSelectOption,
 } from '../../components';
 import { ApiEndpoints, AppConstants, Colors } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
 import {
+  useGetCitiesQuery,
+  useGetPostalCodesByCityQuery,
+  useGetStatesQuery,
+} from '../../redux/apis/doctorApi';
+import {
   useGetUserProfileQuery,
+  userApi,
   useSoftDeleteUserMutation,
   useUpdateUserProfileMutation,
 } from '../../redux/apis/userApi';
+import { useAppDispatch } from '../../redux/hooks';
 import { storageService } from '../../services/storageService';
-import type { UserModel } from '../../types';
-import { DateTimeUtils, fs, getImageUrl, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
-import { validateDob, validateEmail, validatePhone } from '../../validation/authValidation';
+import type { CityModel, PostalCodeModel, StateModel, UserModel } from '../../types';
+import {
+  DateTimeUtils,
+  fs,
+  getImageUrl,
+  hs,
+  isUnionTerritory,
+  logApiCall,
+  showToast,
+  TYPOGRAPHY,
+  ws,
+} from '../../utils';
+import { validateDob, validateEmail, validateName } from '../../validation/authValidation';
+import {
+  STREET_ADDRESS_MAX,
+  validateCityName,
+  validateStateName,
+  validateStreetAddress,
+} from '../../validation/profileValidation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
 
@@ -43,7 +68,8 @@ type PickerFieldType = 'gender' | 'marital_status' | 'blood_group' | 'occupation
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 const MARITAL_STATUS_OPTIONS = ['Married', 'Unmarried', 'Divorced', 'Widowed', 'Other'];
 const BLOOD_GROUP_OPTIONS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
-const OCCUPATION_OPTIONS = ['Job Holder', 'Business', 'Others'];
+const DEFAULT_OCCUPATION_OPTIONS = ['Job Holder', 'Business'];
+const CUSTOM_OCCUPATIONS_KEY = 'custom_occupations';
 
 const cleanDateString = (rawDate?: string | null): string => {
   if (!rawDate) return '';
@@ -56,6 +82,7 @@ const cleanDateString = (rawDate?: string | null): string => {
 export const EditProfileScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
   const { user: authUser, updateUser: updateAuthUser, logout } = useAuth();
+  const dispatch = useAppDispatch();
   const userId = String(authUser?.id ?? (authUser as any)?.user_id ?? '');
 
   // Form State
@@ -66,8 +93,9 @@ export const EditProfileScreen = ({ navigation }: Props) => {
   const [dob, setDob] = useState(cleanDateString(authUser?.dob));
   const [gender, setGender] = useState(authUser?.gender ?? '');
   const [occupation, setOccupation] = useState(authUser?.occupation ?? '');
-  const [isCustomOccupation, setIsCustomOccupation] = useState(false);
   const [customOccupationText, setCustomOccupationText] = useState('');
+  // Occupations the user typed earlier; they are added to the dropdown automatically.
+  const [customOccupations, setCustomOccupations] = useState<string[]>([]);
   const [maritalStatus, setMaritalStatus] = useState(authUser?.marital_status ?? '');
   const [bloodGroup, setBloodGroup] = useState(authUser?.blood_group ?? '');
 
@@ -75,10 +103,130 @@ export const EditProfileScreen = ({ navigation }: Props) => {
   const [address, setAddress] = useState(authUser?.address ?? '');
   const [city, setCity] = useState(authUser?.city ?? '');
   const [state, setState] = useState(authUser?.state ?? '');
+  const [selectedStateId, setSelectedStateId] = useState<string>('');
+  const [selectedCityId, setSelectedCityId] = useState<string>('');
   const [postalCode, setPostalCode] = useState(String(authUser?.postal_code ?? ''));
+  const [addressDropdown, setAddressDropdown] = useState<'state' | 'city' | 'postal' | null>(null);
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+
+  // Location Dropdown APIs
+  const { data: statesData, isLoading: isStatesLoading } = useGetStatesQuery();
+  const { data: citiesData, isLoading: isCitiesLoading } = useGetCitiesQuery('');
+
+  const apiStates: StateModel[] = useMemo(() => {
+    const raw = Array.isArray(statesData)
+      ? statesData
+      : Array.isArray((statesData as any)?.data)
+        ? (statesData as any).data
+        : [];
+    return raw.filter((s: StateModel) => s && s.title && s.active !== 0);
+  }, [statesData]);
+
+  const apiCities: CityModel[] = useMemo(() => {
+    const raw = Array.isArray(citiesData)
+      ? citiesData
+      : Array.isArray((citiesData as any)?.data)
+        ? (citiesData as any).data
+        : [];
+    return raw.filter((c: CityModel) => c && (c.title || c.name));
+  }, [citiesData]);
+
+  const resolvedStateObj = useMemo(() => {
+    if (selectedStateId) {
+      const byId = apiStates.find((s) => String(s.id) === selectedStateId);
+      if (byId) return byId;
+    }
+    const cleanState = state.trim().toLowerCase();
+    if (!cleanState) return undefined;
+    return apiStates.find((s) => s.title.trim().toLowerCase() === cleanState);
+  }, [selectedStateId, state, apiStates]);
+
+  const filteredCitiesForState = useMemo(() => {
+    const targetStateId = resolvedStateObj ? String(resolvedStateObj.id) : selectedStateId;
+    const targetStateTitle = (resolvedStateObj?.title || state).trim().toLowerCase();
+    if (!targetStateId && !targetStateTitle) return [];
+
+    return apiCities
+      .filter((c) => {
+        if (targetStateId && c.state_id != null && String(c.state_id) === targetStateId) {
+          return true;
+        }
+        return Boolean(
+          targetStateTitle && c.state_title && c.state_title.trim().toLowerCase() === targetStateTitle
+        );
+      })
+      .sort((a, b) => String(a.title || a.name || '').localeCompare(String(b.title || b.name || '')));
+  }, [apiCities, resolvedStateObj, selectedStateId, state]);
+
+  const resolvedCityObj = useMemo(() => {
+    if (selectedCityId) {
+      const byId = apiCities.find((c) => String(c.id) === selectedCityId);
+      if (byId) return byId;
+    }
+    const cleanCity = city.trim().toLowerCase();
+    if (!cleanCity) return undefined;
+    const pool = filteredCitiesForState.length > 0 ? filteredCitiesForState : apiCities;
+    return pool.find((c) => (c.title || c.name || '').trim().toLowerCase() === cleanCity);
+  }, [selectedCityId, city, filteredCitiesForState, apiCities]);
+
+  const effectiveCityId = resolvedCityObj?.id != null ? String(resolvedCityObj.id) : selectedCityId;
+
+  const { data: postalData, isLoading: isPostalLoading } = useGetPostalCodesByCityQuery(
+    effectiveCityId,
+    { skip: !effectiveCityId }
+  );
+
+  const apiPostalCodes: PostalCodeModel[] = useMemo(() => {
+    const raw = Array.isArray(postalData)
+      ? postalData
+      : Array.isArray((postalData as any)?.data)
+        ? (postalData as any).data
+        : [];
+    return raw.filter((p: PostalCodeModel) => p && p.postal_code != null && String(p.postal_code).trim() !== '');
+  }, [postalData]);
+
+  const stateDropdownOptions: SearchableSelectOption<StateModel>[] = useMemo(() => {
+    const regularStates = apiStates
+      .filter((s) => !isUnionTerritory(s.title))
+      .sort((a, b) => a.title.localeCompare(b.title))
+      .map((s) => ({
+        id: String(s.id),
+        label: s.title,
+        badge: 'State',
+        section: 'States',
+        data: s,
+      }));
+    const uts = apiStates
+      .filter((s) => isUnionTerritory(s.title))
+      .sort((a, b) => a.title.localeCompare(b.title))
+      .map((s) => ({
+        id: String(s.id),
+        label: s.title,
+        badge: 'UT',
+        section: 'Union Territories (UTs)',
+        data: s,
+      }));
+    return [...regularStates, ...uts];
+  }, [apiStates]);
+
+  const cityDropdownOptions: SearchableSelectOption<CityModel>[] = useMemo(() => {
+    return filteredCitiesForState.map((c) => ({
+      id: String(c.id ?? c.title ?? ''),
+      label: c.title || c.name || '',
+      data: c,
+    }));
+  }, [filteredCitiesForState]);
+
+  const postalDropdownOptions: SearchableSelectOption<PostalCodeModel>[] = useMemo(() => {
+    return apiPostalCodes.map((p) => ({
+      id: String(p.id ?? p.postal_code),
+      label: String(p.postal_code),
+      subtitle: p.area ? String(p.area) : undefined,
+      data: p,
+    }));
+  }, [apiPostalCodes]);
 
   // Modals
   const [activePicker, setActivePicker] = useState<PickerFieldType>(null);
@@ -92,16 +240,57 @@ export const EditProfileScreen = ({ navigation }: Props) => {
     refetch,
   } = useGetUserProfileQuery(userId, {
     skip: !userId,
+    refetchOnMountOrArgChange: true,
   });
 
   const [updateProfile, { isLoading: isUpdating }] = useUpdateUserProfileMutation();
   const [softDelete, { isLoading: isDeleting }] = useSoftDeleteUserMutation();
 
   const user: UserModel | null = useMemo(() => {
-    return userProfileData?.data ?? userProfileData ?? authUser ?? null;
+    const rawProfile = userProfileData?.data ?? userProfileData;
+    return {
+      ...(rawProfile && typeof rawProfile === 'object' ? rawProfile : {}),
+      ...(authUser && typeof authUser === 'object' ? authUser : {}),
+    };
   }, [userProfileData, authUser]);
 
   const remoteImage = user?.image || user?.image_url || authUser?.image || authUser?.image_url || '';
+
+  const addCustomOccupation = (value: string) => {
+    const clean = value.trim();
+    if (!clean || clean.toLowerCase() === 'others') return;
+    setCustomOccupations((prev) => {
+      const exists = [...DEFAULT_OCCUPATION_OPTIONS, ...prev].some(
+        (o) => o.toLowerCase() === clean.toLowerCase()
+      );
+      if (exists) return prev;
+      const next = [...prev, clean];
+      storageService.setItem(CUSTOM_OCCUPATIONS_KEY, next).catch(() => { });
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const saved = await storageService.getItem<string[]>(CUSTOM_OCCUPATIONS_KEY);
+        if (active && Array.isArray(saved)) {
+          setCustomOccupations((prev) => Array.from(new Set([...saved, ...prev])));
+        }
+      } catch {
+        // ignore – the list simply starts with the defaults
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const occupationOptions = useMemo(
+    () => [...DEFAULT_OCCUPATION_OPTIONS, ...customOccupations],
+    [customOccupations]
+  );
 
   useEffect(() => {
     if (user) {
@@ -113,18 +302,16 @@ export const EditProfileScreen = ({ navigation }: Props) => {
       setGender(user.gender ?? '');
       const userOcc = user.occupation ?? '';
       setOccupation(userOcc);
-      if (userOcc && !['Job Holder', 'Business'].includes(userOcc)) {
-        setIsCustomOccupation(true);
-        setCustomOccupationText(userOcc === 'Others' ? '' : userOcc);
-      } else {
-        setIsCustomOccupation(userOcc === 'Others');
-        setCustomOccupationText('');
+      if (userOcc && !DEFAULT_OCCUPATION_OPTIONS.includes(userOcc)) {
+        addCustomOccupation(userOcc);
       }
       setMaritalStatus(user.marital_status ?? '');
       setBloodGroup(user.blood_group ?? '');
       setAddress(user.address ?? '');
       setCity(user.city ?? '');
       setState(user.state ?? '');
+      setSelectedStateId('');
+      setSelectedCityId('');
       setPostalCode(user.postal_code ? String(user.postal_code) : '');
     }
   }, [userProfileData, authUser]);
@@ -178,20 +365,55 @@ export const EditProfileScreen = ({ navigation }: Props) => {
         } as any);
       }
 
+      const startedAt = Date.now();
       xhr.onload = () => {
+        const durationMs = Date.now() - startedAt;
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const json = JSON.parse(xhr.responseText);
+            logApiCall({
+              url,
+              method: 'POST',
+              status: xhr.status,
+              durationMs,
+              payload: formData,
+              response: json,
+            });
             resolve(json);
           } catch (e) {
+            logApiCall({
+              url,
+              method: 'POST',
+              status: xhr.status,
+              durationMs,
+              payload: formData,
+              response: xhr.responseText,
+            });
             resolve({ status: true });
           }
         } else {
+          logApiCall({
+            url,
+            method: 'POST',
+            status: xhr.status,
+            durationMs,
+            payload: formData,
+            error: `Server error (${xhr.status})`,
+            isError: true,
+          });
           reject(new Error(`Server error (${xhr.status})`));
         }
       };
 
       xhr.onerror = () => {
+        logApiCall({
+          url,
+          method: 'POST',
+          durationMs: Date.now() - startedAt,
+          payload: formData,
+          error: 'Network upload failed',
+          isError: true,
+        });
         reject(new Error('Network upload failed'));
       };
 
@@ -291,29 +513,47 @@ export const EditProfileScreen = ({ navigation }: Props) => {
   const handleUpdate = async () => {
     const errs: Record<string, string> = {};
 
-    if (!fName.trim()) {
-      errs.fName = 'First name is required';
+    // Mandatory fields mirror the Registration form: First Name, Email, Mobile, DOB, Gender.
+    const fnRes = validateName(fName, true, 'First name');
+    if (!fnRes.isValid) errs.fName = fnRes.error || 'First name is required';
+    const lnRes = validateName(lName, false, 'Last name');
+    if (!lnRes.isValid) errs.lName = lnRes.error || 'Invalid last name';
+    const emailRes = validateEmail(email, true);
+    if (!emailRes.isValid) errs.email = emailRes.error || 'Please enter a valid email address';
+    // Mobile number is the (read-only) login number, so only its presence is required.
+    if (!phone.trim()) errs.phone = 'Phone number is required';
+    const dobRes = validateDob(dob, true);
+    if (!dobRes.isValid) errs.dob = dobRes.error || 'Date of birth is required';
+    if (!gender.trim()) errs.gender = 'Gender is required';
+
+    const hasAnyAddress = Boolean(
+      address.trim() || city.trim() || state.trim() || postalCode.trim()
+    );
+    const addrRes = validateStreetAddress(address, hasAnyAddress);
+    if (!addrRes.isValid && addrRes.error) errs.address = addrRes.error;
+
+    const stateRes = validateStateName(state, hasAnyAddress);
+    if (!stateRes.isValid && stateRes.error) {
+      errs.state = stateRes.error;
+    } else if (state.trim() && apiStates.length > 0 && !resolvedStateObj) {
+      errs.state = 'Please select a valid State / UT from the list';
     }
-    if (email.trim()) {
-      const emailRes = validateEmail(email, true);
-      if (!emailRes.isValid) {
-        errs.email = emailRes.error || 'Please enter a valid email address';
-      }
+
+    const cityRes = validateCityName(city, hasAnyAddress);
+    if (!cityRes.isValid && cityRes.error) {
+      errs.city = cityRes.error;
+    } else if (
+      city.trim() &&
+      filteredCitiesForState.length > 0 &&
+      !filteredCitiesForState.some(
+        (c) => (c.title || c.name || '').trim().toLowerCase() === city.trim().toLowerCase()
+      )
+    ) {
+      errs.city = 'Please select a valid City from the list';
     }
-    if (phone.trim()) {
-      const phoneRes = validatePhone(phone, true);
-      if (!phoneRes.isValid) {
-        errs.phone = phoneRes.error || 'Please enter a valid 10-digit phone number';
-      }
-    }
-    if (dob.trim()) {
-      const dobRes = validateDob(dob, false);
-      if (!dobRes.isValid) {
-        errs.dob = dobRes.error || 'Invalid date of birth';
-      }
-    }
+
     if (postalCode.trim() && !/^\d{5,6}$/.test(postalCode.trim())) {
-      errs.postalCode = 'Please enter a valid 5 or 6 digit postal code';
+      errs.postalCode = 'Please select or enter a valid 5 or 6 digit postal code';
     }
 
     setFieldErrors(errs);
@@ -329,10 +569,8 @@ export const EditProfileScreen = ({ navigation }: Props) => {
 
     setIsSubmitting(true);
     try {
-      const finalOccupation =
-        isCustomOccupation && customOccupationText.trim()
-          ? customOccupationText.trim()
-          : occupation;
+      const finalOccupation = occupation.trim();
+      if (finalOccupation) addCustomOccupation(finalOccupation);
 
       const token = await storageService.getItem<string>(AppConstants.storageKeys.token);
       await uploadProfileWithXHR(
@@ -393,9 +631,17 @@ export const EditProfileScreen = ({ navigation }: Props) => {
       };
 
       await updateAuthUser(mergedUser);
+      setFName(mergedUser.f_name);
+      setLName(mergedUser.l_name);
+      // Raw upload bypasses RTK Query, so refresh cached profile / family data
+      // so the Dashboard, header and patient dropdown show the new name instantly.
+      dispatch((userApi as any).util.invalidateTags(['User', 'FamilyMember']));
       setSelectedImageUri(null);
       showToast('Profile updated successfully!');
-      refetch();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Main' }],
+      });
     } catch (err: any) {
       showToast(err?.message || 'Could not update profile');
     } finally {
@@ -421,26 +667,22 @@ export const EditProfileScreen = ({ navigation }: Props) => {
   const getPickerTitleAndOptions = () => {
     switch (activePicker) {
       case 'gender':
-        return { title: 'Select Gender', options: GENDER_OPTIONS, current: gender, onSelect: setGender };
+        return {
+          title: 'Gender', options: GENDER_OPTIONS, current: gender, onSelect: (g: string) => {
+            setGender(g);
+            setFieldErrors((prev) => ({ ...prev, gender: '' }));
+          }
+        };
       case 'marital_status':
         return { title: 'Select Marital Status', options: MARITAL_STATUS_OPTIONS, current: maritalStatus, onSelect: setMaritalStatus };
       case 'blood_group':
         return { title: 'Select Blood Group', options: BLOOD_GROUP_OPTIONS, current: bloodGroup, onSelect: setBloodGroup };
       case 'occupation':
         return {
-          title: 'Select Occupation',
-          options: OCCUPATION_OPTIONS,
+          title: 'Occupation',
+          options: occupationOptions,
           current: occupation,
-          onSelect: (opt: string) => {
-            if (opt === 'Others') {
-              setIsCustomOccupation(true);
-              setOccupation('Others');
-            } else {
-              setIsCustomOccupation(false);
-              setOccupation(opt);
-              setCustomOccupationText('');
-            }
-          },
+          onSelect: (opt: string) => setOccupation(opt),
         };
       default:
         return { title: '', options: [], current: '', onSelect: () => { } };
@@ -547,7 +789,7 @@ export const EditProfileScreen = ({ navigation }: Props) => {
                   setFName(t);
                   if (fieldErrors.fName) setFieldErrors((prev) => ({ ...prev, fName: '' }));
                 }}
-                placeholder="First Name"
+                placeholder="Enter your first name"
                 placeholderTextColor="#94A3B8"
               />
               {!!fieldErrors.fName && <Text style={styles.fieldErrorText}>{fieldErrors.fName}</Text>}
@@ -559,15 +801,21 @@ export const EditProfileScreen = ({ navigation }: Props) => {
               <TextInput
                 style={styles.textInput}
                 value={lName}
-                onChangeText={setLName}
-                placeholder="Last Name"
+                onChangeText={(t) => {
+                  setLName(t);
+                  if (fieldErrors.lName) setFieldErrors((prev) => ({ ...prev, lName: '' }));
+                }}
+                placeholder="Enter your last name"
                 placeholderTextColor="#94A3B8"
               />
+              {!!fieldErrors.lName && <Text style={styles.fieldErrorText}>{fieldErrors.lName}</Text>}
             </View>
 
             {/* Email Address */}
             <View style={styles.fullWidthField}>
-              <Text style={styles.fieldLabel}>Email Address</Text>
+              <Text style={styles.fieldLabel}>
+                Email Address <Text style={styles.requiredAsterisk}>*</Text>
+              </Text>
               <TextInput
                 style={styles.textInput}
                 value={email}
@@ -575,7 +823,7 @@ export const EditProfileScreen = ({ navigation }: Props) => {
                   setEmail(t);
                   if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: '' }));
                 }}
-                placeholder="Email Address"
+                placeholder="Enter your email address"
                 placeholderTextColor="#94A3B8"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -589,14 +837,10 @@ export const EditProfileScreen = ({ navigation }: Props) => {
                 Mobile Number <Text style={styles.requiredAsterisk}>*</Text>
               </Text>
               <View style={[styles.phoneInputRow, styles.readOnlyInput]}>
-                <View style={styles.countryCodeBadge}>
-                  <Text style={styles.countryCodeText}>+91</Text>
-                </View>
-                <View style={styles.verticalDivider} />
                 <TextInput
                   style={styles.phoneInputInner}
                   value={phone.replace(/^\+91/, '').trim()}
-                  placeholder="Mobile Number"
+                  placeholder="Enter your mobile number"
                   placeholderTextColor="#94A3B8"
                   keyboardType="phone-pad"
                   editable={false}
@@ -607,14 +851,16 @@ export const EditProfileScreen = ({ navigation }: Props) => {
 
             {/* Date of Birth Picker */}
             <View style={styles.fullWidthField}>
-              <Text style={styles.fieldLabel}>Date of Birth</Text>
+              <Text style={styles.fieldLabel}>
+                Date of Birth <Text style={styles.requiredAsterisk}>*</Text>
+              </Text>
               <TouchableOpacity
                 style={styles.selectorInput}
                 activeOpacity={0.8}
                 onPress={() => setIsDatePickerVisible(true)}
               >
                 <Text style={[styles.selectorText, !dob && styles.placeholderText]}>
-                  {dob ? DateTimeUtils.getDataFormat(dob) || dob : 'Select Date of Birth'}
+                  {dob ? DateTimeUtils.formatDob(dob) : DateTimeUtils.DOB_PLACEHOLDER}
                 </Text>
                 <MaterialIcons name="calendar-today" size={16} color={Colors.secondaryFontColor} />
               </TouchableOpacity>
@@ -636,6 +882,7 @@ export const EditProfileScreen = ({ navigation }: Props) => {
                 </Text>
                 <MaterialIcons name="keyboard-arrow-down" size={20} color={Colors.secondaryFontColor} />
               </TouchableOpacity>
+              {!!fieldErrors.gender && <Text style={styles.fieldErrorText}>{fieldErrors.gender}</Text>}
             </View>
 
             {/* Occupation */}
@@ -647,28 +894,11 @@ export const EditProfileScreen = ({ navigation }: Props) => {
                 onPress={() => setActivePicker('occupation')}
               >
                 <Text style={[styles.selectorText, !occupation && styles.placeholderText]} numberOfLines={1}>
-                  {occupation || 'Select Occupation'}
+                  {occupation || 'Occupation'}
                 </Text>
                 <MaterialIcons name="keyboard-arrow-down" size={20} color={Colors.secondaryFontColor} />
               </TouchableOpacity>
             </View>
-
-            {/* If Others or custom occupation is selected, provide manual entry */}
-            {isCustomOccupation && (
-              <View style={[styles.fullWidthField, { marginTop: hs(2) }]}>
-                <Text style={styles.fieldLabel}>Specify Occupation (Manual Entry)</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={customOccupationText}
-                  onChangeText={(t) => {
-                    setCustomOccupationText(t);
-                    setOccupation(t);
-                  }}
-                  placeholder="Enter your occupation (e.g. Teacher, Engineer...)"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
-            )}
 
             {/* Marital Status */}
             <View style={styles.fullWidthField}>
@@ -708,68 +938,138 @@ export const EditProfileScreen = ({ navigation }: Props) => {
           </View>
 
           <View style={styles.formCard}>
+            {/* State / UT Dropdown */}
+            <View style={styles.fullWidthField}>
+              <Text style={styles.fieldLabel}>State / UT</Text>
+              <TouchableOpacity
+                style={[styles.selectorInput, fieldErrors.state && styles.inputError]}
+                activeOpacity={0.8}
+                onPress={() => setAddressDropdown('state')}
+              >
+                <Text
+                  style={[styles.selectorText, !state && styles.placeholderText]}
+                  numberOfLines={1}
+                >
+                  {state
+                    ? `${state} (${isUnionTerritory(state) ? 'UT' : 'State'})`
+                    : 'Select State / UT'}
+                </Text>
+                <MaterialIcons name="keyboard-arrow-down" size={20} color={Colors.secondaryFontColor} />
+              </TouchableOpacity>
+              {!!fieldErrors.state && <Text style={styles.fieldErrorText}>{fieldErrors.state}</Text>}
+            </View>
+
+            {/* City Dropdown (depends on selected State / UT) */}
+            <View style={styles.fullWidthField}>
+              <Text style={styles.fieldLabel}>City</Text>
+              <TouchableOpacity
+                style={[
+                  styles.selectorInput,
+                  !state.trim() && styles.readOnlyInput,
+                  fieldErrors.city && styles.inputError,
+                ]}
+                activeOpacity={state.trim() ? 0.8 : 1}
+                onPress={() => {
+                  if (!state.trim()) {
+                    setFieldErrors((prev) => ({ ...prev, state: 'Please select a State / UT first' }));
+                    return;
+                  }
+                  setAddressDropdown('city');
+                }}
+              >
+                <Text
+                  style={[
+                    styles.selectorText,
+                    (!city || !state.trim()) && styles.placeholderText,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {!state.trim() ? 'Select state first' : city || 'Select City'}
+                </Text>
+                <MaterialIcons name="keyboard-arrow-down" size={20} color={Colors.secondaryFontColor} />
+              </TouchableOpacity>
+              {!!fieldErrors.city && <Text style={styles.fieldErrorText}>{fieldErrors.city}</Text>}
+            </View>
+
+            {/* Postal Code Dropdown (depends on selected City) */}
+            <View style={styles.fullWidthField}>
+              <Text style={styles.fieldLabel}>Postal Code</Text>
+              {effectiveCityId && !isPostalLoading && postalDropdownOptions.length === 0 ? (
+                <TextInput
+                  style={[styles.textInput, fieldErrors.postalCode && styles.inputError]}
+                  value={postalCode}
+                  onChangeText={(t) => {
+                    setPostalCode(t.replace(/\D/g, ''));
+                    if (fieldErrors.postalCode) {
+                      setFieldErrors((prev) => ({ ...prev, postalCode: '' }));
+                    }
+                  }}
+                  placeholder="Enter Postal Code"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="numeric"
+                  maxLength={6}
+                />
+              ) : (
+                <TouchableOpacity
+                  style={[
+                    styles.selectorInput,
+                    !city.trim() && styles.readOnlyInput,
+                    fieldErrors.postalCode && styles.inputError,
+                  ]}
+                  activeOpacity={city.trim() ? 0.8 : 1}
+                  onPress={() => {
+                    if (!city.trim()) {
+                      setFieldErrors((prev) => ({ ...prev, city: 'Please select a City first' }));
+                      return;
+                    }
+                    setAddressDropdown('postal');
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.selectorText,
+                      (!postalCode || !city.trim()) && styles.placeholderText,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {!city.trim()
+                      ? 'Select city first'
+                      : postalCode || 'Select Postal Code'}
+                  </Text>
+                  <MaterialIcons name="keyboard-arrow-down" size={20} color={Colors.secondaryFontColor} />
+                </TouchableOpacity>
+              )}
+              {!!fieldErrors.postalCode && (
+                <Text style={styles.fieldErrorText}>{fieldErrors.postalCode}</Text>
+              )}
+            </View>
+
             {/* Street Address */}
             <View style={styles.fullWidthField}>
               <Text style={styles.fieldLabel}>Street Address</Text>
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, fieldErrors.address && styles.inputError]}
                 value={address}
-                onChangeText={setAddress}
+                onChangeText={(t) => {
+                  setAddress(t);
+                  if (fieldErrors.address) setFieldErrors((prev) => ({ ...prev, address: '' }));
+                }}
                 placeholder="Enter Street Address"
                 placeholderTextColor="#94A3B8"
+                maxLength={STREET_ADDRESS_MAX}
               />
-            </View>
-
-            {/* City */}
-            <View style={styles.fullWidthField}>
-              <Text style={styles.fieldLabel}>City</Text>
-              <TextInput
-                style={styles.textInput}
-                value={city}
-                onChangeText={setCity}
-                placeholder="City"
-                placeholderTextColor="#94A3B8"
-              />
-            </View>
-
-            {/* State */}
-            <View style={styles.fullWidthField}>
-              <Text style={styles.fieldLabel}>State</Text>
-              <TextInput
-                style={styles.textInput}
-                value={state}
-                onChangeText={setState}
-                placeholder="State"
-                placeholderTextColor="#94A3B8"
-              />
-            </View>
-
-            {/* Postal Code */}
-            <View style={styles.fullWidthField}>
-              <Text style={styles.fieldLabel}>Postal Code</Text>
-              <TextInput
-                style={styles.textInput}
-                value={postalCode}
-                onChangeText={(t) => {
-                  setPostalCode(t);
-                  if (fieldErrors.postalCode) setFieldErrors((prev) => ({ ...prev, postalCode: '' }));
-                }}
-                placeholder="Postal / Zip Code"
-                placeholderTextColor="#94A3B8"
-                keyboardType="numeric"
-              />
-              {!!fieldErrors.postalCode && <Text style={styles.fieldErrorText}>{fieldErrors.postalCode}</Text>}
+              {!!fieldErrors.address && <Text style={styles.fieldErrorText}>{fieldErrors.address}</Text>}
             </View>
           </View>
 
-          {/* Action Buttons Row matching web UI */}
+          {/* Action Buttons Row */}
           <View style={styles.actionsRow}>
             <TouchableOpacity
               style={styles.cancelBtn}
               activeOpacity={0.8}
               onPress={() => navigation.goBack()}
             >
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+              <Text style={styles.cancelBtnText} numberOfLines={1}>Cancel</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -781,7 +1081,7 @@ export const EditProfileScreen = ({ navigation }: Props) => {
               {isSubmitting || isUpdating ? (
                 <ActivityIndicator size="small" color={Colors.white} />
               ) : (
-                <Text style={styles.updateBtnText}>Update Patient Profile</Text>
+                <Text style={styles.updateBtnText} numberOfLines={1}>Update Profile</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -834,7 +1134,7 @@ export const EditProfileScreen = ({ navigation }: Props) => {
             {/* Direct manual entry inside picker modal for occupation */}
             {activePicker === 'occupation' && (
               <View style={styles.customPickerInputWrap}>
-                <Text style={styles.customPickerInputLabel}>Or enter occupation manually:</Text>
+                <Text style={styles.customPickerInputLabel}>Not listed? Add your occupation</Text>
                 <View style={styles.customPickerInputRow}>
                   <TextInput
                     style={styles.customPickerInput}
@@ -846,14 +1146,9 @@ export const EditProfileScreen = ({ navigation }: Props) => {
                   <TouchableOpacity
                     style={styles.customPickerApplyBtn}
                     onPress={() => {
-                      if (customOccupationText.trim()) {
-                        setOccupation(customOccupationText.trim());
-                        setIsCustomOccupation(true);
-                      }
-                      setActivePicker(null);
                     }}
                   >
-                    <Text style={styles.customPickerApplyText}>Save</Text>
+                    <Text style={styles.customPickerApplyText}>Add</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -868,10 +1163,82 @@ export const EditProfileScreen = ({ navigation }: Props) => {
         onClose={() => setIsDatePickerVisible(false)}
         onSelectDate={(selected) => {
           setDob(selected);
+          setFieldErrors((prev) => ({ ...prev, dob: '' }));
           setIsDatePickerVisible(false);
         }}
         initialDate={dob}
         maxDate={new Date()}
+      />
+
+      {/* State / UT Searchable Dropdown */}
+      <SearchableSelectModal
+        visible={addressDropdown === 'state'}
+        onClose={() => setAddressDropdown(null)}
+        title="Select State / UT"
+        subtitle="States and Union Territories"
+        searchPlaceholder="Search state or UT..."
+        options={stateDropdownOptions}
+        selectedValue={resolvedStateObj?.id ?? state}
+        isLoading={isStatesLoading}
+        emptyMessage="No states available"
+        onSelect={(option) => {
+          const pickedState = String(option.label || '').trim();
+          const pickedStateId = String(option.id || '');
+          const isSameState =
+            pickedState.toLowerCase() === state.trim().toLowerCase() &&
+            pickedStateId === selectedStateId;
+          setState(pickedState);
+          setSelectedStateId(pickedStateId);
+          if (!isSameState) {
+            setCity('');
+            setSelectedCityId('');
+            setPostalCode('');
+          }
+          setFieldErrors((prev) => ({ ...prev, state: '', city: '', postalCode: '' }));
+        }}
+      />
+
+      {/* City Searchable Dropdown */}
+      <SearchableSelectModal
+        visible={addressDropdown === 'city'}
+        onClose={() => setAddressDropdown(null)}
+        title="Select City"
+        subtitle={state ? `Cities in ${state}` : 'Choose your city'}
+        searchPlaceholder="Search city..."
+        options={cityDropdownOptions}
+        selectedValue={resolvedCityObj?.id ?? city}
+        isLoading={isCitiesLoading}
+        emptyMessage={state ? `No cities listed for ${state}` : 'Select a state first'}
+        onSelect={(option) => {
+          const pickedCity = String(option.label || '').trim();
+          const pickedCityId = String(option.id || '');
+          const isSameCity =
+            pickedCity.toLowerCase() === city.trim().toLowerCase() &&
+            pickedCityId === selectedCityId;
+          setCity(pickedCity);
+          setSelectedCityId(pickedCityId);
+          if (!isSameCity) {
+            setPostalCode('');
+          }
+          setFieldErrors((prev) => ({ ...prev, city: '', postalCode: '' }));
+        }}
+      />
+
+      {/* Postal Code Searchable Dropdown */}
+      <SearchableSelectModal
+        visible={addressDropdown === 'postal'}
+        onClose={() => setAddressDropdown(null)}
+        title="Select Postal Code"
+        subtitle={city ? `Postal codes in ${city}` : 'Choose postal code'}
+        searchPlaceholder="Search postal code or area..."
+        options={postalDropdownOptions}
+        selectedValue={postalCode}
+        isLoading={isPostalLoading}
+        emptyMessage={city ? `No postal codes listed for ${city}` : 'Select a city first'}
+        onSelect={(option) => {
+          setPostalCode(String(option.label || '').trim());
+          setFieldErrors((prev) => ({ ...prev, postalCode: '' }));
+        }}
       />
 
       {/* Image Picker Sheet */}
@@ -978,7 +1345,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(16),
     marginBottom: hs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.04,
@@ -1017,7 +1384,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1090,7 +1457,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(14),
     paddingVertical: hs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: hs(1) },
     shadowOpacity: 0.03,
@@ -1129,8 +1496,12 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.regular,
     color: Colors.primaryFontColor,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     textAlignVertical: 'center',
+  },
+  inputError: {
+    borderColor: Colors.redColor,
+    backgroundColor: '#FFF5F5',
   },
   phoneInputRow: {
     minHeight: hs(38),
@@ -1140,7 +1511,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderRadius: fs(10),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     overflow: 'hidden',
   },
   countryCodeBadge: {
@@ -1183,7 +1554,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(10),
     paddingHorizontal: ws(10),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   selectorText: {
     flex: 1,
@@ -1199,28 +1570,34 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(10),
-    marginTop: hs(14),
-    marginBottom: hs(10),
+    gap: ws(12),
+    marginTop: hs(16),
+    marginBottom: hs(12),
     width: '100%',
   },
   cancelBtn: {
     flex: 1,
-    height: hs(42),
-    borderRadius: fs(10),
+    flexBasis: 0,
+    minWidth: 0,
+    height: hs(48),
+    borderRadius: fs(12),
     backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
     justifyContent: 'center',
     alignItems: 'center',
   },
   cancelBtnText: {
-    fontSize: fs(13),
+    fontSize: fs(14),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   updateBtn: {
-    flex: 1.8,
-    height: hs(42),
-    borderRadius: fs(10),
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    height: hs(48),
+    borderRadius: fs(12),
     backgroundColor: Colors.primaryColor,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1234,7 +1611,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   updateBtnText: {
-    fontSize: fs(13),
+    fontSize: fs(14),
     ...TYPOGRAPHY.bold,
     color: Colors.white,
   },
@@ -1405,30 +1782,36 @@ const styles = StyleSheet.create({
   },
   confirmActions: {
     flexDirection: 'row',
-    gap: ws(10),
+    gap: ws(12),
     width: '100%',
   },
   confirmCancelBtn: {
     flex: 1,
-    paddingVertical: hs(10),
-    borderRadius: fs(10),
+    flexBasis: 0,
+    minWidth: 0,
+    height: hs(48),
+    borderRadius: fs(12),
     backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   confirmCancelText: {
-    fontSize: fs(13),
+    fontSize: fs(14),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   confirmDeleteBtn: {
     flex: 1,
-    paddingVertical: hs(10),
-    borderRadius: fs(10),
+    flexBasis: 0,
+    minWidth: 0,
+    height: hs(48),
+    borderRadius: fs(12),
     backgroundColor: Colors.redColor,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   confirmDeleteText: {
-    fontSize: fs(13),
+    fontSize: fs(14),
     ...TYPOGRAPHY.bold,
     color: Colors.white,
   },

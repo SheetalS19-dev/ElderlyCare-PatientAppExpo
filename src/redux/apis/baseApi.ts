@@ -7,10 +7,38 @@ import {
 } from '@reduxjs/toolkit/query/react';
 import { ApiEndpoints, AppConstants } from '../../constants';
 import { storageService } from '../../services/storageService';
+import { formatApiUrl, logApiCall } from '../../utils/apiLogger';
+
+const getRequestMetadata = (args: string | FetchArgs) => {
+  const resolveUrl = (rawUrl: string) =>
+    rawUrl.startsWith('http://') || rawUrl.startsWith('https://')
+      ? rawUrl
+      : `${ApiEndpoints.baseApiUrl.replace(/\/$/, '')}/${rawUrl.replace(/^\//, '')}`;
+
+  if (typeof args === 'string') {
+    return { url: resolveUrl(args), method: 'GET', payload: undefined };
+  }
+
+  return {
+    url: formatApiUrl(resolveUrl(args.url), args.params as Record<string, unknown> | undefined),
+    method: args.method || 'GET',
+    payload: args.body,
+  };
+};
+
+// Public endpoints where sending a patient Bearer token causes the backend to
+// return empty lists or 403 Access denied.
+const PUBLIC_NO_AUTH_ENDPOINTS = new Set(['getClinics', 'getClinicById']);
 
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: ApiEndpoints.baseApiUrl,
-  prepareHeaders: async (headers, { getState }) => {
+  timeout: 20000,
+  prepareHeaders: async (headers, { getState, endpoint }) => {
+    headers.set('Accept', 'application/json');
+    if (endpoint && PUBLIC_NO_AUTH_ENDPOINTS.has(endpoint)) {
+      return headers;
+    }
+
     const state: any = getState();
     const user = state?.auth?.user;
     let token =
@@ -29,7 +57,6 @@ const rawBaseQuery = fetchBaseQuery({
         headers.set('Authorization', `Bearer ${cleanToken}`);
       }
     }
-    headers.set('Accept', 'application/json');
     return headers;
   },
 });
@@ -56,7 +83,11 @@ const baseQueryWithEnvelope: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQ
   api,
   extraOptions,
 ) => {
+  const startedAt = Date.now();
+  const { url, method, payload } = getRequestMetadata(args);
   const result = await rawBaseQuery(args, api, extraOptions);
+  const durationMs = Date.now() - startedAt;
+  const httpStatus = (result.meta as any)?.response?.status;
 
   if (result.error) {
     const errBody: any = result.error.data;
@@ -64,6 +95,16 @@ const baseQueryWithEnvelope: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQ
       (typeof errBody === 'object' && errBody?.message) ||
       (typeof errBody === 'string' && errBody) ||
       `Request failed${result.error.status ? ` (${result.error.status})` : ''}`;
+    logApiCall({
+      url,
+      method,
+      status: httpStatus ?? result.error.status,
+      durationMs,
+      payload,
+      response: errBody,
+      error: message,
+      isError: true,
+    });
     return {
       error: {
         ...result.error,
@@ -74,13 +115,26 @@ const baseQueryWithEnvelope: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQ
 
   const body: any = result.data;
   if (body && typeof body === 'object' && 'response' in body) {
-    const isSuccess =
+    const hasExplicitFailureStatus =
+      body.status === false ||
+      body.status === 0 ||
+      body.status === 'false' ||
+      body.status === '0' ||
+      body.status === 'error' ||
+      body.success === false ||
+      body.success === 0 ||
+      body.success === 'false' ||
+      body.success === '0';
+
+    const hasSuccessResponseCode =
       body.response === 200 ||
       body.response === 201 ||
       body.response === '200' ||
       body.response === '201' ||
       Number(body.response) === 200 ||
-      Number(body.response) === 201 ||
+      Number(body.response) === 201;
+
+    const hasSuccessStatus =
       body.status === true ||
       body.status === 200 ||
       body.status === '200' ||
@@ -89,19 +143,51 @@ const baseQueryWithEnvelope: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQ
       body.success === 1 ||
       body.success === '1';
 
+    const isSuccess = !hasExplicitFailureStatus && (hasSuccessResponseCode || hasSuccessStatus);
+
     if (!isSuccess) {
       if (body.message === 'Not Exists') {
+        logApiCall({
+          url,
+          method,
+          status: httpStatus ?? body.response,
+          durationMs,
+          payload,
+          response: body,
+        });
         return result;
       }
+      logApiCall({
+        url,
+        method,
+        status: httpStatus ?? body.response,
+        durationMs,
+        payload,
+        response: body,
+        error: body.message || 'Something went wrong',
+        isError: true,
+      });
       return {
         error: {
           status: 'CUSTOM_ERROR',
           error: body.message || 'Something went wrong',
-          data: { message: body.message || 'Something went wrong' },
+          data: {
+            ...(typeof body === 'object' ? body : {}),
+            message: body.message || 'Something went wrong',
+          },
         } as FetchBaseQueryError,
       };
     }
   }
+
+  logApiCall({
+    url,
+    method,
+    status: httpStatus ?? body?.response ?? 200,
+    durationMs,
+    payload,
+    response: body,
+  });
 
   return result;
 };
@@ -112,6 +198,7 @@ export const baseApi = createApi({
   tagTypes: [
     'User',
     'Doctor',
+    'Clinic',
     'FamilyMember',
     'Appointment',
     'WalletTxn',

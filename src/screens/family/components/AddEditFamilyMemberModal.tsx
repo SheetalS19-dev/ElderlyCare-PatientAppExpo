@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Colors } from '../../../constants';
+import { DateTimeUtils } from '../../../utils/dateTimeUtils';
 import { fs, hs, ws } from '../../../utils/metrics';
 import { TYPOGRAPHY } from '../../../utils/typography';
 
@@ -95,9 +96,6 @@ export const AddEditFamilyMemberModal: React.FC<Props> = ({
             <View style={styles.fieldWrapper}>
               <Text style={styles.fieldLabel}>Mobile Number</Text>
               <View style={styles.phoneInputRow}>
-                <View style={styles.countryCodeBtn}>
-                  <Text style={styles.dialCodeText}>+91</Text>
-                </View>
                 <TextInput
                   style={styles.phoneInput}
                   value={phone}
@@ -145,7 +143,7 @@ export const AddEditFamilyMemberModal: React.FC<Props> = ({
                 onPress={onOpenDatePicker}
               >
                 <Text style={[styles.dateText, !dob && styles.placeholderText]}>
-                  {dob || 'Select Date of Birth'}
+                  {dob ? DateTimeUtils.formatDob(dob) : DateTimeUtils.DOB_PLACEHOLDER}
                 </Text>
                 <MaterialIcons name="calendar-today" size={ws(18)} color="#64748B" />
               </TouchableOpacity>
@@ -159,7 +157,7 @@ export const AddEditFamilyMemberModal: React.FC<Props> = ({
               onPress={onClose}
               disabled={isSubmitting}
             >
-              <Text style={styles.cancelBtnText}>Close</Text>
+              <Text style={styles.cancelBtnText} numberOfLines={1}>Close</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.submitBtn}
@@ -170,7 +168,7 @@ export const AddEditFamilyMemberModal: React.FC<Props> = ({
               {isSubmitting ? (
                 <ActivityIndicator size="small" color={Colors.white} />
               ) : (
-                <Text style={styles.submitBtnText}>
+                <Text style={styles.submitBtnText} numberOfLines={1}>
                   {isEditing ? 'Update Details' : 'Add Member'}
                 </Text>
               )}
@@ -244,7 +242,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderRadius: ws(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     paddingHorizontal: ws(12),
     fontSize: fs(13),
     ...TYPOGRAPHY.regular,
@@ -257,7 +255,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderRadius: ws(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     overflow: 'hidden',
   },
   countryCodeBtn: {
@@ -265,7 +263,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: ws(10),
     borderRightWidth: 1,
-    borderRightColor: '#E2E8F0',
+    borderRightColor: Colors.border,
     height: '100%',
   },
   dialCodeText: {
@@ -291,7 +289,7 @@ const styles = StyleSheet.create({
     borderRadius: ws(10),
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -313,7 +311,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderRadius: ws(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     paddingHorizontal: ws(12),
     flexDirection: 'row',
     alignItems: 'center',
@@ -337,6 +335,8 @@ const styles = StyleSheet.create({
   },
   cancelBtn: {
     flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
     height: hs(48),
     borderRadius: ws(12),
     backgroundColor: '#F1F5F9',
@@ -350,6 +350,8 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
     height: hs(48),
     borderRadius: ws(12),
     backgroundColor: Colors.primaryColor,

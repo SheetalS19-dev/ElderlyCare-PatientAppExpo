@@ -44,7 +44,7 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
     doctor?.specialization ||
     doctor?.specialty ||
     doctor?.categoryName ||
-    'General Physician';
+    '';
 
   const rawImage = doctor?.image || doctor?.user_image || '';
   const imageUrl = rawImage ? getImageUrl(rawImage) : '';
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EEF2FF',
+    backgroundColor: Colors.aquaSoft,
   },
   avatarPlaceholder: {
     width: ws(58),
@@ -261,11 +261,11 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EEF2FF',
+    backgroundColor: Colors.aquaSoft,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E0E7FF',
+    borderColor: Colors.aquaBorder,
   },
   onlineBadge: {
     position: 'absolute',
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EEF2FF',
+    backgroundColor: Colors.aquaSoft,
   },
   simpleInfo: {
     marginLeft: ws(12),

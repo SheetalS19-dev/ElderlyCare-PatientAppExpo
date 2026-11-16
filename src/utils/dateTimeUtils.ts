@@ -46,11 +46,11 @@ export class DateTimeUtils {
     switch (monthCode) {
       case 1: return 'Jan';
       case 2: return 'Feb';
-      case 3: return 'March';
-      case 4: return 'April';
+      case 3: return 'Mar';
+      case 4: return 'Apr';
       case 5: return 'May';
-      case 6: return 'June';
-      case 7: return 'July';
+      case 6: return 'Jun';
+      case 7: return 'Jul';
       case 8: return 'Aug';
       case 9: return 'Sep';
       case 10: return 'Oct';
@@ -60,44 +60,107 @@ export class DateTimeUtils {
     }
   }
 
+  /** Placeholder shown by every Date of Birth field (testing report 05/11/26, item 40). */
+  static readonly DOB_PLACEHOLDER = 'DD/MM/YYYY';
+
   /**
-   * Safely formats date strings (e.g. "2026-07-28", "2026-07-28T00:00:00.000Z")
-   * into "28 July, 2026" without timezone shifting.
+   * Formats a stored DOB ("2026-07-28" / ISO string) as DD/MM/YYYY without
+   * timezone shifting. Returns '' for empty and the raw value if unparsable.
    */
-  static getDataFormat(createdAt?: string): string {
+  static formatDob(dob?: string | null): string {
+    if (!dob) return '';
+    const str = String(dob).trim();
+    const clean = str.split('T')[0].split(' ')[0];
+    const separator = clean.includes('-') ? '-' : clean.includes('/') ? '/' : '';
+    if (separator) {
+      const parts = clean.split(separator);
+      if (parts.length >= 3) {
+        if (parts[0].length === 4) {
+          const [y, m, d] = parts;
+          return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+        } else if (parts[2].length === 4) {
+          const [d, m, y] = parts;
+          return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+        }
+      }
+    }
+    return str;
+  }
+
+  /**
+   * Consistently formats date strings across the application into "25 Aug, 2026".
+   * Safely handles "YYYY-MM-DD", "DD/MM/YYYY", "YYYY/MM/DD", ISO timestamps,
+   * without timezone shifting bugs.
+   */
+  static getDataFormat(createdAt?: string | null): string {
     if (!createdAt) return '';
     const str = String(createdAt).trim();
-    const cleanDate = str.split('T')[0].split(' ')[0];
-    const parts = cleanDate.split('-');
+    if (!str || str === 'null' || str === 'undefined') return '';
 
-    if (parts.length >= 3) {
-      const year = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10);
-      const day = parseInt(parts[2], 10);
-      if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-        return `${day} ${DateTimeUtils.getMonthName(month)}, ${year}`;
+    const cleanDate = str.split('T')[0].split(' ')[0];
+
+    // Check for delimiter '-' or '/'
+    if (cleanDate.includes('-') || cleanDate.includes('/')) {
+      const separator = cleanDate.includes('-') ? '-' : '/';
+      const parts = cleanDate.split(separator);
+
+      if (parts.length >= 3) {
+        // Case 1: YYYY-MM-DD or YYYY/MM/DD
+        if (parts[0].length === 4) {
+          const year = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10);
+          const day = parseInt(parts[2], 10);
+          if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+            return `${day} ${DateTimeUtils.getMonthName(month)}, ${year}`;
+          }
+        }
+        // Case 2: DD-MM-YYYY or DD/MM/YYYY or D/M/YYYY
+        if (parts[2].length === 4) {
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10);
+          const year = parseInt(parts[2], 10);
+          if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+            return `${day} ${DateTimeUtils.getMonthName(month)}, ${year}`;
+          }
+        }
       }
     }
 
-    const date = new Date(createdAt);
-    if (isNaN(date.getTime())) return createdAt;
+    const date = new Date(str);
+    if (isNaN(date.getTime())) return str;
     return `${date.getDate()} ${DateTimeUtils.getMonthName(date.getMonth() + 1)}, ${date.getFullYear()}`;
   }
 
   /**
-   * Safely formats a timestamp (e.g. "2026-07-22T14:18:35.000Z")
-   * into "22 July, 2026 02:18 PM".
+   * Consistently formats a timestamp across the application into "25 Aug, 2026, 03:00 PM".
    */
-  static getDataFormatWithTime(createdAt?: string): string {
+  static getDataFormatWithTime(createdAt?: string | null): string {
     if (!createdAt) return '';
-    const date = new Date(createdAt);
-    if (isNaN(date.getTime())) return DateTimeUtils.getDataFormat(createdAt);
+    const str = String(createdAt).trim();
+    if (!str || str === 'null' || str === 'undefined') return '';
 
-    const dateStr = DateTimeUtils.getDataFormat(createdAt);
-    const timeStr = DateTimeUtils.convertTo12HourFormat(
-      `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`
-    );
-    return `${dateStr} ${timeStr}`.trim();
+    const dateStr = DateTimeUtils.getDataFormat(str);
+    const date = new Date(str);
+
+    if (!isNaN(date.getTime()) && str.includes(':')) {
+      const hours = date.getHours();
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const timeStr = DateTimeUtils.convertTo12HourFormat(`${hours}:${minutes}`);
+      return `${dateStr}, ${timeStr}`.trim();
+    }
+
+    // Check for time after space or 'T'
+    if (str.includes(' ') || str.includes('T')) {
+      const timePart = str.split(/[ T]/)[1];
+      if (timePart && timePart.includes(':')) {
+        const timeStr = DateTimeUtils.formatTimeToAmPm(timePart);
+        if (timeStr) {
+          return `${dateStr}, ${timeStr}`.trim();
+        }
+      }
+    }
+
+    return dateStr;
   }
 
   /**

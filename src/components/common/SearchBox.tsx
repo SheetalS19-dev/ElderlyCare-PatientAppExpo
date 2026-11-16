@@ -56,7 +56,7 @@ export const SearchBox: React.FC<SearchBoxProps> = ({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={Colors.inkSoft}
         editable={!readOnly && !onTap}
         onSubmitEditing={onSubmit}
         returnKeyType="search"
@@ -68,7 +68,7 @@ export const SearchBox: React.FC<SearchBoxProps> = ({
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           style={styles.clearButton}
         >
-          <MaterialIcons name="cancel" size={fs(18)} color="#94A3B8" />
+          <MaterialIcons name="cancel" size={fs(18)} color={Colors.inkSoft} />
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -80,18 +80,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: fs(14),
-    paddingHorizontal: ws(12),
-    minHeight: hs(48),
-    height: hs(48),
+    borderRadius: fs(26),
+    paddingHorizontal: ws(14),
+    minHeight: hs(50),
+    height: hs(50),
     width: '100%',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
+    borderColor: '#E3EDF7',
+    shadowColor: Colors.navy,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   iconContainer: {
     marginRight: ws(8),

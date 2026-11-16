@@ -92,8 +92,8 @@ export const ShareScreen = ({ navigation }: Props) => {
             
             <AppCard style={styles.featureCard}>
               <View style={styles.featureRow}>
-                <View style={[styles.featureIconBox, { backgroundColor: '#EFF6FF' }]}>
-                  <MaterialIcons name="favorite" size={fs(22)} color="#2563EB" />
+                <View style={[styles.featureIconBox, { backgroundColor: Colors.aquaSoft }]}>
+                  <MaterialIcons name="favorite" size={fs(22)} color={Colors.primaryColor} />
                 </View>
                 <View style={styles.featureInfo}>
                   <Text style={styles.featureTitle}>Family Vitals Tracking</Text>
@@ -116,7 +116,7 @@ export const ShareScreen = ({ navigation }: Props) => {
 
             <AppCard style={styles.featureCard}>
               <View style={styles.featureRow}>
-                <View style={[styles.featureIconBox, { backgroundColor: '#EFF6FF' }]}>
+                <View style={[styles.featureIconBox, { backgroundColor: Colors.aquaSoft }]}>
                   <MaterialIcons name="description" size={fs(22)} color={Colors.primaryColor} />
                 </View>
                 <View style={styles.featureInfo}>
@@ -168,12 +168,12 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: hs(16),
     borderWidth: 1.5,
-    borderColor: '#DBEAFE',
+    borderColor: Colors.aqua,
   },
   heroTitle: {
     fontSize: fs(18),
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(16),
     paddingTop: hs(12),
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: Colors.border,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },

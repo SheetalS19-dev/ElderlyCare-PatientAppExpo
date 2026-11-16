@@ -503,7 +503,7 @@ body {
       </div>
 
       <div>
-        Patient Name:
+        Patient:
         ${escapeHtml(invoice.patient_f_name)}
         ${escapeHtml(invoice.patient_l_name)}
       </div>

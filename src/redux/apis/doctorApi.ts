@@ -1,5 +1,13 @@
 import { ApiEndpoints } from '../../constants';
-import { BannerModel, CityModel, DepartmentModel, DoctorModel, DoctorReviewModel } from '../../types';
+import {
+  BannerModel,
+  CityModel,
+  DepartmentModel,
+  DoctorModel,
+  DoctorReviewModel,
+  PostalCodeModel,
+  StateModel,
+} from '../../types';
 import { baseApi } from './baseApi';
 
 export const doctorApi = baseApi.injectEndpoints({
@@ -16,10 +24,33 @@ export const doctorApi = baseApi.injectEndpoints({
       }),
     }),
 
+    getStates: builder.query({
+      query: () => ({
+        url: ApiEndpoints.getStatesUrl,
+      }),
+      transformResponse: (res: any) => res?.data ?? res,
+    }),
+
     getCities: builder.query({
-      query: (search?: string) => ({
-        url: ApiEndpoints.getCityUrl,
-        params: { search: search ?? '', active: 1 },
+      query: (arg?: string | { search?: string; stateId?: string | number }) => {
+        const search = typeof arg === 'string' ? arg : arg?.search ?? '';
+        const params: Record<string, any> = { active: 1 };
+        if (search) params.search = search;
+        if (typeof arg === 'object' && arg?.stateId != null && arg.stateId !== '') {
+          params.state_id = arg.stateId;
+        }
+        return {
+          url: ApiEndpoints.getCityUrl,
+          params,
+        };
+      },
+      transformResponse: (res: any) => res?.data ?? res,
+    }),
+
+    getPostalCodesByCity: builder.query({
+      query: (cityId: string | number) => ({
+        url: ApiEndpoints.getPostalCodeUrl,
+        params: { city_id: cityId },
       }),
       transformResponse: (res: any) => res?.data ?? res,
     }),
@@ -81,7 +112,9 @@ export const doctorApi = baseApi.injectEndpoints({
 export const {
   useGetDepartmentsQuery,
   useGetBannersQuery,
+  useGetStatesQuery,
   useGetCitiesQuery,
+  useGetPostalCodesByCityQuery,
   useGetCurrentCityQuery,
   useGetDoctorsQuery,
   useGetDoctorsByClinicIdQuery,
@@ -91,5 +124,13 @@ export const {
 } = doctorApi as any;
 
 // Re-exported for screens that only need the response shapes
-export type { BannerModel, CityModel, DepartmentModel, DoctorModel, DoctorReviewModel };
+export type {
+  BannerModel,
+  CityModel,
+  DepartmentModel,
+  DoctorModel,
+  DoctorReviewModel,
+  PostalCodeModel,
+  StateModel,
+};
 

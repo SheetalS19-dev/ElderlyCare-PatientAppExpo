@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { HeaderBackdrop } from '../components';
 import { AppConstants, Colors } from '../constants';
 import { useAuth } from '../context/AuthContext';
 import { getUserFullName } from '../types';
@@ -100,44 +101,47 @@ export const DrawerContent: React.FC<DrawerContentComponentProps> = memo((props)
 
   return (
     <View style={styles.container}>
-      {/* 1. Header Profile Banner */}
-      <View style={[styles.headerBanner, { paddingTop: Math.max(insets.top + 8, 24) }]}>
-        <TouchableOpacity
-          style={styles.profileRow}
-          activeOpacity={0.8}
-          onPress={() => {
-            props.navigation.closeDrawer();
-            rootNavigation.navigate((isAuthenticated ? 'EditProfile' : 'Login') as never);
-          }}
-        >
-          <View style={styles.avatarBorder}>
-            {userImage ? (
-              <Image source={{ uri: getImageUrl(userImage) }} style={styles.avatarImage} resizeMode="cover" />
-            ) : (
-              <View style={styles.avatarFallback}>
-                <MaterialIcons name="person" size={32} color={Colors.primaryColor} />
-              </View>
-            )}
-          </View>
-
-          <View style={styles.profileMeta}>
-            <Text style={styles.userName} numberOfLines={1}>
-              {isAuthenticated ? fullName : 'Welcome, Guest'}
-            </Text>
-            <Text style={styles.userSubtitle} numberOfLines={1}>
-              {isAuthenticated
-                ? userPhone || 'Verified Patient'
-                : `Join ${AppConstants.appName}`}
-            </Text>
-
-            <View style={styles.profileActionPill}>
-              <Text style={styles.profileActionText}>
-                {isAuthenticated ? 'View Profile' : 'Login / Register'}
-              </Text>
-              <MaterialIcons name="chevron-right" size={14} color={Colors.primaryColor} />
+      {/* 1. Header Profile Banner (navy -> teal gradient, same as Home) */}
+      <View style={styles.headerShadowWrap}>
+        <View style={[styles.headerBanner, { paddingTop: Math.max(insets.top + 8, 24) }]}>
+          <HeaderBackdrop id="drawerHeaderGrad" />
+          <TouchableOpacity
+            style={styles.profileRow}
+            activeOpacity={0.8}
+            onPress={() => {
+              props.navigation.closeDrawer();
+              rootNavigation.navigate((isAuthenticated ? 'EditProfile' : 'Login') as never);
+            }}
+          >
+            <View style={styles.avatarBorder}>
+              {userImage ? (
+                <Image source={{ uri: getImageUrl(userImage) }} style={styles.avatarImage} resizeMode="cover" />
+              ) : (
+                <View style={styles.avatarFallback}>
+                  <MaterialIcons name="person" size={32} color={Colors.navy} />
+                </View>
+              )}
             </View>
-          </View>
-        </TouchableOpacity>
+
+            <View style={styles.profileMeta}>
+              <Text style={styles.userName} numberOfLines={1}>
+                {isAuthenticated ? fullName : 'Welcome, Guest'}
+              </Text>
+              <Text style={styles.userSubtitle} numberOfLines={1}>
+                {isAuthenticated
+                  ? userPhone || 'Verified Patient'
+                  : `Join ${AppConstants.appName}`}
+              </Text>
+
+              <View style={styles.profileActionPill}>
+                <Text style={styles.profileActionText}>
+                  {isAuthenticated ? 'View Profile' : 'Login / Register'}
+                </Text>
+                <MaterialIcons name="chevron-right" size={14} color={Colors.navy} />
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* 2. Scrollable Grouped Menu List */}
@@ -206,17 +210,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  headerBanner: {
-    backgroundColor: Colors.primaryColor,
-    paddingHorizontal: ws(18),
-    paddingBottom: hs(18),
+  // Outer wrapper carries the shadow (iOS needs no overflow:hidden here)
+  headerShadowWrap: {
+    backgroundColor: Colors.navy,
     borderBottomLeftRadius: ws(24),
     borderBottomRightRadius: ws(24),
-    shadowColor: Colors.primaryColor,
+    shadowColor: Colors.navy,
     shadowOffset: { width: 0, height: hs(4) },
     shadowOpacity: 0.2,
     shadowRadius: ws(8),
     elevation: 6,
+  },
+  // Inner banner clips the gradient to the rounded corners
+  headerBanner: {
+    backgroundColor: Colors.navy,
+    paddingHorizontal: ws(18),
+    paddingBottom: hs(18),
+    borderBottomLeftRadius: ws(24),
+    borderBottomRightRadius: ws(24),
+    overflow: 'hidden',
   },
   profileRow: {
     flexDirection: 'row',
@@ -241,7 +253,7 @@ const styles = StyleSheet.create({
   avatarFallback: {
     width: '100%',
     height: '100%',
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.aqua,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -272,7 +284,7 @@ const styles = StyleSheet.create({
   profileActionText: {
     ...TYPOGRAPHY.bold,
     fontSize: fs(11),
-    color: Colors.primaryColor,
+    color: Colors.navy,
     marginRight: ws(2),
   },
   menuScroll: {

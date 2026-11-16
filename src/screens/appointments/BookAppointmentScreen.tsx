@@ -30,7 +30,7 @@ import { useGetUserProfileQuery } from '../../redux/apis/userApi';
 import { useAddWalletMoneyMutation } from '../../redux/apis/walletApi';
 import { storageService } from '../../services/storageService';
 import type { CouponModel, DoctorModel, DoctorReviewModel, FamilyMemberModel, UserModel } from '../../types';
-import { CalculationUtils, DateTimeUtils, formatDoctorName, fs, getImageUrl, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
+import { CalculationUtils, DateTimeUtils, formatDoctorName, fs, getImageUrl, hs, markAppointmentAsRescheduled, showToast, TYPOGRAPHY, ws } from '../../utils';
 import { DateTimeSheet } from './components/DateTimeSheet';
 import { FamilyMemberSheet } from './components/FamilyMemberSheet';
 import { PaymentMethodChoice, PaymentSheet } from './components/PaymentSheet';
@@ -47,7 +47,7 @@ interface AppointmentTypeOption {
 }
 
 export const BookAppointmentScreen = ({ navigation, route }: Props) => {
-  const { doctId } = route.params;
+  const { doctId, isReschedule, rescheduledFromAppId } = route.params;
   const insets = useSafeAreaInsets();
   const { user, isAuthenticated, updateUser } = useAuth();
 
@@ -61,6 +61,7 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
 
   const { data: userProfileData, refetch: refetchUserProfile } = useGetUserProfileQuery(uid, {
     skip: !uid,
+    refetchOnMountOrArgChange: true,
   });
 
   const currentUser: UserModel | null = useMemo(() => {
@@ -137,17 +138,17 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
     (doctor as any)?.department?.id ??
     (doctor as any)?.dept?.id ??
     (doctor as any)?.category_id ??
-    '1'
+    ''
   );
-  const cityId = String((doctor as any)?.city_id ?? '1');
+  const cityId = String((doctor as any)?.city_id ?? '');
 
   const { data: rawSuggested } = useGetDoctorsByDeptAndCityQuery(
     { deptId, cityId },
-    { skip: !doctor }
+    { skip: !doctor || !deptId || !cityId }
   );
 
   const { data: rawFallbackDocs } = useGetDoctorsQuery(
-    { cityId },
+    { cityId: cityId || undefined },
     { skip: !doctor }
   );
 
@@ -373,10 +374,11 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
         paymentTxnId = `pay_${Date.now()}`;
       }
 
+      const isRescheduleMode = Boolean(isReschedule);
       const payload: any = {
         user_id: userId,
         family_member_id: familyMemberId,
-        status: 'Confirmed',
+        status: isRescheduleMode ? 'Rescheduled' : 'Confirmed',
         date: effectiveDate,
         time_slots: effectiveTime,
         doct_id: targetDoctId,
@@ -395,6 +397,8 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
         is_wallet_txn: choice === 'wallet' ? 1 : 0,
         source: 'Web',
         coupon_off_amount: couponDiscount,
+        is_reschedule: isRescheduleMode ? 1 : 0,
+        rescheduled_from: rescheduledFromAppId ? String(rescheduledFromAppId) : undefined,
       };
 
       const storedToken = await storageService.getItem<string>(AppConstants.storageKeys.token);
@@ -430,27 +434,40 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
           notes: `Appointment booking${patientNote} (${selectedType.name})`,
           is_wallet_txn: '1',
         };
-        try {
-          await addWalletMoney(walletDebitPayload).unwrap();
-        } catch (walletErr: any) {
-          console.warn('Wallet debit call:', walletErr);
-        }
+        await addWalletMoney(walletDebitPayload).unwrap();
       }
 
+      let bookingRes: any = null;
       try {
-        await addAppointment(payload).unwrap();
+        bookingRes = await addAppointment(payload).unwrap();
       } catch (firstErr: any) {
         const errMsg = String(firstErr?.data?.message || firstErr?.message || firstErr?.error || '');
         if (errMsg.toLowerCase().includes('foreign key') && payload.family_member_id !== userId) {
           payload.family_member_id = userId;
-          await addAppointment(payload).unwrap();
+          bookingRes = await addAppointment(payload).unwrap();
         } else {
           throw firstErr;
         }
       }
 
+      if (isRescheduleMode) {
+        const newAppId = bookingRes?.data?.id || bookingRes?.id || bookingRes?.appointment_id;
+        if (newAppId) {
+          await markAppointmentAsRescheduled(newAppId, rescheduledFromAppId);
+        }
+      }
+
       setShowPaymentSheet(false);
-      showToast('Appointment booked successfully!');
+      showToast(isRescheduleMode ? 'Consultation rescheduled successfully!' : 'Appointment booked successfully!');
+
+      if (choice === 'wallet') {
+        const nextBalance = Math.max(0, walletBalance - total);
+        await updateUser({
+          ...(user || {}),
+          wallet_amount: nextBalance,
+          wallet_balance: nextBalance,
+        });
+      }
 
       try {
         const freshProfile = await refetchUserProfile();
@@ -464,7 +481,15 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
 
       navigation.reset({
         index: 1,
-        routes: [{ name: 'Main' }, { name: 'MyBookings' }],
+        routes: [
+          { name: 'Main' },
+          {
+            name: 'MyBookings',
+            params: isRescheduleMode
+              ? { initialTab: 'upcoming', initialSubFilter: 'rescheduled' }
+              : undefined,
+          },
+        ],
       });
     } catch (e: any) {
       showToast(e?.data?.message || e?.message || e?.error || 'Failed to book appointment');
@@ -498,7 +523,10 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Book Appointment" onBackPress={() => navigation.goBack()} />
+      <AppHeader
+        title={isReschedule ? 'Reschedule Consultation' : 'Book Appointment'}
+        onBackPress={() => navigation.goBack()}
+      />
 
       <KeyboardAvoidingView
         style={styles.flexOne}
@@ -511,6 +539,20 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {isReschedule && (
+            <View style={styles.rescheduleBanner}>
+              <MaterialIcons name="sync" size={fs(18)} color="#EA580C" />
+              <View style={{ flex: 1, marginLeft: ws(8) }}>
+                <Text style={styles.rescheduleBannerTitle}>Rescheduling Consultation</Text>
+                <Text style={styles.rescheduleBannerSub}>
+                  {rescheduledFromAppId
+                    ? `Booking new slot for consultation #${rescheduledFromAppId}`
+                    : 'Select your preferred new date and time slot'}
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Doctor Header Card matching Flutter */}
           <AppCard style={styles.doctorCard}>
             <View style={styles.doctorHeaderRow}>
@@ -545,7 +587,7 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
                 {/* Patients Treated - verified from database */}
                 {(doctor.total_appointment_done != null || (doctor as any).patients_served != null) && (
                   <View style={styles.doctorPatientsRow}>
-                    <MaterialIcons name="people" size={13} color="#2563EB" />
+                    <MaterialIcons name="people" size={13} color={Colors.primaryColor} />
                     <Text style={styles.doctorPatientsText}>
                       {doctor.total_appointment_done ?? (doctor as any).patients_served} Patients Treated
                     </Text>
@@ -573,7 +615,7 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
                   activeOpacity={0.8}
                 >
                   <View style={styles.clinicPinCircle}>
-                    <MaterialIcons name="location-on" size={18} color="#2563EB" />
+                    <MaterialIcons name="location-on" size={18} color={Colors.primaryColor} />
                   </View>
                   <View style={styles.clinicMeta}>
                     <Text style={styles.clinicTitle}>{clinicTitle}</Text>
@@ -638,13 +680,13 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
                     <View
                       style={[
                         styles.feeIconCircle,
-                        { backgroundColor: isEmergency ? '#FEE2E2' : '#EFF6FF' },
+                        { backgroundColor: isEmergency ? '#FEE2E2' : Colors.aquaSoft },
                       ]}
                     >
                       {opt.code === '1' ? (
-                        <MaterialCommunityIcons name="hospital-building" size={20} color="#2563EB" />
+                        <MaterialCommunityIcons name="hospital-building" size={20} color={Colors.primaryColor} />
                       ) : opt.code === '2' ? (
-                        <MaterialIcons name="videocam" size={20} color="#2563EB" />
+                        <MaterialIcons name="videocam" size={20} color={Colors.primaryColor} />
                       ) : (
                         <MaterialCommunityIcons name="ambulance" size={22} color="#EF4444" />
                       )}
@@ -653,7 +695,7 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
                       {opt.label}
                     </Text>
                     <Text style={styles.feeValue}>
-                      {AppConstants.appCurrency}{opt.fee || 0}
+                      {AppConstants.appCurrency}{Number(opt.fee || 0).toFixed(2)}
                     </Text>
                     <Text style={styles.feeModeSubtext}>{opt.subtext}</Text>
                   </TouchableOpacity>
@@ -682,7 +724,7 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
                 >
                   <Text style={styles.selectorLabel}>Date *</Text>
                   <View style={styles.selectorValueRow}>
-                    <MaterialIcons name="calendar-today" size={15} color="#2563EB" />
+                    <MaterialIcons name="calendar-today" size={15} color={Colors.primaryColor} />
                     <Text style={styles.selectorValueText} numberOfLines={1}>
                       {selectedDate ? DateTimeUtils.getDataFormat(selectedDate) : 'Select Date'}
                     </Text>
@@ -698,7 +740,7 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
                 >
                   <Text style={styles.selectorLabel}>Time *</Text>
                   <View style={styles.selectorValueRow}>
-                    <MaterialIcons name="access-time" size={15} color="#2563EB" />
+                    <MaterialIcons name="access-time" size={15} color={Colors.primaryColor} />
                     <Text style={styles.selectorValueText} numberOfLines={1}>
                       {selectedTimeStart
                         ? DateTimeUtils.formatTimeToAmPm(selectedTimeStart)
@@ -719,7 +761,7 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
             activeOpacity={0.8}
           >
             <View style={styles.patientIconCircle}>
-              <MaterialIcons name="person" size={20} color="#2563EB" />
+              <MaterialIcons name="person" size={20} color={Colors.primaryColor} />
             </View>
             <Text style={styles.patientSelectorText} numberOfLines={1}>
               {selectedMember ? patientDisplayName : 'Choose a patient'}
@@ -731,7 +773,7 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
           <Text style={styles.sectionTitle}>Coupon Code</Text>
           <View style={styles.couponContainer}>
             <View style={styles.couponInputWrapper}>
-              <MaterialIcons name="confirmation-number" size={18} color="#2563EB" style={{ marginLeft: ws(12) }} />
+              <MaterialIcons name="confirmation-number" size={18} color={Colors.primaryColor} style={{ marginLeft: ws(12) }} />
               <TextInput
                 style={styles.couponInput}
                 placeholder="Enter coupon code"
@@ -793,22 +835,22 @@ export const BookAppointmentScreen = ({ navigation, route }: Props) => {
             </View>
             <View style={styles.priceBreakdownRow}>
               <Text style={styles.priceBreakdownLabel}>Consultation Fee</Text>
-              <Text style={styles.priceBreakdownValue}>{AppConstants.appCurrency}{fee}</Text>
+              <Text style={styles.priceBreakdownValue}>{AppConstants.appCurrency}{Number(fee || 0).toFixed(2)}</Text>
             </View>
             <View style={styles.priceBreakdownRow}>
-              <Text style={styles.priceBreakdownLabel}>Service Fee</Text>
-              <Text style={styles.priceBreakdownValue}>{AppConstants.appCurrency}{taxAmount.toFixed(0)}</Text>
+              <Text style={styles.priceBreakdownLabel}>Tax (12%)</Text>
+              <Text style={styles.priceBreakdownValue}>{AppConstants.appCurrency}{Number(taxAmount || 0).toFixed(2)}</Text>
             </View>
             {couponDiscount > 0 && (
               <View style={styles.priceBreakdownRow}>
                 <Text style={styles.priceBreakdownDiscountLabel}>Discount ({appliedCoupon?.code || couponCode})</Text>
-                <Text style={styles.priceBreakdownDiscountValue}>-{AppConstants.appCurrency}{couponDiscount.toFixed(0)}</Text>
+                <Text style={styles.priceBreakdownDiscountValue}>-{AppConstants.appCurrency}{Number(couponDiscount || 0).toFixed(2)}</Text>
               </View>
             )}
             <View style={styles.priceBreakdownDivider} />
             <View style={styles.priceBreakdownRow}>
               <Text style={styles.priceBreakdownTotalLabel}>Total Amount</Text>
-              <Text style={styles.priceBreakdownTotalValue}>{AppConstants.appCurrency}{total.toFixed(0)}</Text>
+              <Text style={styles.priceBreakdownTotalValue}>{AppConstants.appCurrency}{Number(total || 0).toFixed(2)}</Text>
             </View>
           </AppCard>
 
@@ -896,12 +938,34 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgColor },
   flexOne: { flex: 1 },
   scrollContent: { padding: ws(14), paddingBottom: hs(110) },
+  rescheduleBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFEDD5',
+    borderWidth: 1,
+    borderColor: '#FDBA74',
+    borderRadius: fs(12),
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(10),
+    marginBottom: hs(12),
+  },
+  rescheduleBannerTitle: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
+    color: '#C2410C',
+  },
+  rescheduleBannerSub: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.regular,
+    color: '#9A3412',
+    marginTop: hs(2),
+  },
   doctorCard: {
     padding: ws(12),
     borderRadius: fs(14),
     backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   doctorHeaderRow: {
     flexDirection: 'row',
@@ -917,7 +981,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#E2E8F0',
+    backgroundColor: Colors.border,
   },
   doctorMetaColumn: {
     flex: 1,
@@ -953,7 +1017,7 @@ const styles = StyleSheet.create({
   doctorPatientsText: {
     fontSize: fs(11),
     ...TYPOGRAPHY.medium,
-    color: '#2563EB',
+    color: Colors.primaryColor,
   },
   emptyInfoCard: {
     flexDirection: 'row',
@@ -962,7 +1026,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(12),
     padding: ws(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     marginTop: hs(10),
     gap: ws(8),
   },
@@ -978,7 +1042,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: fs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     padding: ws(12),
     marginTop: hs(10),
     gap: ws(10),
@@ -987,7 +1051,7 @@ const styles = StyleSheet.create({
     width: ws(36),
     height: ws(36),
     borderRadius: 999,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1025,11 +1089,11 @@ const styles = StyleSheet.create({
     paddingVertical: hs(10),
     paddingHorizontal: ws(4),
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     position: 'relative',
   },
   feeCardSelected: {
-    borderColor: '#2563EB',
+    borderColor: Colors.primaryColor,
     backgroundColor: '#F8FAFC',
   },
   feeCardEmergency: {
@@ -1047,7 +1111,7 @@ const styles = StyleSheet.create({
     width: ws(16),
     height: ws(16),
     borderRadius: 999,
-    backgroundColor: '#2563EB',
+    backgroundColor: Colors.primaryColor,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1097,7 +1161,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: fs(10),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     padding: ws(10),
   },
   selectorLabel: {
@@ -1123,7 +1187,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: fs(10),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     padding: ws(10),
     gap: ws(10),
   },
@@ -1131,7 +1195,7 @@ const styles = StyleSheet.create({
     width: ws(32),
     height: ws(32),
     borderRadius: 999,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1151,7 +1215,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: fs(10),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     height: hs(46),
     overflow: 'hidden',
   },
@@ -1166,7 +1230,7 @@ const styles = StyleSheet.create({
   couponApplyBtn: {
     height: '100%',
     paddingHorizontal: ws(20),
-    backgroundColor: '#2563EB',
+    backgroundColor: Colors.primaryColor,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1201,7 +1265,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(12),
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   priceBreakdownTitle: {
     fontSize: fs(13.5),
@@ -1224,7 +1288,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: ws(4),
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     paddingHorizontal: ws(8),
     paddingVertical: hs(3),
     borderRadius: fs(6),
@@ -1267,14 +1331,14 @@ const styles = StyleSheet.create({
   priceBreakdownTotalValue: {
     fontSize: fs(16),
     ...TYPOGRAPHY.bold,
-    color: '#2563EB',
+    color: Colors.primaryColor,
   },
   reviewSection: { marginTop: 0, marginBottom: 0 },
   patientReviewCard: {
     backgroundColor: Colors.white,
     borderRadius: fs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     padding: ws(12),
     marginBottom: hs(8),
   },
@@ -1284,7 +1348,7 @@ const styles = StyleSheet.create({
     height: ws(34),
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: ws(10),
@@ -1293,7 +1357,7 @@ const styles = StyleSheet.create({
   reviewerInitial: {
     fontSize: fs(13),
     ...TYPOGRAPHY.bold,
-    color: '#2563EB',
+    color: Colors.primaryColor,
   },
   reviewerMeta: { flex: 1 },
   reviewerNameRow: {
@@ -1339,7 +1403,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(12),
     padding: ws(14),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     marginBottom: 0,
     gap: ws(10),
   },
@@ -1347,7 +1411,7 @@ const styles = StyleSheet.create({
     width: ws(36),
     height: ws(36),
     borderRadius: 999,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1378,7 +1442,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: fs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     padding: ws(10),
     alignItems: 'center',
     marginBottom: hs(10),
@@ -1387,7 +1451,7 @@ const styles = StyleSheet.create({
     width: ws(56),
     height: ws(56),
     borderRadius: 999,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: hs(6),
@@ -1405,7 +1469,7 @@ const styles = StyleSheet.create({
     marginTop: hs(2),
     marginBottom: 0,
   },
-  viewMoreToggleText: { fontSize: fs(11.5), color: '#2563EB', ...TYPOGRAPHY.medium },
+  viewMoreToggleText: { fontSize: fs(11.5), color: Colors.primaryColor, ...TYPOGRAPHY.medium },
   bottomSpacer: { height: hs(20) },
   reviewBar: {
     position: 'absolute',
@@ -1416,7 +1480,7 @@ const styles = StyleSheet.create({
     paddingTop: hs(8),
     backgroundColor: Colors.white,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: Colors.border,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
@@ -1438,7 +1502,7 @@ const styles = StyleSheet.create({
   reviewPayBtn: {
     height: hs(44),
     borderRadius: fs(10),
-    backgroundColor: '#2563EB',
+    backgroundColor: Colors.primaryColor,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

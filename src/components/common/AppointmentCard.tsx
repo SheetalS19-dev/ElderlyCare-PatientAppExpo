@@ -23,14 +23,25 @@ const parseAppointmentDate = (rawDate?: string) => {
 
   const str = String(rawDate).trim();
   const cleanDate = str.split('T')[0].split(' ')[0];
-  const parts = cleanDate.split('-');
+  const separator = cleanDate.includes('-') ? '-' : cleanDate.includes('/') ? '/' : '';
 
-  if (parts.length >= 3) {
-    const yearStr = parts[0];
-    const monthNum = parseInt(parts[1], 10);
-    const monthStr = getMonthAbbrev(monthNum);
-    const dayStr = String(parseInt(parts[2], 10)).padStart(2, '0');
-    return { yearStr, monthStr, dayStr };
+  if (separator) {
+    const parts = cleanDate.split(separator);
+    if (parts.length >= 3) {
+      if (parts[0].length === 4) {
+        const yearStr = parts[0];
+        const monthNum = parseInt(parts[1], 10);
+        const monthStr = getMonthAbbrev(monthNum);
+        const dayStr = String(parseInt(parts[2], 10)).padStart(2, '0');
+        return { yearStr, monthStr, dayStr };
+      } else if (parts[2].length === 4) {
+        const yearStr = parts[2];
+        const monthNum = parseInt(parts[1], 10);
+        const monthStr = getMonthAbbrev(monthNum);
+        const dayStr = String(parseInt(parts[0], 10)).padStart(2, '0');
+        return { yearStr, monthStr, dayStr };
+      }
+    }
   }
 
   const d = new Date(str);
@@ -63,7 +74,7 @@ const getStatusBadge = (status?: string) => {
     return { bg: '#DCFCE7', color: '#15803D', label: 'Confirmed' };
   }
   if (s === 'completed' || s === 'visited') {
-    return { bg: '#EFF6FF', color: '#2563EB', label: 'Completed' };
+    return { bg: Colors.aquaSoft, color: Colors.primaryColor, label: 'Completed' };
   }
   return { bg: '#F1F5F9', color: '#64748B', label: status || 'Scheduled' };
 };
@@ -187,11 +198,11 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
             <MaterialIcons
               name="videocam"
               size={fs(15)}
-              color="#2563EB"
+              color={Colors.primaryColor}
               style={{ marginRight: ws(3) }}
             />
           )}
-          <Text style={[styles.metaLabelText, isVideo && { color: '#2563EB', ...TYPOGRAPHY.medium }]}>
+          <Text style={[styles.metaLabelText, isVideo && { color: Colors.primaryColor, ...TYPOGRAPHY.medium }]}>
             {isVideo ? 'Video Consultant' : (appointment?.type || 'Clinic Visit')}
           </Text>
         </View>
@@ -199,14 +210,22 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
 
       {/* Bottom Actions Row */}
       <View style={styles.cardFooter}>
-        <TouchableOpacity
-          style={styles.rebookBtn}
-          activeOpacity={0.8}
-          onPress={onRebook || onPress}
-        >
-          <MaterialIcons name="sync" size={fs(14)} color="#2563EB" />
-          <Text style={styles.rebookBtnText}>Rebook</Text>
-        </TouchableOpacity>
+        {(() => {
+          const isUpcoming = ['pending', 'confirmed', 'rescheduled', 'scheduled', 'booked', 'active', 'approved', 'paid', 'in-process'].includes(
+            (displayedStatus || '').toLowerCase().trim()
+          );
+          const actionLabel = isUpcoming ? 'Reschedule' : 'Rebook';
+          return (
+            <TouchableOpacity
+              style={styles.rebookBtn}
+              activeOpacity={0.8}
+              onPress={onRebook || onPress}
+            >
+              <MaterialIcons name="sync" size={fs(14)} color={Colors.primaryColor} />
+              <Text style={styles.rebookBtnText}>{actionLabel}</Text>
+            </TouchableOpacity>
+          );
+        })()}
 
         <TouchableOpacity
           style={styles.detailsChevron}
@@ -214,7 +233,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
           activeOpacity={0.7}
         >
           <Text style={styles.detailsLinkText}>Details</Text>
-          <MaterialIcons name="chevron-right" size={fs(16)} color="#2563EB" />
+          <MaterialIcons name="chevron-right" size={fs(16)} color={Colors.primaryColor} />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -229,7 +248,7 @@ const styles = StyleSheet.create({
     paddingVertical: hs(10),
     marginBottom: hs(10),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
@@ -252,7 +271,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#F1F5F9',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   avatarPlaceholder: {
     width: ws(44),
@@ -260,11 +279,11 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: Colors.aqua,
   },
   verifiedBadge: {
     position: 'absolute',
@@ -273,7 +292,7 @@ const styles = StyleSheet.create({
     width: ws(16),
     height: ws(16),
     borderRadius: 999,
-    backgroundColor: '#2563EB',
+    backgroundColor: Colors.primaryColor,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
@@ -321,7 +340,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   dateMonth: {
     ...TYPOGRAPHY.bold,
@@ -374,9 +393,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: ws(4),
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: Colors.aqua,
     paddingHorizontal: ws(10),
     paddingVertical: hs(4),
     borderRadius: fs(12),
@@ -384,7 +403,7 @@ const styles = StyleSheet.create({
   rebookBtnText: {
     ...TYPOGRAPHY.bold,
     fontSize: fs(11),
-    color: '#2563EB',
+    color: Colors.primaryColor,
   },
   detailsChevron: {
     flexDirection: 'row',
@@ -395,6 +414,6 @@ const styles = StyleSheet.create({
   detailsLinkText: {
     ...TYPOGRAPHY.bold,
     fontSize: fs(11.5),
-    color: '#2563EB',
+    color: Colors.primaryColor,
   },
 });

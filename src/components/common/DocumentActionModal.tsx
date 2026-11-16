@@ -81,7 +81,7 @@ export const DocumentActionModal: React.FC<DocumentActionModalProps> = ({
               {/* 1. View / Preview Option */}
               <TouchableOpacity style={styles.actionCard} activeOpacity={0.75} onPress={onView}>
                 <View style={[styles.actionIconCircle, { backgroundColor: '#EBF5FF' }]}>
-                  <MaterialIcons name="visibility" size={fs(22)} color="#2563EB" />
+                  <MaterialIcons name="visibility" size={fs(22)} color={Colors.primaryColor} />
                 </View>
                 <View style={styles.actionMeta}>
                   <Text style={styles.actionTitle}>View / Preview Document</Text>
@@ -108,7 +108,7 @@ export const DocumentActionModal: React.FC<DocumentActionModalProps> = ({
 
               {/* 3. Share via Apps Option */}
               <TouchableOpacity style={styles.actionCard} activeOpacity={0.75} onPress={onShare}>
-                <View style={[styles.actionIconCircle, { backgroundColor: '#EFF6FF' }]}>
+                <View style={[styles.actionIconCircle, { backgroundColor: Colors.aquaSoft }]}>
                   <MaterialIcons name="share" size={fs(22)} color={Colors.primaryColor} />
                 </View>
                 <View style={styles.actionMeta}>
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: ws(12),
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(16),
     padding: ws(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   actionIconCircle: {
     width: ws(42),

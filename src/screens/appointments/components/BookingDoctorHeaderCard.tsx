@@ -34,18 +34,20 @@ export const BookingDoctorHeaderCard: React.FC<Props> = ({
 
         <View style={styles.infoCol}>
           <Text style={styles.doctorName}>{formatDoctorName(doctor.name)}</Text>
-          <Text style={styles.deptText}>
-            {(doctor as any).clinic_name || (doctor as any).hospital_name || (doctor as any).hospital_address || 'Clinic / Hospital'}
-          </Text>
-          <Text style={styles.expText}>
-            {doctor.experience ? `${doctor.experience} yrs exp.` : 'Experienced Specialist'}
-          </Text>
+          {!!((doctor as any).clinic_name || (doctor as any).hospital_name || (doctor as any).hospital_address) && (
+            <Text style={styles.deptText}>
+              {(doctor as any).clinic_name || (doctor as any).hospital_name || (doctor as any).hospital_address}
+            </Text>
+          )}
+          {!!doctor.experience && (
+            <Text style={styles.expText}>{doctor.experience} yrs exp.</Text>
+          )}
 
           {/* Rating */}
           <View style={styles.ratingRow}>
-            <StarRating rating={Number(ratingAverage) || 5} size={ws(14)} />
+            <StarRating rating={Number(ratingAverage) || 0} size={ws(14)} />
             <Text style={styles.ratingText}>
-              {ratingAverage} ({reviewsCount} reviews)
+              {Number(ratingAverage) > 0 ? ratingAverage : '0.0'} ({reviewsCount} reviews)
             </Text>
           </View>
         </View>
@@ -71,7 +73,7 @@ const styles = StyleSheet.create({
     padding: ws(16),
     marginBottom: hs(14),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.03,

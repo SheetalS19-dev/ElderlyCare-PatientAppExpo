@@ -1,23 +1,29 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   LayoutAnimation,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   UIManager,
-  View,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppCard, AppHeader, EmptyState, LoadingIndicator } from '../../components';
+import {
+  AppCard,
+  AppHeader,
+  EmptyState,
+  GradientFill,
+  LoadingIndicator,
+  SearchBox,
+} from '../../components';
 import { Colors, Typography } from '../../constants';
 import type { RootStackParamList } from '../../navigation/types';
 import { useGetFaqQuery } from '../../redux/apis/blogApi';
-import { ws, hs, fs, TYPOGRAPHY } from '../../utils';
+import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -28,63 +34,6 @@ interface FaqItem {
   question: string;
   answer: string;
 }
-
-const DEFAULT_FAQS: FaqItem[] = [
-  {
-    id: 'faq-1',
-    question: 'What is ElderlyCare Patient App about?',
-    answer:
-      'ElderlyCare Patient connects elderly individuals and their caregivers with certified specialist doctors, home care services, vital tracking, and digital health records.',
-  },
-  {
-    id: 'faq-2',
-    question: 'Is this application free to use?',
-    answer:
-      'Yes, browsing doctors, clinics, health articles, and basic health tracking features are free. Doctor consultations and specialized home care services are charged per booking.',
-  },
-  {
-    id: 'faq-3',
-    question: 'Do I need to create an account to use the app?',
-    answer:
-      'You can explore doctors and clinics as a guest. Booking appointments, maintaining medical records, and managing family members require a free account.',
-  },
-  {
-    id: 'faq-4',
-    question: 'How do I book an in-clinic or video consultation?',
-    answer:
-      'Select a doctor from the Doctors tab or Care Services Hub, choose In-Clinic or Video Consultation, pick an available date and time slot, select the patient, and confirm your booking.',
-  },
-  {
-    id: 'faq-5',
-    question: 'How can I add and manage family members?',
-    answer:
-      'Open the side menu Drawer and tap "Family Members". From there you can add loved ones and easily book appointments or record vitals on their behalf.',
-  },
-  {
-    id: 'faq-6',
-    question: 'How do I view and download prescriptions and invoices?',
-    answer:
-      'Go to "Prescriptions" or "Appointments" from the Drawer. You can view full-page previews, download PDFs directly to your phone storage, or share them via WhatsApp or email.',
-  },
-  {
-    id: 'faq-7',
-    question: 'Can I track daily health vitals like Blood Pressure and Sugar?',
-    answer:
-      'Yes! Tap "Vitals Tracker" on the Home Screen or Drawer to record Blood Pressure, Pulse, Glucose, Temperature, and SpO2 levels with interactive health history charts.',
-  },
-  {
-    id: 'faq-8',
-    question: 'How do I add money to my wallet for quick payments?',
-    answer:
-      'Open the Drawer menu and tap "My Wallet". Click "+ Add Money", enter your desired amount, and complete secure payment via Razorpay / UPI / NetBanking.',
-  },
-  {
-    id: 'faq-9',
-    question: 'How can I contact customer support?',
-    answer:
-      'You can contact our 24/7 care helpline at +918840 622 729 or navigate to the "Care Support" page from the Drawer to send us a direct message.',
-  },
-];
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Faq'>;
 
@@ -99,7 +48,7 @@ export const FaqScreen = ({ navigation }: Props) => {
     const rawBody: string =
       faqData?.data?.body || faqData?.body || '';
 
-    if (!rawBody) return DEFAULT_FAQS;
+    if (!rawBody) return [];
 
     const items: FaqItem[] = [];
     const h3Matches = rawBody.matchAll(/<h3>(.*?)<\/h3>[\s\S]*?<p>([\s\S]*?)<\/p>/gi);
@@ -121,7 +70,7 @@ export const FaqScreen = ({ navigation }: Props) => {
       }
     }
 
-    return items.length > 0 ? items : DEFAULT_FAQS;
+    return items;
   }, [faqData]);
 
   // Filter by search query
@@ -153,6 +102,7 @@ export const FaqScreen = ({ navigation }: Props) => {
       >
         {/* Header Hero Banner */}
         <View style={styles.heroCard}>
+          <GradientFill id="faqHeroGrad" colors={Colors.headerGradient} />
           <View style={styles.heroIconCircle}>
             <MaterialIcons name="help-outline" size={32} color={Colors.white} />
           </View>
@@ -162,21 +112,12 @@ export const FaqScreen = ({ navigation }: Props) => {
           </Text>
 
           {/* Search Box */}
-          <View style={styles.searchBar}>
-            <MaterialIcons name="search" size={20} color={Colors.secondaryFontColor} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search questions or keywords..."
-              placeholderTextColor={Colors.secondaryFontColor}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {!!searchQuery && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <MaterialIcons name="cancel" size={18} color={Colors.secondaryFontColor} />
-              </TouchableOpacity>
-            )}
-          </View>
+          <SearchBox
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search questions or keywords..."
+            containerStyle={styles.searchBar}
+          />
         </View>
 
         {/* Section title */}
@@ -247,12 +188,13 @@ const styles = StyleSheet.create({
     padding: ws(16),
   },
   heroCard: {
-    backgroundColor: Colors.primaryColor,
+    backgroundColor: Colors.navy,
+    overflow: 'hidden',
     borderRadius: fs(20),
     padding: ws(20),
     alignItems: 'center',
     marginBottom: hs(20),
-    shadowColor: Colors.primaryColor,
+    shadowColor: Colors.navy,
     shadowOffset: { width: 0, height: hs(6) },
     shadowOpacity: 0.25,
     shadowRadius: fs(10),
@@ -324,7 +266,7 @@ const styles = StyleSheet.create({
     padding: ws(14),
     borderRadius: fs(16),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     backgroundColor: Colors.white,
   },
   faqCardExpanded: {
@@ -341,7 +283,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: ws(10),
@@ -374,7 +316,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(18),
     padding: ws(16),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     alignItems: 'center',
     marginTop: hs(8),
     shadowColor: Colors.shadow,
@@ -389,7 +331,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: hs(10),

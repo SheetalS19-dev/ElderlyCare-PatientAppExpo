@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7FAFC',
     borderRadius: fs(10),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     marginHorizontal: ws(16),
     marginTop: hs(12),
     marginBottom: hs(8),
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F7FAFC',
   },
   itemRowSelected: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
   },
   flagText: {
     fontSize: fs(22),

@@ -1,20 +1,18 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  ImageBackground,
   KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -22,8 +20,10 @@ import {
   AppTextField,
   EmptyState,
   ErrorState,
+  GradientFill,
   LoadingIndicator,
   RazorpayWebModal,
+  SearchBox,
 } from '../../components';
 import { AppConstants, Colors, Typography } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
@@ -61,6 +61,8 @@ export const WalletScreen = () => {
   const { isAuthenticated, user, updateUser } = useAuth();
   const uid = String(user?.id ?? (user as any)?.user_id ?? '');
 
+  const hasFocusedOnceRef = useRef(false);
+
   const {
     data: transactions,
     isLoading,
@@ -69,6 +71,7 @@ export const WalletScreen = () => {
     refetch,
   } = useGetWalletTransactionsQuery(uid, {
     skip: !isAuthenticated || !uid,
+    refetchOnMountOrArgChange: 30,
   });
 
   const { data: gateway } = useGetActivePaymentGatewayQuery();
@@ -79,7 +82,22 @@ export const WalletScreen = () => {
     refetch: refetchProfile,
   } = useGetUserProfileQuery(uid, {
     skip: !uid,
+    refetchOnMountOrArgChange: 30,
   });
+
+  // Skip initial mount (RTK Query already fetches on mount); refresh cleanly when returning to Wallet
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasFocusedOnceRef.current) {
+        hasFocusedOnceRef.current = true;
+        return;
+      }
+      if (isAuthenticated && uid) {
+        refetch();
+        refetchProfile();
+      }
+    }, [isAuthenticated, uid, refetch, refetchProfile])
+  );
 
   const freshProfileData = useMemo(() => {
     if (!profileResponse) return null;
@@ -110,7 +128,10 @@ export const WalletScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const PAGE_SIZE = 10;
   const [displayedLimit, setDisplayedLimit] = useState(PAGE_SIZE);
-  const [loadingMore, setLoadingMore] = useState(false);
+
+  useEffect(() => {
+    setDisplayedLimit(PAGE_SIZE);
+  }, [searchQuery]);
 
   const txnList: TxnModel[] = useMemo(() => {
     if (Array.isArray(transactions)) return transactions;
@@ -198,12 +219,8 @@ export const WalletScreen = () => {
   }, [freshProfileData, user, totalCredited, totalSpent]);
 
   const handleLoadMore = () => {
-    if (loadingMore || isFetching || displayedLimit >= txnList.length) return;
-    setLoadingMore(true);
-    setTimeout(() => {
-      setDisplayedLimit((prev) => prev + PAGE_SIZE);
-      setLoadingMore(false);
-    }, 500);
+    if (isFetching || displayedLimit >= filteredTxnList.length) return;
+    setDisplayedLimit((prev) => Math.min(prev + PAGE_SIZE, filteredTxnList.length));
   };
 
   const handleRefresh = async () => {
@@ -220,7 +237,7 @@ export const WalletScreen = () => {
     const numeric = Number(amount);
     if (!amount || isNaN(numeric) || numeric < MIN_AMOUNT || numeric > MAX_AMOUNT) {
       setAmountError(
-        `Enter amount between ${AppConstants.appCurrency}${MIN_AMOUNT} to ${AppConstants.appCurrency}${MAX_AMOUNT}`
+        `Enter amount between ${AppConstants.appCurrency}${MIN_AMOUNT} and ${AppConstants.appCurrency}${MAX_AMOUNT.toLocaleString('en-IN')}`
       );
       return;
     }
@@ -283,17 +300,18 @@ export const WalletScreen = () => {
       showToast('Amount credited to wallet successfully!');
 
       // Optimistic wallet balance update so the UI updates immediately
-      const currentBal = Number(user?.wallet_amount ?? (user as any)?.wallet_balance ?? 0);
-      updateUser({
+      const nextBalance = walletBalance + creditAmount;
+      await updateUser({
         ...(user || {}),
-        wallet_amount: currentBal + creditAmount,
-        wallet_balance: currentBal + creditAmount,
+        wallet_amount: nextBalance,
+        wallet_balance: nextBalance,
       });
 
       // Clear processing right away to prevent freezing the screen
       setProcessing(false);
       setPendingPaymentInfo(null);
       setAmount('');
+      setAmountError(undefined);
 
       // Background synchronization without blocking UI
       Promise.all([refetchProfile(), refetch()]).catch((e) =>
@@ -329,95 +347,99 @@ export const WalletScreen = () => {
           refreshing={isManualRefreshing}
           onRefresh={handleRefresh}
           onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.3}
+          onEndReachedThreshold={0.35}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: hs(60) + insets.bottom },
           ]}
           ListHeaderComponent={
             <>
-              {/* Main Balance Card */}
-              <ImageBackground
-                source={require('../../../assets/icons/container_bg.png')}
-                style={styles.balanceCard}
-                imageStyle={styles.balanceCardBgImage}
-                resizeMode="cover"
-              >
-                <View style={styles.balanceHeaderRow}>
-                  <View>
-                    <Text style={styles.balanceLabel}>CURRENT BALANCE</Text>
-                    <Text style={styles.balanceValue}>
-                      {AppConstants.appCurrency}
-                      {walletBalance.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                    </Text>
-                  </View>
-                  <View style={styles.walletIconCircle}>
-                    <MaterialIcons name="account-balance-wallet" size={32} color={Colors.white} />
-                  </View>
+              {/* Main Balance Card (navy -> teal gradient) */}
+              <View style={styles.balanceCard}>
+                <GradientFill id="walletCardGrad" colors={['#15275B', '#1B4C7C', '#1F6D96']} />
+                <View style={styles.balanceGlow} pointerEvents="none" />
+
+                {/* Wallet icon on the right */}
+                <View style={styles.balanceIconCircle} pointerEvents="none">
+                  <MaterialIcons name="account-balance-wallet" size={fs(28)} color={Colors.white} />
                 </View>
 
-                <TouchableOpacity
-                  style={styles.addMoneyBtn}
-                  activeOpacity={0.85}
-                  onPress={() => setShowAddMoney(true)}
-                >
-                  <MaterialIcons name="add-circle" size={18} color={Colors.primaryColor} />
+                <Text style={styles.balanceLabel}>CURRENT BALANCE</Text>
+                <View style={styles.balanceValueRow}>
+                  <Text style={styles.balanceValue}>
+                    {AppConstants.appCurrency}
+                    {walletBalance.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                  </Text>
+                </View>
+
+                <TouchableOpacity style={styles.addMoneyBtn} activeOpacity={0.85} onPress={() => setShowAddMoney(true)}>
+                  <MaterialIcons name="add" size={fs(16)} color={Colors.white} />
                   <Text style={styles.addMoneyBtnText}>Add Money to Wallet</Text>
                 </TouchableOpacity>
-              </ImageBackground>
+              </View>
 
               {/* Stat Summary Cards Row (Web Wallet Matching) */}
               <View style={styles.summaryStatsGrid}>
                 <View style={styles.statSummaryCard}>
+                  <View style={[styles.statIconCircle, { backgroundColor: '#E3F8EE' }]}>
+                    <MaterialIcons name="arrow-downward" size={fs(16)} color="#10B981" />
+                  </View>
                   <Text style={styles.statSummaryLabel}>Total Credited</Text>
                   <Text style={[styles.statSummaryValue, { color: '#10B981' }]}>
-                    {AppConstants.appCurrency}{totalCredited.toLocaleString('en-IN')}
+                    {isLoading && txnList.length === 0
+                      ? '—'
+                      : `${AppConstants.appCurrency}${totalCredited.toLocaleString('en-IN')}`}
                   </Text>
                 </View>
 
                 <View style={styles.statSummaryCard}>
+                  <View style={[styles.statIconCircle, { backgroundColor: '#FDE8EA' }]}>
+                    <MaterialIcons name="arrow-upward" size={fs(16)} color="#EF4444" />
+                  </View>
                   <Text style={styles.statSummaryLabel}>Wallet Spent</Text>
                   <Text style={[styles.statSummaryValue, { color: '#EF4444' }]}>
-                    {AppConstants.appCurrency}{totalSpent.toLocaleString('en-IN')}
+                    {isLoading && txnList.length === 0
+                      ? '—'
+                      : `${AppConstants.appCurrency}${totalSpent.toLocaleString('en-IN')}`}
                   </Text>
                 </View>
               </View>
 
               {/* Transaction Search Bar */}
-              <View style={styles.searchBarWrapper}>
-                <MaterialIcons name="search" size={20} color={Colors.secondaryFontColor} style={styles.searchIcon} />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Search transactions..."
-                  placeholderTextColor={Colors.secondaryFontColor}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                {searchQuery.length > 0 && (
-                  <TouchableOpacity
-                    onPress={() => setSearchQuery('')}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <MaterialIcons name="close" size={18} color={Colors.secondaryFontColor} />
-                  </TouchableOpacity>
-                )}
-              </View>
+              <SearchBox
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search transactions..."
+                containerStyle={styles.searchBarWrapper}
+              />
 
               {/* Transactions Section Title */}
               <View style={styles.sectionTitleRow}>
                 <Text style={styles.sectionTitle}>
-                  Transaction History ({paginatedTxnList.length} of {filteredTxnList.length})
+                  {isLoading && txnList.length === 0
+                    ? 'Transaction History'
+                    : `Transaction History (${paginatedTxnList.length} of ${filteredTxnList.length})`}
                 </Text>
+                {isFetching && !isLoading && !isManualRefreshing && (
+                  <View style={styles.syncPill}>
+                    <ActivityIndicator size="small" color={Colors.primaryColor} />
+                    <Text style={styles.syncText}>Updating...</Text>
+                  </View>
+                )}
               </View>
             </>
           }
           ListFooterComponent={
-            loadingMore ? (
+            displayedLimit < filteredTxnList.length ? (
               <View style={styles.footerLoaderContainer}>
                 <ActivityIndicator size="small" color={Colors.primaryColor} />
-                <Text style={styles.footerLoaderText}>Loading more transactions...</Text>
+                <Text style={styles.footerLoaderText}>
+                  Showing {paginatedTxnList.length} of {filteredTxnList.length} — Scroll for more
+                </Text>
               </View>
             ) : (
               <View style={{ height: hs(24) }} />
@@ -460,7 +482,7 @@ export const WalletScreen = () => {
                   <MaterialIcons name="account-balance-wallet" size={22} color={Colors.primaryColor} />
                 </View>
                 <View>
-                  <Text style={styles.sheetTitle}>Add Money To Wallet</Text>
+                  <Text style={styles.sheetTitle}>Add Money to Wallet</Text>
                   <View style={styles.balancePill}>
                     <Text style={styles.balancePillLabel}>Balance: </Text>
                     <Text style={styles.balancePillValue}>{AppConstants.appCurrency}{walletBalance.toFixed(2)}</Text>
@@ -478,7 +500,7 @@ export const WalletScreen = () => {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 16 }}
             >
-              <Text style={styles.inputSectionLabel}>Select Payment Method</Text>
+              <Text style={styles.inputSectionLabel}>Payment Method</Text>
               <View style={styles.methodGrid}>
                 {PAYMENT_METHODS.map((m) => {
                   const isSelected = selectedMethod === m.key;
@@ -505,15 +527,18 @@ export const WalletScreen = () => {
                 })}
               </View>
 
-              <Text style={styles.inputSectionLabel}>Enter Amount (₹)</Text>
+              <Text style={styles.inputSectionLabel}>Amount (₹)</Text>
               <AppTextField
-                placeholder="Enter amount in rupees"
+                placeholder={`Enter amount (${AppConstants.appCurrency}${MIN_AMOUNT} – ${AppConstants.appCurrency}${MAX_AMOUNT.toLocaleString('en-IN')})`}
                 keyboardType="decimal-pad"
                 value={amount}
-                onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ''))}
+                onChangeText={(v) => {
+                  setAmount(v.replace(/[^0-9.]/g, ''));
+                  if (amountError) setAmountError(undefined);
+                }}
                 error={amountError}
+                containerStyle={styles.amountFieldContainer}
               />
-              <Text style={styles.hintText}>Minimum 100 ₹ required to place this order</Text>
 
               <Text style={styles.quickAmountLabel}>Quick Select</Text>
               <View style={styles.chipRow}>
@@ -522,7 +547,10 @@ export const WalletScreen = () => {
                     key={a}
                     style={[styles.chip, amount === String(a) && styles.chipActive]}
                     activeOpacity={0.75}
-                    onPress={() => setAmount(String(a))}
+                    onPress={() => {
+                      setAmount(String(a));
+                      if (amountError) setAmountError(undefined);
+                    }}
                   >
                     <Text style={[styles.chipText, amount === String(a) && styles.chipTextActive]}>
                       +₹{a.toLocaleString('en-IN')}
@@ -537,7 +565,7 @@ export const WalletScreen = () => {
                   activeOpacity={0.8}
                   onPress={() => setShowAddMoney(false)}
                 >
-                  <Text style={styles.closeBtnText}>Close</Text>
+                  <Text style={styles.closeBtnText} numberOfLines={1}>Close</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -550,7 +578,7 @@ export const WalletScreen = () => {
                     <ActivityIndicator size="small" color={Colors.white} />
                   ) : (
                     <>
-                      <Text style={styles.confirmAddBtnText}>Add Money</Text>
+                      <Text style={styles.confirmAddBtnText} numberOfLines={1}>Add Money</Text>
                       <MaterialIcons name="arrow-forward" size={16} color={Colors.white} />
                     </>
                   )}
@@ -573,10 +601,6 @@ export const WalletScreen = () => {
           setPendingPaymentInfo(null);
           showToast(errorMsg || 'Payment failed');
         }}
-        // NOTE: RazorpayWebModal currently has FORCE_TEST_MODE = true, so it
-        // ignores this prop and always uses its own TEST_KEY_ID constant.
-        // Once you've confirmed the gateway-provided key works reliably,
-        // flip FORCE_TEST_MODE to false in RazorpayWebModal.tsx to go live.
         keyId={
           (() => {
             const raw =
@@ -593,14 +617,14 @@ export const WalletScreen = () => {
             ) {
               return raw.trim();
             }
-            return 'rzp_test_R6kmrnO91ID9yH';
+            return '';
           })()
         }
         amount={pendingPaymentInfo?.numericAmount || 0}
         description={pendingPaymentInfo?.description || 'Wallet Top-up'}
         prefillEmail={(user as any)?.email || ''}
         prefillPhone={(user as any)?.phone || (user as any)?.mobile || ''}
-        prefillName={`${(user as any)?.first_name ?? (user as any)?.f_name ?? ''} ${(user as any)?.last_name ?? (user as any)?.l_name ?? ''}`.trim() || 'Patient'}
+        prefillName={`${(user as any)?.first_name ?? (user as any)?.f_name ?? ''} ${(user as any)?.last_name ?? (user as any)?.l_name ?? ''}`.trim()}
         orderId={pendingPaymentInfo?.orderId || ''}
       />
     </View>
@@ -741,7 +765,7 @@ const TxnRow = memo(({ txn }: { txn: TxnModel | any }) => {
 
           {!!patientName && (
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Patient Name</Text>
+              <Text style={styles.detailLabel}>Patient</Text>
               <Text style={styles.detailValue}>{patientName}</Text>
             </View>
           )}
@@ -760,10 +784,6 @@ const TxnRow = memo(({ txn }: { txn: TxnModel | any }) => {
     </TouchableOpacity>
   );
 });
-
-
-
-
 
 const styles = StyleSheet.create({
   container: {
@@ -806,94 +826,114 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: fs(12),
-    borderWidth: 1,
+    borderRadius: fs(14),
+    borderWidth: 1.5,
     borderColor: '#E2E8F0',
-    paddingHorizontal: ws(12),
-    height: hs(44),
-    marginBottom: hs(14),
+    paddingHorizontal: ws(14),
+    height: hs(48),
+    marginBottom: hs(16),
     shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: hs(1) },
-    shadowOpacity: 0.02,
-    shadowRadius: fs(3),
-    elevation: 1,
+    shadowOffset: { width: 0, height: hs(2) },
+    shadowOpacity: 0.05,
+    shadowRadius: fs(6),
+    elevation: 2,
   },
   searchIcon: {
-    marginRight: ws(8),
+    marginRight: ws(10),
   },
   searchInput: {
     flex: 1,
-    fontSize: fs(13),
-    ...TYPOGRAPHY.medium,
+    fontSize: fs(13.5),
+    ...TYPOGRAPHY.regular,
     color: Colors.primaryFontColor,
     paddingVertical: 0,
   },
   balanceCard: {
     borderRadius: fs(20),
-    backgroundColor: Colors.primaryColor,
     padding: ws(20),
-    marginBottom: hs(20),
+    marginBottom: hs(16),
     overflow: 'hidden',
-    shadowColor: Colors.primaryColor,
-    shadowOffset: { width: 0, height: hs(6) },
-    shadowOpacity: 0.25,
-    shadowRadius: fs(10),
+    backgroundColor: Colors.navy,
+    shadowColor: Colors.navy,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
     elevation: 6,
   },
-  balanceCardBgImage: {
-    borderRadius: fs(20),
-    opacity: 0.95,
+  balanceGlow: {
+    position: 'absolute',
+    top: -hs(40),
+    right: -ws(20),
+    width: ws(190),
+    height: ws(190),
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
-  balanceHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: hs(16),
-  },
-  balanceLabel: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.medium,
-    color: 'rgba(255, 255, 255, 0.85)',
-  },
-  balanceValue: {
-    marginTop: hs(4),
-    fontSize: fs(28),
-    ...TYPOGRAPHY.bold,
-    color: Colors.white,
-  },
-  walletIconCircle: {
-    width: ws(54),
-    height: ws(54),
+  balanceIconCircle: {
+    position: 'absolute',
+    top: hs(20),
+    right: ws(20),
+    width: ws(52),
+    height: ws(52),
     aspectRatio: 1,
     borderRadius: 999,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  balanceLabel: {
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(11),
+    color: 'rgba(255, 255, 255, 0.85)',
+    letterSpacing: 1.2,
+  },
+  balanceValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: ws(10),
+    marginTop: hs(6),
+    marginBottom: hs(14),
+    paddingRight: ws(64), // keeps large amounts from running under the wallet icon
+  },
+  balanceValue: {
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(32),
+    color: Colors.white,
   },
   addMoneyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.white,
-    paddingVertical: hs(10),
-    paddingHorizontal: ws(16),
-    borderRadius: fs(12),
-    gap: ws(6),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: hs(2) },
-    shadowOpacity: 0.08,
-    shadowRadius: fs(4),
-    elevation: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.45)',
+    borderRadius: fs(10),
+    paddingVertical: hs(9),
+    paddingHorizontal: ws(14),
+    gap: ws(8),
   },
   addMoneyBtnText: {
-    fontSize: fs(13),
     ...TYPOGRAPHY.bold,
-    color: Colors.primaryColor,
+    fontSize: fs(12.5),
+    color: Colors.white,
+    textAlign: 'center',
+  },
+  statIconCircle: {
+    width: ws(32),
+    height: ws(32),
+    aspectRatio: 1,
+    borderRadius: 999,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: hs(8),
   },
   sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: hs(12),
     marginTop: hs(4),
   },
@@ -901,6 +941,16 @@ const styles = StyleSheet.create({
     fontSize: fs(Typography.fontSize.md),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
+  },
+  syncPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ws(6),
+  },
+  syncText: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
+    color: Colors.primaryColor,
   },
   summaryStatsGrid: {
     flexDirection: 'row',
@@ -1246,12 +1296,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  hintText: {
-    fontSize: fs(11),
-    ...TYPOGRAPHY.regular,
-    color: Colors.secondaryFontColor,
-    marginTop: hs(-8),
-    marginBottom: hs(14),
+  amountFieldContainer: {
+    marginVertical: 0,
+    marginTop: hs(2),
+    marginBottom: hs(10),
   },
   quickAmountLabel: {
     fontSize: fs(13),
@@ -1264,7 +1312,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: ws(8),
-    marginBottom: hs(20),
+    marginBottom: hs(18),
   },
   chip: {
     paddingHorizontal: ws(14),
@@ -1293,17 +1341,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: ws(12),
-    marginTop: hs(12),
+    marginTop: hs(8),
     marginBottom: hs(8),
     width: '100%',
   },
   closeBtn: {
     flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
     height: hs(48),
     borderRadius: fs(12),
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: '#CBD5E1',
-    backgroundColor: Colors.white,
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1314,7 +1364,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   confirmAddBtn: {
-    flex: 1.5,
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
     height: hs(48),
     flexDirection: 'row',
     borderRadius: fs(12),

@@ -28,7 +28,7 @@ export const AppointmentStatusCard: React.FC<Props> = ({ appointment }) => {
   const statusBg = isCompleted
     ? '#ECFDF5'
     : isApproved
-    ? '#EFF6FF'
+    ? Colors.aquaSoft
     : isCancelled
     ? '#FEF2F2'
     : '#FFFBEB';
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     padding: ws(16),
     marginBottom: hs(14),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: hs(2) },
     shadowOpacity: 0.03,
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   verticalLine: {
     width: 1,
     height: hs(28),
-    backgroundColor: '#E2E8F0',
+    backgroundColor: Colors.border,
   },
   itemLabel: {
     fontSize: fs(10),

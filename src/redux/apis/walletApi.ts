@@ -56,7 +56,48 @@ export const walletApi = baseApi.injectEndpoints({
           body: formData,
         };
       },
-      invalidatesTags: ['WalletTxn'],
+      invalidatesTags: ['WalletTxn', 'User'],
+      async onQueryStarted(arg: any, { dispatch, queryFulfilled }: any) {
+        try {
+          await queryFulfilled;
+          if (arg && !(arg instanceof FormData) && arg.user_id) {
+            const uid = String(arg.user_id);
+            const syntheticTxn: TxnModel = {
+              id: `temp-${Date.now()}`,
+              user_id: uid,
+              amount: Number(arg.amount ?? 0),
+              payment_transaction_id: arg.payment_transaction_id,
+              payment_method: arg.payment_method || 'Online',
+              transaction_type: arg.transaction_type || arg.type || 'Credited',
+              type: arg.type || arg.transaction_type || 'Credited',
+              description: arg.description || 'Wallet Transaction',
+              notes: arg.notes || arg.description || 'Wallet Transaction',
+              is_wallet_txn: arg.is_wallet_txn ?? 1,
+              created_at: new Date().toISOString(),
+            } as any;
+
+            dispatch(
+              (walletApi as any).util.updateQueryData('getWalletTransactions', uid, (draft: any) => {
+                const list = Array.isArray(draft)
+                  ? draft
+                  : Array.isArray(draft?.data)
+                  ? draft.data
+                  : null;
+                if (list) {
+                  const exists = syntheticTxn.payment_transaction_id
+                    ? list.some((t: any) => t?.payment_transaction_id === syntheticTxn.payment_transaction_id)
+                    : false;
+                  if (!exists) {
+                    list.unshift(syntheticTxn);
+                  }
+                }
+              })
+            );
+          }
+        } catch {
+          // Failed mutation leaves cache untouched
+        }
+      },
     }),
   }),
 });
