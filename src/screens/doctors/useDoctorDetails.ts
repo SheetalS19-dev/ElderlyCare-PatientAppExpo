@@ -47,20 +47,25 @@ export const useDoctorDetails = () => {
   }, [rawReviews, doctId]);
 
   const reviewCount = useMemo(() => {
+    // 1. Direct from doctor API if available
+    if (doctor?.number_of_reviews != null && Number(doctor.number_of_reviews) >= 0) {
+      return Number(doctor.number_of_reviews);
+    }
     const rawApiCount = (rawReviews as any)?.number_of_reviews ?? (rawReviews as any)?.total_record;
-    if (rawApiCount != null && Number(rawApiCount) >= 0 && Number(rawApiCount) >= reviews.length) {
+    if (rawApiCount != null && Number(rawApiCount) >= 0) {
       return Number(rawApiCount);
     }
     if (reviews.length > 0) {
       return reviews.length;
     }
-    if (doctor?.number_of_reviews != null && Number(doctor.number_of_reviews) > 0) {
-      return Number(doctor.number_of_reviews);
-    }
     return 0;
-  }, [rawReviews, reviews.length, doctor?.number_of_reviews]);
+  }, [doctor?.number_of_reviews, rawReviews, reviews.length]);
 
   const rating = useMemo(() => {
+    // 1. Direct from doctor API if available
+    if (doctor?.average_rating != null && Number(doctor.average_rating) > 0) {
+      return Number(doctor.average_rating);
+    }
     const rawApiRating = (rawReviews as any)?.average_rating;
     if (rawApiRating != null && Number(rawApiRating) > 0) {
       return Number(rawApiRating);
@@ -69,11 +74,8 @@ export const useDoctorDetails = () => {
       const sum = reviews.reduce((acc, r) => acc + Number(r.points ?? r.rating ?? 0), 0);
       if (sum > 0) return sum / reviews.length;
     }
-    if (doctor?.average_rating != null && Number(doctor.average_rating) > 0) {
-      return Number(doctor.average_rating);
-    }
     return 0;
-  }, [rawReviews, reviews, doctor?.average_rating]);
+  }, [doctor?.average_rating, rawReviews, reviews]);
 
   const consultationModes: ConsultationModeItem[] = useMemo(() => {
     if (!doctor) return [];
@@ -160,8 +162,9 @@ export const useDoctorDetails = () => {
       navigation.navigate('Login');
       return;
     }
+    const targetId = String((doctor as any)?.user_id || (doctor as any)?.doct_id || doctor?.id || doctId);
     navigation.navigate('BookAppointment', {
-      doctId: String(doctor?.id ?? doctId),
+      doctId: targetId,
       clinicId: doctor?.clinic_id,
       initialMode: selectedMode,
       isReschedule,

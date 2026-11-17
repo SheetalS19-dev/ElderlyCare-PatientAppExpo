@@ -12,6 +12,7 @@ import {
   ContactUsScreen,
   DoctorDetailsScreen,
   DoctorListScreen,
+  DoctorReviewsScreen,
   EditProfileScreen,
   FamilyMemberListScreen,
   FaqScreen,
@@ -54,6 +55,7 @@ export const AppNavigator = () => {
         <Stack.Group screenOptions={screenOptions}>
           <Stack.Screen name="DoctorList" component={DoctorListScreen} />
           <Stack.Screen name="DoctorDetails" component={DoctorDetailsScreen} />
+          <Stack.Screen name="DoctorReviews" component={DoctorReviewsScreen} />
           <Stack.Screen name="BookAppointment" component={BookAppointmentScreen} />
           <Stack.Screen name="ClinicList" component={ClinicListScreen} />
           <Stack.Screen name="Clinic" component={ClinicScreen} />

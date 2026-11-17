@@ -6,6 +6,15 @@ export type RootStackParamList = {
   Search: { searchQuery?: string; initialTab?: 'doctors' | 'clinics'; selectedDeptId?: string; selectedDeptTitle?: string } | undefined;
   DoctorList: { categoryId?: string; search?: string; selectedDeptId?: string; selectedDeptTitle?: string; searchQuery?: string } | undefined;
   DoctorDetails: { doctorId?: string | number; doctId?: string | number; isReschedule?: boolean; rescheduledFromAppId?: string | number };
+  DoctorReviews: {
+    doctorId?: string | number;
+    doctId?: string | number;
+    doctorName?: string;
+    doctorImage?: string;
+    department?: string;
+    rating?: number;
+    reviewCount?: number;
+  };
   BookAppointment: {
     doctorId?: string | number;
     doctId?: string | number;

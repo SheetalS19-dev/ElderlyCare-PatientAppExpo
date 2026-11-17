@@ -28,6 +28,7 @@ export const DoctorDetailsScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const {
     navigation,
+    doctId,
     doctor,
     reviews,
     reviewCount,
@@ -72,6 +73,19 @@ export const DoctorDetailsScreen: React.FC = () => {
     );
   }
 
+  const handleOpenReviews = () => {
+    const targetDocId = String((doctor as any)?.user_id || (doctor as any)?.doct_id || doctor?.id || doctId);
+    navigation.navigate('DoctorReviews', {
+      doctorId: targetDocId,
+      doctId: targetDocId,
+      doctorName: fullName,
+      doctorImage: doctor?.image,
+      department: doctor?.department_name || (doctor as any)?.dept_name,
+      rating,
+      reviewCount,
+    });
+  };
+
   return (
     <View style={styles.container}>
       {/* Fixed Header */}
@@ -92,6 +106,7 @@ export const DoctorDetailsScreen: React.FC = () => {
           reviewCountText={reviewCountText}
           expValue={expValue}
           patientsCount={patientsCount}
+          onPressReviews={handleOpenReviews}
         />
 
         {/* Consultation Modes & Fees Section */}
@@ -127,6 +142,7 @@ export const DoctorDetailsScreen: React.FC = () => {
           reviews={reviews}
           doctorName={fullName}
           reviewCount={reviewCount}
+          onPressViewAll={handleOpenReviews}
         />
       </ScrollView>
 

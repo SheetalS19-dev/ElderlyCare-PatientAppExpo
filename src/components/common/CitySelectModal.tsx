@@ -2,8 +2,9 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
-  KeyboardAvoidingView,
+  Keyboard,
   Modal,
   Platform,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants';
@@ -54,6 +56,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
   activeLocationLabel,
 }) => {
   const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedStateKey, setExpandedStateKey] = useState<string | null>(null);
   const [statePageLimit, setStatePageLimit] = useState(PAGE_SIZE);
@@ -61,8 +64,39 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
   const [expandedCitiesLimit, setExpandedCitiesLimit] = useState(PAGE_SIZE);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isLoadingMoreAreas, setIsLoadingMoreAreas] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardHeightAnim = useRef(new Animated.Value(0)).current;
   const loadMoreTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const areasTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      const kh = e.endCoordinates?.height ?? 0;
+      setKeyboardHeight(kh);
+      Animated.timing(keyboardHeightAnim, {
+        toValue: kh,
+        duration: Platform.OS === 'ios' ? (e.duration || 250) : 180,
+        useNativeDriver: false,
+      }).start();
+    });
+
+    const hideSub = Keyboard.addListener(hideEvent, (e) => {
+      setKeyboardHeight(0);
+      Animated.timing(keyboardHeightAnim, {
+        toValue: 0,
+        duration: Platform.OS === 'ios' ? (e?.duration || 250) : 180,
+        useNativeDriver: false,
+      }).start();
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [keyboardHeightAnim]);
 
   const { data: statesData, isLoading: statesLoading } = useGetStatesQuery(undefined, {
     skip: !visible,
@@ -83,6 +117,8 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
       setExpandedCitiesLimit(PAGE_SIZE);
       setIsLoadingMore(false);
       setIsLoadingMoreAreas(false);
+      setKeyboardHeight(0);
+      keyboardHeightAnim.setValue(0);
       if (loadMoreTimerRef.current) clearTimeout(loadMoreTimerRef.current);
       if (areasTimerRef.current) clearTimeout(areasTimerRef.current);
       return;
@@ -262,7 +298,13 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
       String(selectedCityId).toLowerCase() === 'all' ||
       String(selectedCityId).toLowerCase() === 'all cities');
 
+  const handleClose = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
+
   const handleSelect = (city: CityModel | null | undefined) => {
+    Keyboard.dismiss();
     setSearchQuery('');
     onSelectCity(city);
     onClose();
@@ -403,26 +445,51 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
     return <View style={{ height: hs(8) }} />;
   };
 
+  const isKeyboardOpen = keyboardHeight > 0;
+  const availableHeightWithKeyboard = screenHeight - keyboardHeight - insets.top - hs(24);
+  const modalMaxHeight = isKeyboardOpen
+    ? Math.min(Math.max(availableHeightWithKeyboard, hs(220)), Math.round(screenHeight * 0.58))
+    : Math.round(screenHeight * 0.60);
+
+  const listMaxHeight = isKeyboardOpen
+    ? Math.max(modalMaxHeight - hs(120), hs(110))
+    : Math.max(modalMaxHeight - hs(120), hs(200));
+
+  const modalPaddingBottom = isKeyboardOpen
+    ? hs(12)
+    : Math.max(insets.bottom + hs(12), hs(24));
+
+  const modalMinHeight = isKeyboardOpen
+    ? undefined
+    : Math.min(Math.round(screenHeight * 0.38), hs(280));
+
   return (
     <Modal
       visible={visible}
       animationType="slide"
       transparent
       statusBarTranslucent
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       {!visible ? null : (
-        <KeyboardAvoidingView
-          style={styles.modalBackdrop}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
+        <View style={styles.modalBackdrop}>
           <TouchableOpacity
             style={styles.dismissArea}
             activeOpacity={1}
-            onPress={onClose}
+            onPress={handleClose}
           />
 
-          <View style={[styles.modalSheetBox, { paddingBottom: Math.max(insets.bottom + hs(12), hs(24)) }]}>
+          <Animated.View
+            style={[
+              styles.modalSheetBox,
+              {
+                marginBottom: keyboardHeightAnim,
+                maxHeight: modalMaxHeight,
+                minHeight: modalMinHeight,
+                paddingBottom: modalPaddingBottom,
+              },
+            ]}
+          >
             <View style={styles.modalHandle} />
 
             {/* Header */}
@@ -441,7 +508,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
                 </View>
               </View>
               <TouchableOpacity
-                onPress={onClose}
+                onPress={handleClose}
                 style={styles.closeIconBtn}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
@@ -464,6 +531,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 autoCorrect={false}
+                returnKeyType="search"
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -477,7 +545,8 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
               <FlatList
                 data={paginatedSearchCities}
                 keyExtractor={(item: CityModel, idx: number) => `search-city-${item.id ?? idx}`}
-                style={styles.cityList}
+                style={[styles.cityList, { maxHeight: listMaxHeight }]}
+                contentContainerStyle={styles.cityListContent}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
                 initialNumToRender={PAGE_SIZE}
@@ -538,7 +607,8 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
               <FlatList
                 data={paginatedStates}
                 keyExtractor={(group: StateGroup) => group.key}
-                style={styles.cityList}
+                style={[styles.cityList, { maxHeight: listMaxHeight }]}
+                contentContainerStyle={styles.cityListContent}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
                 initialNumToRender={PAGE_SIZE}
@@ -693,8 +763,8 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
                 }}
               />
             )}
-          </View>
-        </KeyboardAvoidingView>
+          </Animated.View>
+        </View>
       )}
     </Modal>
   );
@@ -715,8 +785,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: fs(24),
     paddingHorizontal: ws(16),
     paddingTop: hs(10),
-    minHeight: '58%',
-    maxHeight: '84%',
     shadowColor: Colors.black,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.12,
@@ -806,8 +874,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(2),
   },
   cityList: {
-    flexGrow: 1,
-    maxHeight: hs(400),
+    flexShrink: 1,
+  },
+  cityListContent: {
+    paddingBottom: hs(16),
   },
   cityRow: {
     flexDirection: 'row',

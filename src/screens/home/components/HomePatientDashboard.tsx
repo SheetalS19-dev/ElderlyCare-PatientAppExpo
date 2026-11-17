@@ -530,14 +530,14 @@ export const HomePatientDashboard = memo(({
               return (
                 <View key={`file-row-${file.id || idx}`} style={styles.mobileCardItem}>
                   <TouchableOpacity
-                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                    style={styles.fileRowTouchable}
                     activeOpacity={0.8}
                     onPress={onViewAllFiles}
                   >
-                    <View style={[styles.fileIconBadge, { backgroundColor: Colors.aquaSoft }]}>
-                      <MaterialIcons name="folder" size={20} color={Colors.blue_2563EB} />
+                    <View style={styles.fileIconBadge}>
+                      <MaterialIcons name="folder" size={fs(20)} color={Colors.blue_2563EB} />
                     </View>
-                    <View style={{ flex: 1 }}>
+                    <View style={styles.fileInfoColumn}>
                       <Text style={styles.mobileCardTitle} numberOfLines={1}>{fileName}</Text>
                       <Text style={styles.mobileCardSub}>{fileDate}</Text>
                     </View>
@@ -1006,13 +1006,24 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bold,
     color: Colors.green_059669,
   },
+  fileRowTouchable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ws(12),
+  },
   fileIconBadge: {
-    width: ws(36),
-    height: hs(36),
-    borderRadius: fs(8),
-    backgroundColor: Colors.red_FEE2E2,
+    width: ws(38),
+    height: ws(38),
+    borderRadius: fs(10),
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  fileInfoColumn: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: hs(3),
   },
   openFileBtn: {
     width: ws(32),

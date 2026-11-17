@@ -24,8 +24,6 @@ export const PatientFileCard: React.FC<Props> = ({
   onDownload,
 }) => {
   const rawTitle = (item as any).title || item.file_name || 'Medical File';
-  const fileIdStr = item.id ? ` #${item.id}` : '';
-  const title = `${rawTitle}${fileIdStr}`;
 
   return (
     <AppCard style={styles.fileCard}>
@@ -37,9 +35,16 @@ export const PatientFileCard: React.FC<Props> = ({
 
         {/* File Metadata */}
         <View style={styles.info}>
-          <Text style={styles.fileTitle} numberOfLines={1}>
-            {title}
-          </Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.fileTitle} numberOfLines={1}>
+              {rawTitle}
+            </Text>
+            {!!item.id && (
+              <View style={styles.idBadge}>
+                <Text style={styles.idText}>#{item.id}</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.patientSubtext} numberOfLines={1}>
             Patient: {patientInfo}
           </Text>
@@ -104,10 +109,27 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: hs(2),
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ws(6),
+  },
   fileTitle: {
     ...TYPOGRAPHY.bold,
     fontSize: fs(14),
     color: Colors.primaryFontColor,
+    flexShrink: 1,
+  },
+  idBadge: {
+    backgroundColor: Colors.aquaSoft,
+    paddingHorizontal: ws(6),
+    paddingVertical: hs(1.5),
+    borderRadius: fs(5),
+  },
+  idText: {
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(11),
+    color: Colors.primaryColor,
   },
   patientSubtext: {
     ...TYPOGRAPHY.medium,

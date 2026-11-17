@@ -16,8 +16,8 @@ export const AppointmentDetailsDoctorCard = memo(({ appointment }: AppointmentDe
     appointment.dept_title ||
     appointment.doct_specialization;
 
-  const rating = Number(appointment.average_rating ?? 5);
-  const reviewCount = appointment.number_of_reviews ?? 0;
+  const rating = Number(appointment.average_rating ?? (appointment as any)?.rating ?? 0);
+  const reviewCount = Number(appointment.number_of_reviews ?? (appointment as any)?.numberOfReview ?? 0);
 
   return (
     <AppCard style={styles.doctorCard}>
@@ -46,7 +46,7 @@ export const AppointmentDetailsDoctorCard = memo(({ appointment }: AppointmentDe
           <View style={styles.ratingRow}>
             <StarRating rating={rating} starSize={13} />
             <Text style={styles.ratingText}>
-              {Number(appointment.average_rating ?? 0).toFixed(1)} ({reviewCount} reviews)
+              {rating > 0 ? rating.toFixed(1) : '0.0'} ({reviewCount} {reviewCount === 1 ? 'review' : 'reviews'})
             </Text>
           </View>
         </View>

@@ -28,7 +28,7 @@ const getRequestMetadata = (args: string | FetchArgs) => {
 
 // Public endpoints where sending a patient Bearer token causes the backend to
 // return empty lists or 403 Access denied.
-const PUBLIC_NO_AUTH_ENDPOINTS = new Set(['getClinics', 'getClinicById']);
+const PUBLIC_NO_AUTH_ENDPOINTS = new Set(['getClinics', 'getClinicById', 'getPatientFiles']);
 
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: ApiEndpoints.baseApiUrl,

@@ -2,7 +2,7 @@ import { ApiEndpoints } from '../../constants';
 import { baseApi } from './baseApi';
 
 export interface GetPatientFilesParams {
-  userId: string;
+  userId: string | number;
   searchQuery?: string;
   familyMemberId?: string;
 }
@@ -11,23 +11,16 @@ export const patientFilesApi = baseApi.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder: any) => ({
     getPatientFiles: builder.query({
-      query: (params: GetPatientFilesParams) => {
-        const queryParams: any = {
-          user_id: params.userId,
-        };
-        // Note: The backend endpoint crashes with 500 ("Illegal mix of collations")
-        // if search / search_query is passed in the URL.
-        // File search is handled seamlessly client-side in PatientFileScreen.
-        if (params.familyMemberId && params.familyMemberId !== 'all') {
-          queryParams.family_member_id = params.familyMemberId;
-          queryParams.patient_id = params.familyMemberId;
-          queryParams.member_id = params.familyMemberId;
-        }
+      query: (arg: string | number | GetPatientFilesParams) => {
+        const uId = typeof arg === 'object' && arg !== null ? arg.userId : arg;
         return {
           url: ApiEndpoints.getPatientFilesUrl,
-          params: queryParams,
+          params: {
+            user_id: uId,
+          },
         };
       },
+      transformResponse: (res: any) => res?.data ?? res,
       providesTags: ['PatientFiles'],
     }),
     uploadPatientFile: builder.mutation({

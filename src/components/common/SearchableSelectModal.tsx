@@ -2,8 +2,9 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
-  KeyboardAvoidingView,
+  Keyboard,
   Modal,
   Platform,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants';
@@ -56,22 +58,56 @@ export const SearchableSelectModal = <T,>({
   pageSize = DEFAULT_PAGE_SIZE,
 }: SearchableSelectModalProps<T>) => {
   const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
   const [searchQuery, setSearchQuery] = useState('');
   const [displayedCount, setDisplayedCount] = useState(pageSize);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardHeightAnim = useRef(new Animated.Value(0)).current;
   const loadMoreTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      const kh = e.endCoordinates?.height ?? 0;
+      setKeyboardHeight(kh);
+      Animated.timing(keyboardHeightAnim, {
+        toValue: kh,
+        duration: Platform.OS === 'ios' ? (e.duration || 250) : 180,
+        useNativeDriver: false,
+      }).start();
+    });
+
+    const hideSub = Keyboard.addListener(hideEvent, (e) => {
+      setKeyboardHeight(0);
+      Animated.timing(keyboardHeightAnim, {
+        toValue: 0,
+        duration: Platform.OS === 'ios' ? (e?.duration || 250) : 180,
+        useNativeDriver: false,
+      }).start();
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [keyboardHeightAnim]);
 
   useEffect(() => {
     if (!visible) {
       setSearchQuery('');
       setDisplayedCount(pageSize);
       setIsLoadingMore(false);
+      setKeyboardHeight(0);
+      keyboardHeightAnim.setValue(0);
       if (loadMoreTimerRef.current) {
         clearTimeout(loadMoreTimerRef.current);
         loadMoreTimerRef.current = null;
       }
     }
-  }, [visible, pageSize]);
+  }, [visible, pageSize, keyboardHeightAnim]);
 
   useEffect(() => {
     setDisplayedCount(pageSize);
@@ -114,7 +150,35 @@ export const SearchableSelectModal = <T,>({
     }, 150);
   };
 
+  const handleClose = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
+
+  const handleSelectOption = (option: SearchableSelectOption<T>) => {
+    Keyboard.dismiss();
+    onSelect(option);
+  };
+
   const normalizedSelected = selectedValue != null ? String(selectedValue).trim().toLowerCase() : '';
+
+  const isKeyboardOpen = keyboardHeight > 0;
+  const availableHeightWithKeyboard = screenHeight - keyboardHeight - insets.top - hs(24);
+  const modalMaxHeight = isKeyboardOpen
+    ? Math.min(Math.max(availableHeightWithKeyboard, hs(220)), Math.round(screenHeight * 0.58))
+    : Math.round(screenHeight * 0.60);
+
+  const listMaxHeight = isKeyboardOpen
+    ? Math.max(modalMaxHeight - hs(120), hs(110))
+    : Math.max(modalMaxHeight - hs(120), hs(200));
+
+  const modalPaddingBottom = isKeyboardOpen
+    ? hs(12)
+    : Math.max(insets.bottom + hs(12), hs(24));
+
+  const modalMinHeight = isKeyboardOpen
+    ? undefined
+    : Math.min(Math.round(screenHeight * 0.38), hs(280));
 
   return (
     <Modal
@@ -122,16 +186,23 @@ export const SearchableSelectModal = <T,>({
       animationType="slide"
       transparent
       statusBarTranslucent
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       {!visible ? null : (
-        <KeyboardAvoidingView
-          style={styles.modalBackdrop}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <TouchableOpacity style={styles.dismissArea} activeOpacity={1} onPress={onClose} />
+        <View style={styles.modalBackdrop}>
+          <TouchableOpacity style={styles.dismissArea} activeOpacity={1} onPress={handleClose} />
 
-          <View style={[styles.modalSheetBox, { paddingBottom: Math.max(insets.bottom + hs(12), hs(24)) }]}>
+          <Animated.View
+            style={[
+              styles.modalSheetBox,
+              {
+                marginBottom: keyboardHeightAnim,
+                maxHeight: modalMaxHeight,
+                minHeight: modalMinHeight,
+                paddingBottom: modalPaddingBottom,
+              },
+            ]}
+          >
             <View style={styles.modalHandle} />
 
             {/* Header */}
@@ -147,7 +218,7 @@ export const SearchableSelectModal = <T,>({
                 )}
               </View>
               <TouchableOpacity
-                onPress={onClose}
+                onPress={handleClose}
                 style={styles.closeIconBtn}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
@@ -165,6 +236,7 @@ export const SearchableSelectModal = <T,>({
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 autoCorrect={false}
+                returnKeyType="search"
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -183,7 +255,8 @@ export const SearchableSelectModal = <T,>({
               <FlatList
                 data={paginatedOptions}
                 keyExtractor={(item, idx) => `opt-${item.id}-${idx}`}
-                style={styles.optionsList}
+                style={[styles.optionsList, { maxHeight: listMaxHeight }]}
+                contentContainerStyle={styles.optionsListContent}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
                 initialNumToRender={pageSize}
@@ -232,8 +305,8 @@ export const SearchableSelectModal = <T,>({
                         style={[styles.optionRow, isSelected && styles.optionRowSelected]}
                         activeOpacity={0.75}
                         onPress={() => {
-                          onSelect(item);
-                          onClose();
+                          handleSelectOption(item);
+                          handleClose();
                         }}
                       >
                         <View style={styles.optionLeft}>
@@ -259,8 +332,8 @@ export const SearchableSelectModal = <T,>({
                 }}
               />
             )}
-          </View>
-        </KeyboardAvoidingView>
+          </Animated.View>
+        </View>
       )}
     </Modal>
   );
@@ -281,8 +354,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: fs(24),
     paddingHorizontal: ws(16),
     paddingTop: hs(10),
-    minHeight: '55%',
-    maxHeight: '82%',
     shadowColor: Colors.black,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.12,
@@ -348,8 +419,10 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   optionsList: {
-    flexGrow: 1,
-    maxHeight: hs(380),
+    flexShrink: 1,
+  },
+  optionsListContent: {
+    paddingBottom: hs(16),
   },
   sectionGroupHeader: {
     ...TYPOGRAPHY.bold,

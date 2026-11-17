@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { memo } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppCard, StarRating } from '../../../components';
 import { Colors } from '../../../constants';
 import type { DoctorModel } from '../../../types';
@@ -13,6 +13,7 @@ interface DoctorHeaderProfileCardProps {
   reviewCountText: string;
   expValue?: number | string | null;
   patientsCount?: number | string | null;
+  onPressReviews?: () => void;
 }
 
 export const DoctorHeaderProfileCard = memo(({
@@ -22,6 +23,7 @@ export const DoctorHeaderProfileCard = memo(({
   reviewCountText,
   expValue,
   patientsCount,
+  onPressReviews,
 }: DoctorHeaderProfileCardProps) => {
   const specialization =
     doctor.department_name ||
@@ -60,10 +62,18 @@ export const DoctorHeaderProfileCard = memo(({
           )}
 
           {/* Ratings */}
-          <View style={styles.ratingRow}>
+          <TouchableOpacity
+            style={styles.ratingRow}
+            activeOpacity={0.7}
+            onPress={onPressReviews}
+            disabled={!onPressReviews}
+          >
             <StarRating rating={rating} starSize={13} />
             <Text style={styles.ratingText}>{reviewCountText}</Text>
-          </View>
+            {!!onPressReviews && (
+              <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.primaryColor} />
+            )}
+          </TouchableOpacity>
 
           {/* Patients Treated */}
           {patientsCount != null && (

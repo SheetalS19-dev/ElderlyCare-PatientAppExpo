@@ -143,6 +143,16 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
             {departmentName}
           </Text>
 
+          {/* Rating & Review Count */}
+          {rating > 0 && (
+            <View style={styles.ratingRow}>
+              <StarRating rating={rating} size={fs(12)} />
+              <Text style={styles.ratingText}>
+                {rating.toFixed(1)}{reviewCount > 0 ? ` (${reviewCount} ${reviewCount === 1 ? 'review' : 'reviews'})` : ''}
+              </Text>
+            </View>
+          )}
+
           {/* Experience Row */}
           {exYear != null && exYear !== '' && (
             <View style={styles.metaRow}>

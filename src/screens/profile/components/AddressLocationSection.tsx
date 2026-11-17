@@ -154,7 +154,18 @@ export const AddressLocationSection: React.FC<Props> = ({
 
       {/* Address Line */}
       <View style={styles.fieldWrapper}>
-        <Text style={styles.fieldLabel}>Street Address</Text>
+        <View style={styles.labelRow}>
+          <Text style={[styles.fieldLabel, styles.fieldLabelInRow]}>Street Address</Text>
+          <Text
+            style={[
+              styles.charLimitText,
+              (address || '').length >= STREET_ADDRESS_MAX - 15 && styles.charLimitNear,
+              (address || '').length >= STREET_ADDRESS_MAX && styles.charLimitMax,
+            ]}
+          >
+            {(address || '').length}/{STREET_ADDRESS_MAX}
+          </Text>
+        </View>
         <TextInput
           style={[styles.inputField, styles.multilineInput, errors?.address && styles.inputError]}
           value={address}
@@ -258,5 +269,27 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.medium,
     color: Colors.redColor,
     marginTop: hs(4),
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: hs(6),
+  },
+  fieldLabelInRow: {
+    marginBottom: 0,
+  },
+  charLimitText: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
+    color: Colors.slate_94A3B8,
+  },
+  charLimitNear: {
+    color: Colors.orange_F97316,
+    ...TYPOGRAPHY.semiBold,
+  },
+  charLimitMax: {
+    color: Colors.redColor,
+    ...TYPOGRAPHY.bold,
   },
 });

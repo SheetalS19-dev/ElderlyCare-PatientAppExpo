@@ -145,7 +145,10 @@ export const UploadPatientFileModal: React.FC<Props> = ({
                           >
                             {getMemberDisplayName(mem)}
                           </Text>
-                          {!!relation && (
+                          {!!relation &&
+                            relation.toLowerCase() !== 'family member' &&
+                            relation.toLowerCase() !== 'patient' &&
+                            relation.toLowerCase() !== 'self' && (
                             <View style={[styles.relationBadgeSmall, active && styles.relationBadgeSmallActive]}>
                               <Text
                                 style={[

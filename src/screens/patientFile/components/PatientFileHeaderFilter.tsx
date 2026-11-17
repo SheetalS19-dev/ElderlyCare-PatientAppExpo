@@ -139,7 +139,10 @@ export const PatientFileHeaderFilter: React.FC<Props> = ({
                           >
                             {displayName}
                           </Text>
-                          {!!relation && (
+                          {!!relation &&
+                            relation.toLowerCase() !== 'family member' &&
+                            relation.toLowerCase() !== 'patient' &&
+                            relation.toLowerCase() !== 'self' && (
                             <View
                               style={[
                                 styles.relationBadgeSmall,

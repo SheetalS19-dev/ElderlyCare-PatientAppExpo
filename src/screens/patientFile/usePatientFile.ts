@@ -1,15 +1,16 @@
 import type { RouteProp } from '@react-navigation/native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, Platform } from 'react-native';
 import { ApiEndpoints, AppConstants } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import { useDebounce } from '../../hooks';
 import type { RootStackParamList } from '../../navigation/types';
 import { useGetFamilyMembersQuery } from '../../redux/apis/bookingApi';
-import { useGetPatientFilesQuery } from '../../redux/apis/patientFilesApi';
+import { patientFilesApi, useGetPatientFilesQuery } from '../../redux/apis/patientFilesApi';
+import { useAppDispatch } from '../../redux/hooks';
 import { storageService } from '../../services/storageService';
 import type { FamilyMemberModel, PatientFileModel } from '../../types';
 import {
@@ -49,10 +50,19 @@ const guessMime = (name: string): string => {
 };
 
 export const usePatientFile = () => {
+  const dispatch = useAppDispatch();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'PatientFile'>>();
   const { user } = useAuth();
-  const uid = String(user?.id ?? (user as any)?.user_id ?? '');
+  const [asyncUid, setAsyncUid] = useState<string>('');
+
+  useEffect(() => {
+    storageService.getItem<string>(AppConstants.storageKeys.uid).then((stored) => {
+      if (stored) setAsyncUid(String(stored));
+    });
+  }, []);
+
+  const uid = String(user?.id ?? (user as any)?.user_id ?? asyncUid ?? '');
 
   const initialMemberId = route.params?.familyMemberId ? String(route.params.familyMemberId) : 'all';
   const [search, setSearch] = useState('');
@@ -72,9 +82,34 @@ export const usePatientFile = () => {
   const [uploadError, setUploadError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
-  const { data: familyData } = useGetFamilyMembersQuery(uid, {
+  // Query patient files first
+  const {
+    data: rawData,
+    isLoading,
+    isError,
+    refetch,
+  } = useGetPatientFilesQuery(
+    {
+      userId: uid,
+    },
+    { skip: !uid, refetchOnMountOrArgChange: true }
+  );
+
+  const {
+    data: familyData,
+    refetch: refetchFamily,
+  } = useGetFamilyMembersQuery(uid, {
     skip: !uid,
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      if (uid) {
+        refetch();
+        refetchFamily();
+      }
+    }, [uid, refetch, refetchFamily])
+  );
 
   const familyList: FamilyMemberModel[] = useMemo(() => {
     let sourceList: FamilyMemberModel[] = [];
@@ -86,16 +121,13 @@ export const usePatientFile = () => {
       sourceList = (familyData as any).data.data;
     }
 
-    const selfFound = sourceList.some(
-      (m) =>
-        (m.relationship || '').toLowerCase() === 'self' ||
-        (m as any).is_self === true ||
-        String(m.id) === String(user?.id)
-    );
+    const result: FamilyMemberModel[] = [];
+    const seenKeys = new Set<string>();
 
-    if (!selfFound && user) {
+    // 1. Add Self (Account Holder) first
+    if (user) {
       const selfItem: FamilyMemberModel = {
-        id: user.id,
+        id: String(user.id),
         user_id: user.id,
         f_name: user.f_name || 'Self',
         l_name: user.l_name || '',
@@ -107,11 +139,61 @@ export const usePatientFile = () => {
         relationship: 'Self',
       };
       (selfItem as any).is_self = true;
-      return [selfItem, ...sourceList];
+      result.push(selfItem);
+
+      const selfKey = `${(user.f_name || '').trim().toLowerCase()}_${(user.l_name || '').trim().toLowerCase()}`;
+      if (selfKey !== '_') seenKeys.add(selfKey);
     }
 
-    return sourceList;
-  }, [familyData, user]);
+    // 2. Add family members from familyData (without phone-based Self hijacking)
+    for (const m of sourceList) {
+      const isSelf =
+        String(m.id) === String(user?.id) ||
+        (m.relationship || '').toLowerCase() === 'self' ||
+        (m as any).is_self === true;
+
+      if (isSelf) continue;
+
+      const mFName = (m.f_name || '').trim().toLowerCase();
+      const mLName = (m.l_name || '').trim().toLowerCase();
+      const key = `${mFName}_${mLName}`;
+
+      result.push(m);
+      if (mFName) seenKeys.add(key);
+    }
+
+    // 3. Add any other patients found in rawData who are not yet represented
+    let fileList: any[] = [];
+    if (Array.isArray(rawData)) fileList = rawData;
+    else if (Array.isArray((rawData as any)?.data)) fileList = (rawData as any).data;
+    else if (Array.isArray((rawData as any)?.data?.data)) fileList = (rawData as any).data.data;
+    else if (Array.isArray((rawData as any)?.response)) fileList = (rawData as any).response;
+
+    for (const f of fileList) {
+      const fFName = (f.patient_f_name || f.f_name || '').trim().toLowerCase();
+      const fLName = (f.patient_l_name || f.l_name || '').trim().toLowerCase();
+      const key = `${fFName}_${fLName}`;
+
+      if (fFName && !seenKeys.has(key)) {
+        seenKeys.add(key);
+        const pId = String(f.patient_id ?? f.family_member_id ?? f.id);
+        result.push({
+          id: pId as any,
+          user_id: user?.id,
+          f_name: f.patient_f_name || f.f_name,
+          l_name: f.patient_l_name || f.l_name || '',
+          name: `${f.patient_f_name || f.f_name} ${f.patient_l_name || f.l_name || ''}`.trim(),
+          phone: f.phone || f.patient_phone || '',
+          gender: '',
+          dob: '',
+          isd_code: f.isd_code || '+91',
+          relationship: 'Patient',
+        });
+      }
+    }
+
+    return result;
+  }, [familyData, user, rawData]);
 
   const getMemberDisplayName = (mem?: FamilyMemberModel | null): string => {
     if (!mem) return 'Patient';
@@ -119,12 +201,13 @@ export const usePatientFile = () => {
       (mem as any).is_self === true ||
       (mem.relationship || '').toLowerCase() === 'self' ||
       String(mem.id) === String(user?.id);
+
     if (isSelf) {
-      const uFull = `${user?.f_name ?? ''} ${user?.l_name ?? ''}`.trim();
-      return uFull || user?.phone || 'Self';
+      const uFull = `${user?.f_name ?? mem.f_name ?? ''} ${user?.l_name ?? mem.l_name ?? ''}`.trim();
+      return uFull ? `${uFull} (Self)` : 'Self (Account Holder)';
     }
     const full = `${mem.f_name ?? ''} ${mem.l_name ?? ''}`.trim();
-    return mem.name || full || 'Family Member';
+    return full || mem.name || 'Family Member';
   };
 
   const getMemberRelationLabel = (mem?: FamilyMemberModel | null): string => {
@@ -133,8 +216,18 @@ export const usePatientFile = () => {
       (mem as any).is_self === true ||
       (mem.relationship || '').toLowerCase() === 'self' ||
       String(mem.id) === String(user?.id);
-    if (isSelf) return 'Self';
-    return (mem as any).relation || (mem as any).relationship || '';
+
+    if (isSelf) return '';
+    const rel = (mem as any).relation || (mem as any).relationship || '';
+    if (
+      !rel ||
+      rel.toLowerCase() === 'family member' ||
+      rel.toLowerCase() === 'patient' ||
+      rel.toLowerCase() === 'self'
+    ) {
+      return '';
+    }
+    return rel;
   };
 
   const selectedMemberDisplayName = useMemo(() => {
@@ -142,25 +235,6 @@ export const usePatientFile = () => {
     const target = familyList.find((m) => String(m.id) === selectedMemberId);
     return target ? getMemberDisplayName(target) : 'All Members';
   }, [selectedMemberId, familyList, user]);
-
-  const queryMemberParam = useMemo(() => {
-    if (selectedMemberId === 'all') return undefined;
-    return selectedMemberId;
-  }, [selectedMemberId]);
-
-  const {
-    data: rawData,
-    isLoading,
-    isError,
-    refetch,
-  } = useGetPatientFilesQuery(
-    {
-      userId: uid,
-      familyMemberId: queryMemberParam,
-      search: debouncedSearch.trim() || undefined,
-    },
-    { skip: !uid }
-  );
 
   const files: PatientFileModel[] = useMemo(() => {
     let list: PatientFileModel[] = [];
@@ -174,50 +248,51 @@ export const usePatientFile = () => {
 
     if (selectedMemberId !== 'all') {
       const curMember = familyList.find((m) => String(m.id) === String(selectedMemberId));
+      const curFName = (curMember?.f_name || '').trim().toLowerCase();
+      const curLName = (curMember?.l_name || '').trim().toLowerCase();
+      const isSelfSelection =
+        (curMember as any)?.is_self === true ||
+        (curMember?.relationship || '').toLowerCase() === 'self' ||
+        String(selectedMemberId) === String(user?.id);
+
       list = list.filter((item: any) => {
-        const itemMemId = item.family_member_id ?? item.patient_id ?? item.member_id;
-        if (itemMemId != null && String(itemMemId) === String(selectedMemberId)) {
+        const itemPatientId = String(item.patient_id ?? item.family_member_id ?? item.member_id ?? '');
+
+        // 1. Direct ID match
+        if (
+          itemPatientId &&
+          (itemPatientId === String(selectedMemberId) || (curMember && itemPatientId === String(curMember.id)))
+        ) {
           return true;
         }
 
-        const isSelfSelection =
-          String(selectedMemberId) === String(user?.id) ||
-          (curMember && (
-            (curMember as any).is_self ||
-            curMember.relationship === 'Self' ||
-            curMember.name === 'Self' ||
-            (curMember.phone && curMember.phone === user?.phone)
-          ));
+        // 2. Name match (First name + Last name)
+        const itemFName = (item.patient_f_name || item.f_name || '').trim().toLowerCase();
+        const itemLName = (item.patient_l_name || item.l_name || '').trim().toLowerCase();
 
-        if (isSelfSelection) {
-          if (!itemMemId || itemMemId === 0 || itemMemId === '0' || String(itemMemId) === String(user?.id)) {
-            return true;
+        if (curFName && itemFName) {
+          if (curFName === itemFName) {
+            // If both specify last names, require last name match
+            if (curLName && itemLName) {
+              if (curLName === itemLName) return true;
+            } else {
+              return true;
+            }
           }
         }
 
-        if (curMember) {
-          const memName = (
-            curMember.name || `${curMember.f_name ?? ''} ${curMember.l_name ?? ''}`
-          )
-            .toLowerCase()
-            .trim();
-          const memPhone = (curMember.phone ?? '').trim();
-          const itemPatientName = (
-            item.patient_name ||
-            `${item.patient_f_name ?? item.f_name ?? ''} ${item.patient_l_name ?? item.l_name ?? ''}`
-          )
-            .toLowerCase()
-            .trim();
-          const itemPhone = (item.patient_phone || item.phone || '').trim();
-
-          if (
-            memName &&
-            itemPatientName &&
-            (itemPatientName.includes(memName) || memName.includes(itemPatientName))
-          ) {
-            return true;
+        // 3. Self selection fallback: matches user name or direct user_id
+        if (isSelfSelection) {
+          const userFName = (user?.f_name || '').trim().toLowerCase();
+          const userLName = (user?.l_name || '').trim().toLowerCase();
+          if (userFName && itemFName === userFName) {
+            if (userLName && itemLName) {
+              if (userLName === itemLName) return true;
+            } else {
+              return true;
+            }
           }
-          if (memPhone && itemPhone && memPhone === itemPhone) {
+          if (!itemPatientId || itemPatientId === '0' || itemPatientId === String(user?.id)) {
             return true;
           }
         }
@@ -229,7 +304,7 @@ export const usePatientFile = () => {
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter((item: any) => {
-        const title = (item.title || item.file_name || '').toLowerCase();
+        const title = (item.title || item.file_name || item.name || '').toLowerCase();
         const patientName = (
           item.patient_name ||
           `${item.patient_f_name ?? item.f_name ?? ''} ${item.patient_l_name ?? item.l_name ?? ''}`
@@ -515,12 +590,11 @@ export const usePatientFile = () => {
       setUploadError('');
 
       const formData = new FormData();
+      formData.append('file_name', trimmedTitle);
       formData.append('title', trimmedTitle);
-      formData.append('user_id', uid);
-
-      if (uploadMemberId && uploadMemberId !== uid) {
-        formData.append('family_member_id', String(uploadMemberId));
-      }
+      formData.append('user_id', String(uid));
+      formData.append('patient_id', String(uploadMemberId || uid));
+      formData.append('family_member_id', String(uploadMemberId || uid));
 
       const fileObj: any = {
         uri: Platform.OS === 'android' ? pickedFile!.uri : pickedFile!.uri.replace('file://', ''),
@@ -538,7 +612,11 @@ export const usePatientFile = () => {
       setTitleError('');
       setFileError('');
       setPickedFile(null);
+      if (uploadMemberId) {
+        setSelectedMemberId(uploadMemberId);
+      }
       refetch();
+      dispatch(patientFilesApi.util.invalidateTags(['PatientFiles']));
     } catch (err: any) {
       const msg = err?.message || 'Failed to upload patient file. Please try again.';
       setUploadError(msg);

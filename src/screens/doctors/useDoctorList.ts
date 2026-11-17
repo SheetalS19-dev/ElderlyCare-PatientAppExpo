@@ -113,8 +113,9 @@ export const useDoctorList = () => {
       navigation.navigate('Login');
       return;
     }
+    const targetId = String((doc as any)?.user_id || (doc as any)?.doct_id || doc.id);
     navigation.navigate('BookAppointment', {
-      doctId: String(doc.id),
+      doctId: targetId,
       clinicId: doc.clinic_id,
     });
   };

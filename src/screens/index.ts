@@ -9,6 +9,7 @@ export * from './clinics/ClinicScreen';
 export * from './common/FullScreenImageViewerScreen';
 export * from './doctors/DoctorDetailsScreen';
 export * from './doctors/DoctorListScreen';
+export * from './doctors/DoctorReviewsScreen';
 export * from './family/FamilyMemberListScreen';
 export * from './home/HomeScreen';
 export * from './home/SearchScreen';
