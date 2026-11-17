@@ -48,7 +48,24 @@ const toFamilyMemberFormData = (body: any): FormData => {
   Object.keys(body).forEach((key) => {
     const val = body[key];
     if (val !== undefined && val !== null && val !== '') {
-      formData.append(key, String(val));
+      if (key === 'dob') {
+        let cleanDob = String(val).trim();
+        if (cleanDob.includes('T')) {
+          cleanDob = cleanDob.split('T')[0];
+        } else if (cleanDob.includes('/')) {
+          const parts = cleanDob.split('/');
+          if (parts.length === 3) {
+            if (parts[0].length === 4) {
+              cleanDob = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            } else if (parts[2].length === 4) {
+              cleanDob = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            }
+          }
+        }
+        formData.append('dob', cleanDob);
+      } else {
+        formData.append(key, String(val));
+      }
     }
   });
 

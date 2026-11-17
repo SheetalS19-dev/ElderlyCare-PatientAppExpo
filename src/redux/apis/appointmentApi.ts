@@ -65,7 +65,12 @@ export const appointmentApi = baseApi.injectEndpoints({
         method: 'POST',
         body,
       }),
-      invalidatesTags: ['Appointment'],
+      invalidatesTags: (_res: any, _err: any, arg: AddReviewPayload) => [
+        'Appointment',
+        { type: 'Doctor', id: String(arg.doctor_id) },
+        { type: 'DoctorReview', id: String(arg.doctor_id) },
+        { type: 'DoctorReview', id: 'LIST' },
+      ],
     }),
   }),
 });

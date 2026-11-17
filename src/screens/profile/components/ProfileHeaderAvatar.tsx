@@ -49,7 +49,7 @@ export const ProfileHeaderAvatar: React.FC<Props> = ({
             <Image source={avatarSource} style={styles.avatarImage} />
           ) : (
             <View style={styles.avatarPlaceholder}>
-              <MaterialIcons name="person" size={ws(48)} color="#94A3B8" />
+              <MaterialIcons name="person" size={ws(48)} color={Colors.slate_94A3B8} />
             </View>
           )}
 
@@ -107,11 +107,11 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#CBD5E1',
+    borderColor: Colors.gray_CBD5E1,
   },
   uploadOverlay: {
     ...StyleSheet.absoluteFill,

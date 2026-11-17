@@ -4,6 +4,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
+import { getSavedFamilyRelations } from '../../services';
 import { storageService } from '../../services/storageService';
 import type { RootStackParamList } from '../../navigation/types';
 import { useGetAppointmentsQuery } from '../../redux/apis/appointmentApi';
@@ -203,35 +204,59 @@ export const useHome = () => {
 
   const userIdStr = user?.id ? String(user.id) : '';
   const { data: userProfileData } = useGetUserProfileQuery(userIdStr, { skip: !userIdStr });
-  const { data: familyMembersData } = useGetFamilyMembersQuery(userIdStr, { skip: !userIdStr });
+  const { data: familyMembersData, refetch: refetchFamilyMembers } = useGetFamilyMembersQuery(userIdStr, { skip: !userIdStr });
+
+  const [savedRelations, setSavedRelations] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (userIdStr) {
+      getSavedFamilyRelations(userIdStr).then(setSavedRelations);
+    }
+  }, [userIdStr]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (userIdStr) {
+        getSavedFamilyRelations(userIdStr).then(setSavedRelations);
+        refetchFamilyMembers();
+      }
+    }, [userIdStr, refetchFamilyMembers])
+  );
 
   const [selectedMemberId, setSelectedMemberId] = useState<string>('SELF');
   const [showMemberDropdown, setShowMemberDropdown] = useState<boolean>(false);
   const [downloadingFileId, setDownloadingFileId] = useState<string | number | null>(null);
 
   const familyMembersList: FamilyMemberModel[] = useMemo(() => {
-    if (Array.isArray(familyMembersData)) return familyMembersData;
-    if (Array.isArray((familyMembersData as any)?.data)) return (familyMembersData as any).data;
-    if (Array.isArray((familyMembersData as any)?.response)) return (familyMembersData as any).response;
-    return [];
-  }, [familyMembersData]);
+    let raw: any[] = [];
+    if (Array.isArray(familyMembersData)) raw = familyMembersData;
+    else if (Array.isArray((familyMembersData as any)?.data)) raw = (familyMembersData as any).data;
+    else if (Array.isArray((familyMembersData as any)?.response)) raw = (familyMembersData as any).response;
+
+    return raw.map((m) => {
+      const memIdStr = String(m.id ?? m.member_id ?? '');
+      const enrichedRelation =
+        savedRelations[memIdStr] ||
+        m.relation ||
+        m.relationship ||
+        '';
+      return {
+        ...m,
+        relation: enrichedRelation,
+        relationship: enrichedRelation,
+      };
+    });
+  }, [familyMembersData, savedRelations]);
 
   const filteredFamilyMembersList = useMemo(() => {
     if (!familyMembersList || familyMembersList.length === 0) return [];
-    const selfFName = (user?.f_name || (userProfileData as any)?.data?.f_name || '').trim().toLowerCase();
-    const selfLName = (user?.l_name || (userProfileData as any)?.data?.l_name || '').trim().toLowerCase();
-    const selfPhone = (user?.phone || (userProfileData as any)?.data?.phone || '').trim();
     const mainUserId = String(user?.id ?? (userProfileData as any)?.data?.id ?? userIdStr);
 
     return familyMembersList.filter((m) => {
       const isSelf =
         (m as any).is_self === true ||
         (m.relationship || '').toLowerCase() === 'self' ||
-        String(m.id) === mainUserId ||
-        (selfFName &&
-          m.f_name?.trim().toLowerCase() === selfFName &&
-          (m.l_name?.trim().toLowerCase() === selfLName || !m.l_name) &&
-          (m.phone?.trim() === selfPhone || !m.phone || (m.relationship || '').toLowerCase() === 'self'));
+        String(m.id) === mainUserId;
       return !isSelf;
     });
   }, [familyMembersList, user, userProfileData, userIdStr]);
@@ -355,14 +380,13 @@ export const useHome = () => {
       const selfMem = familyMembersList.find(
         (m: any) =>
           (m.relationship || '').toLowerCase() === 'self' ||
-          m.is_self === true ||
-          (user?.phone && m.phone === user.phone)
+          m.is_self === true
       );
       if (selfMem?.id) return String(selfMem.id);
       return userIdStr;
     }
-    return selectedMemberId;
-  }, [selectedMemberId, userIdStr, familyMembersList, user]);
+    return String(selectedMemberId);
+  }, [selectedMemberId, userIdStr, familyMembersList]);
 
   const { data: rawBpVitals, refetch: refetchBp } = useGetVitalsQuery(
     { familyMemberId: activeFamilyId, type: 'Blood Pressure' },
@@ -538,7 +562,32 @@ export const useHome = () => {
 
   const calculatePatientAge = (dobString?: string) => {
     if (!dobString || dobString === 'N/A' || dobString === 'null' || dobString === 'undefined') return 'N/A';
-    const birthDate = new Date(dobString);
+    const cleanStr = String(dobString).trim().split('T')[0].split(' ')[0];
+    let birthDate: Date;
+    if (cleanStr.includes('-')) {
+      const parts = cleanStr.split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        birthDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      } else {
+        birthDate = new Date(cleanStr);
+      }
+    } else if (cleanStr.includes('/')) {
+      const parts = cleanStr.split('/');
+      if (parts.length === 3) {
+        if (parts[2].length === 4) {
+          birthDate = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+        } else if (parts[0].length === 4) {
+          birthDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        } else {
+          birthDate = new Date(cleanStr);
+        }
+      } else {
+        birthDate = new Date(cleanStr);
+      }
+    } else {
+      birthDate = new Date(cleanStr);
+    }
+
     if (isNaN(birthDate.getTime())) return 'N/A';
     const today = new Date();
     let age = today.getFullYear() - birthDate.getFullYear();
@@ -546,7 +595,9 @@ export const useHome = () => {
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
-    return age > 0 ? `${age} Yrs` : 'N/A';
+    if (age > 0 && age < 125) return `${age} Yrs`;
+    if (age === 0) return '< 1 Yr';
+    return 'N/A';
   };
 
   const activePatientInfo: ActivePatientInfo = useMemo(() => {
@@ -574,12 +625,13 @@ export const useHome = () => {
       const member = familyMembersList.find((m) => String(m.id) === String(selectedMemberId));
       if (member) {
         const dobStr = member.dob ? String(member.dob).split('T')[0] : undefined;
+        const blood = (member as any).blood_group || (member as any).blood_g;
         return {
           name: `${member.f_name || ''} ${member.l_name || ''}`.trim() || 'N/A',
           gender: member.gender || 'N/A',
           dob: dobStr || 'N/A',
           age: calculatePatientAge(dobStr),
-          bloodGroup: (member as any).blood_group || (member as any).blood_g || 'N/A',
+          bloodGroup: blood && String(blood).trim() ? String(blood).trim() : 'N/A',
           consultingDoctor: recentDocName,
           relation: member.relationship || (member as any).relation || 'Family Member',
           isSelf: false,

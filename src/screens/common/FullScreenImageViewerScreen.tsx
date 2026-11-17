@@ -32,7 +32,7 @@ export const FullScreenImageViewerScreen = ({ navigation, route }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000' },
+  container: { flex: 1, backgroundColor: Colors.black },
   imageContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   image: { width: '100%', height: '100%' },
   emptyText: { color: Colors.white, fontSize: 16 },

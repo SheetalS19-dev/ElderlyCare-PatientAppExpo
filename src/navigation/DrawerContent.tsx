@@ -167,7 +167,7 @@ export const DrawerContent: React.FC<DrawerContentComponentProps> = memo((props)
                       <MaterialIcons name={item.icon as any} size={18} color={Colors.primaryColor} />
                     </View>
                     <Text style={styles.itemLabel}>{item.label}</Text>
-                    <MaterialIcons name="chevron-right" size={18} color="#CBD5E1" />
+                    <MaterialIcons name="chevron-right" size={18} color={Colors.gray_CBD5E1} />
                   </TouchableOpacity>
                 );
               })}
@@ -208,7 +208,7 @@ export const DrawerContent: React.FC<DrawerContentComponentProps> = memo((props)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
   },
   // Outer wrapper carries the shadow (iOS needs no overflow:hidden here)
   headerShadowWrap: {
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: ws(16),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.slate_E2E8F0,
     overflow: 'hidden',
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: hs(2) },
@@ -326,13 +326,13 @@ const styles = StyleSheet.create({
   },
   menuItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: Colors.slate_F1F5F9,
   },
   itemIconContainer: {
     width: ws(32),
     height: ws(32),
     borderRadius: ws(16),
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: ws(12),
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.aquaSoft,
     borderRadius: ws(14),
     paddingVertical: hs(12),
     gap: ws(8),
@@ -359,8 +359,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(37, 99, 235, 0.25)',
   },
   logoutButton: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FCA5A5',
+    backgroundColor: Colors.red_FFF0F0,
+    borderColor: Colors.red_FFE8E8,
   },
   authButtonText: {
     ...TYPOGRAPHY.bold,
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
   footerVersion: {
     ...TYPOGRAPHY.regular,
     fontSize: fs(10),
-    color: '#94A3B8',
+    color: Colors.slate_94A3B8,
     marginTop: hs(2),
   },
 });

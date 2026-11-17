@@ -1,7 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React from 'react';
 import {
-  ActivityIndicator,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -13,6 +12,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  AppButton,
+  AppDatePickerModal,
+  AppTimePickerModal,
+} from '../../../components';
 import { Colors } from '../../../constants';
 import { fs, hs, ws } from '../../../utils/metrics';
 import { TYPOGRAPHY } from '../../../utils/typography';
@@ -20,31 +25,42 @@ import { TYPOGRAPHY } from '../../../utils/typography';
 interface Props {
   visible: boolean;
   vitalName: string;
-  isEditing: boolean;
+  selectedMemberDisplayName: string;
   selectedDate: string;
+  onDateChange: (text: string) => void;
   onOpenDatePicker: () => void;
   selectedTime: string;
+  onTimeChange: (text: string) => void;
   onOpenTimePicker: () => void;
   systolic: string;
-  onChangeSystolic: (t: string) => void;
+  onChangeSystolic: (text: string) => void;
   diastolic: string;
-  onChangeDiastolic: (t: string) => void;
+  onChangeDiastolic: (text: string) => void;
   value: string;
-  onChangeValue: (t: string) => void;
+  onChangeValue: (text: string) => void;
   sugarRandom: string;
-  onChangeSugarRandom: (t: string) => void;
+  onChangeSugarRandom: (text: string) => void;
+  fieldErrors: Record<string, string>;
   onSubmit: () => void;
   onClose: () => void;
   isSubmitting: boolean;
+  showDatePicker: boolean;
+  onCloseDatePicker: () => void;
+  onSelectDate: (date: string) => void;
+  showTimePicker: boolean;
+  onCloseTimePicker: () => void;
+  onSelectTime: (time: string) => void;
 }
 
 export const AddEditVitalModal: React.FC<Props> = ({
   visible,
   vitalName,
-  isEditing,
+  selectedMemberDisplayName,
   selectedDate,
+  onDateChange,
   onOpenDatePicker,
   selectedTime,
+  onTimeChange,
   onOpenTimePicker,
   systolic,
   onChangeSystolic,
@@ -54,23 +70,32 @@ export const AddEditVitalModal: React.FC<Props> = ({
   onChangeValue,
   sugarRandom,
   onChangeSugarRandom,
+  fieldErrors,
   onSubmit,
   onClose,
   isSubmitting,
+  showDatePicker,
+  onCloseDatePicker,
+  onSelectDate,
+  showTimePicker,
+  onCloseTimePicker,
+  onSelectTime,
 }) => {
+  const insets = useSafeAreaInsets();
+
   return (
     <Modal
       visible={visible}
       transparent
-      statusBarTranslucent
       animationType="slide"
+      statusBarTranslucent
       onRequestClose={() => {
         Keyboard.dismiss();
         onClose();
       }}
     >
       <KeyboardAvoidingView
-        style={styles.backdrop}
+        style={styles.modalOverlay}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <TouchableOpacity
@@ -81,129 +106,382 @@ export const AddEditVitalModal: React.FC<Props> = ({
             onClose();
           }}
         />
-        <View style={styles.sheetCard}>
-          <View style={styles.handle} />
-
-          <View style={styles.header}>
-            <Text style={styles.title}>
-              {isEditing ? `Edit ${vitalName}` : `Log ${vitalName}`}
-            </Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <MaterialIcons name="close" size={ws(22)} color="#64748B" />
+        <View style={[styles.modalBox, { paddingBottom: Math.max(insets.bottom, hs(16)) }]}>
+          {/* Header */}
+          <View style={styles.modalHeaderRow}>
+            <Text style={styles.modalTitle}>Add {vitalName} Data</Text>
+            <TouchableOpacity
+              onPress={() => {
+                Keyboard.dismiss();
+                onClose();
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <MaterialIcons name="close" size={ws(22)} color={Colors.primaryFontColor} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.formScroll} showsVerticalScrollIndicator={false}>
-            {/* Date & Time Selectors */}
-            <View style={styles.rowTwoCols}>
-              <View style={styles.colHalf}>
-                <Text style={styles.label}>Date *</Text>
-                <TouchableOpacity style={styles.pickerBtn} onPress={onOpenDatePicker}>
-                  <Text style={styles.pickerText}>{selectedDate}</Text>
-                  <MaterialIcons name="calendar-today" size={ws(16)} color="#64748B" />
-                </TouchableOpacity>
-              </View>
-              <View style={styles.colHalf}>
-                <Text style={styles.label}>Time *</Text>
-                <TouchableOpacity style={styles.pickerBtn} onPress={onOpenTimePicker}>
-                  <Text style={styles.pickerText}>{selectedTime}</Text>
-                  <MaterialIcons name="schedule" size={ws(16)} color="#64748B" />
-                </TouchableOpacity>
+          <ScrollView
+            style={styles.modalScrollBody}
+            contentContainerStyle={styles.modalScrollContent}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Read-only Patient Member */}
+            <View style={styles.modalFieldGroup}>
+              <Text style={styles.modalFieldLabel}>Name *</Text>
+              <View style={[styles.memberBox, styles.memberBoxReadOnly]}>
+                <MaterialIcons
+                  name="person-outline"
+                  size={ws(18)}
+                  color={Colors.secondaryFontColor}
+                  style={{ marginRight: ws(8) }}
+                />
+                <Text style={styles.memberBoxText}>{selectedMemberDisplayName}</Text>
+                <MaterialIcons
+                  name="lock-outline"
+                  size={ws(16)}
+                  color={Colors.slate_94A3B8}
+                  style={{ marginLeft: 'auto' }}
+                />
               </View>
             </View>
 
-            {/* Metric Fields based on Vital Name */}
-            {vitalName === 'Blood Pressure' ? (
-              <View style={styles.rowTwoCols}>
-                <View style={styles.colHalf}>
-                  <Text style={styles.label}>Systolic (mmHg) *</Text>
+            {/* Date & Time Selection Row */}
+            <View style={styles.dateTimeRow}>
+              {/* Select Date */}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalFieldLabel}>Select Date *</Text>
+                <View
+                  style={[
+                    styles.pickerTriggerBox,
+                    !!fieldErrors.date && styles.inputErrorBorder,
+                  ]}
+                >
                   <TextInput
-                    style={styles.input}
+                    style={styles.pickerInput}
+                    value={selectedDate}
+                    onChangeText={onDateChange}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={Colors.slate_94A3B8}
+                  />
+                  <TouchableOpacity
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      onOpenDatePicker();
+                    }}
+                    activeOpacity={0.8}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <MaterialIcons name="calendar-today" size={ws(17)} color={Colors.primaryColor} />
+                  </TouchableOpacity>
+                </View>
+                {!!fieldErrors.date && (
+                  <View style={styles.errorRow}>
+                    <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
+                    <Text style={styles.errorText}>{fieldErrors.date}</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Select Time */}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalFieldLabel}>Select Time *</Text>
+                <View
+                  style={[
+                    styles.pickerTriggerBox,
+                    !!fieldErrors.time && styles.inputErrorBorder,
+                  ]}
+                >
+                  <TextInput
+                    style={styles.pickerInput}
+                    value={selectedTime}
+                    onChangeText={onTimeChange}
+                    placeholder="HH:mm"
+                    placeholderTextColor={Colors.slate_94A3B8}
+                  />
+                  <TouchableOpacity
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      onOpenTimePicker();
+                    }}
+                    activeOpacity={0.8}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <MaterialIcons name="schedule" size={ws(17)} color={Colors.primaryColor} />
+                  </TouchableOpacity>
+                </View>
+                {!!fieldErrors.time && (
+                  <View style={styles.errorRow}>
+                    <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
+                    <Text style={styles.errorText}>{fieldErrors.time}</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            {/* Metric Value Inputs based on vitalName */}
+            {vitalName === 'Blood Pressure' ? (
+              <View style={styles.modalFieldGroup}>
+                <Text style={styles.modalFieldLabel}>Systolic (mmHg) *</Text>
+                <View
+                  style={[
+                    styles.inputWithIconContainer,
+                    !!fieldErrors.systolic && styles.inputErrorBorder,
+                  ]}
+                >
+                  <TextInput
+                    style={styles.textInputWithIcon}
+                    placeholder="e.g. 120"
+                    placeholderTextColor={Colors.slate_94A3B8}
+                    keyboardType="number-pad"
                     value={systolic}
                     onChangeText={onChangeSystolic}
-                    placeholder="e.g. 120"
-                    placeholderTextColor="#94A3B8"
-                    keyboardType="numeric"
                   />
+                  <Text style={styles.inputUnitSuffix}>mmHg</Text>
                 </View>
-                <View style={styles.colHalf}>
-                  <Text style={styles.label}>Diastolic (mmHg) *</Text>
+                {!!fieldErrors.systolic ? (
+                  <View style={styles.errorRow}>
+                    <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
+                    <Text style={styles.errorText}>{fieldErrors.systolic}</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.helperText}>Accepted range: 40–300 mmHg</Text>
+                )}
+
+                <Text style={[styles.modalFieldLabel, { marginTop: hs(10) }]}>Diastolic (mmHg) *</Text>
+                <View
+                  style={[
+                    styles.inputWithIconContainer,
+                    !!fieldErrors.diastolic && styles.inputErrorBorder,
+                  ]}
+                >
                   <TextInput
-                    style={styles.input}
+                    style={styles.textInputWithIcon}
+                    placeholder="e.g. 80"
+                    placeholderTextColor={Colors.slate_94A3B8}
+                    keyboardType="number-pad"
                     value={diastolic}
                     onChangeText={onChangeDiastolic}
-                    placeholder="e.g. 80"
-                    placeholderTextColor="#94A3B8"
-                    keyboardType="numeric"
                   />
+                  <Text style={styles.inputUnitSuffix}>mmHg</Text>
                 </View>
+                {!!fieldErrors.diastolic ? (
+                  <View style={styles.errorRow}>
+                    <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
+                    <Text style={styles.errorText}>{fieldErrors.diastolic}</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.helperText}>Accepted range: 30–200 mmHg</Text>
+                )}
               </View>
             ) : vitalName === 'Sugar' ? (
-              <View style={styles.rowTwoCols}>
-                <View style={styles.colHalf}>
-                  <Text style={styles.label}>Fasting (mg/dL)</Text>
+              <View style={styles.modalFieldGroup}>
+                {!!fieldErrors.sugarGeneral && (
+                  <View style={[styles.errorRow, { marginBottom: hs(8) }]}>
+                    <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
+                    <Text style={styles.errorText}>{fieldErrors.sugarGeneral}</Text>
+                  </View>
+                )}
+                <Text style={styles.modalFieldLabel}>Fasting (mg/dL)</Text>
+                <View
+                  style={[
+                    styles.inputWithIconContainer,
+                    !!fieldErrors.value && styles.inputErrorBorder,
+                  ]}
+                >
                   <TextInput
-                    style={styles.input}
+                    style={styles.textInputWithIcon}
+                    placeholder="e.g. 95"
+                    placeholderTextColor={Colors.slate_94A3B8}
+                    keyboardType="number-pad"
                     value={value}
                     onChangeText={onChangeValue}
-                    placeholder="e.g. 95"
-                    placeholderTextColor="#94A3B8"
-                    keyboardType="numeric"
                   />
+                  <Text style={styles.inputUnitSuffix}>mg/dL</Text>
                 </View>
-                <View style={styles.colHalf}>
-                  <Text style={styles.label}>Random / PP (mg/dL)</Text>
+                {!!fieldErrors.value ? (
+                  <View style={styles.errorRow}>
+                    <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
+                    <Text style={styles.errorText}>{fieldErrors.value}</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.helperText}>Accepted range: 20–1000 mg/dL (Optional)</Text>
+                )}
+
+                <Text style={[styles.modalFieldLabel, { marginTop: hs(10) }]}>Random (mg/dL)</Text>
+                <View
+                  style={[
+                    styles.inputWithIconContainer,
+                    !!fieldErrors.sugarRandom && styles.inputErrorBorder,
+                  ]}
+                >
                   <TextInput
-                    style={styles.input}
+                    style={styles.textInputWithIcon}
+                    placeholder="e.g. 140"
+                    placeholderTextColor={Colors.slate_94A3B8}
+                    keyboardType="number-pad"
                     value={sugarRandom}
                     onChangeText={onChangeSugarRandom}
-                    placeholder="e.g. 140"
-                    placeholderTextColor="#94A3B8"
-                    keyboardType="numeric"
                   />
+                  <Text style={styles.inputUnitSuffix}>mg/dL</Text>
                 </View>
+                {!!fieldErrors.sugarRandom ? (
+                  <View style={styles.errorRow}>
+                    <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
+                    <Text style={styles.errorText}>{fieldErrors.sugarRandom}</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.helperText}>Accepted range: 20–1000 mg/dL (Optional)</Text>
+                )}
+              </View>
+            ) : vitalName === 'Temperature' ? (
+              <View style={styles.modalFieldGroup}>
+                <Text style={styles.modalFieldLabel}>Temperature (°F) *</Text>
+                <View
+                  style={[
+                    styles.inputWithIconContainer,
+                    !!fieldErrors.value && styles.inputErrorBorder,
+                  ]}
+                >
+                  <MaterialIcons
+                    name="thermostat"
+                    size={ws(20)}
+                    color={fieldErrors.value ? Colors.redColor : Colors.amber_D97706}
+                    style={{ marginRight: ws(8) }}
+                  />
+                  <TextInput
+                    style={styles.textInputWithIcon}
+                    placeholder="Enter temperature in °F"
+                    placeholderTextColor={Colors.slate_94A3B8}
+                    keyboardType="decimal-pad"
+                    value={value}
+                    onChangeText={onChangeValue}
+                  />
+                  <Text style={styles.inputUnitSuffix}>°F</Text>
+                </View>
+                {!!fieldErrors.value && (
+                  <View style={styles.errorRow}>
+                    <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
+                    <Text style={styles.errorText}>{fieldErrors.value}</Text>
+                  </View>
+                )}
+                <Text style={styles.helperText}>
+                  Accepted range: 70 – 115 °F (Normal: 97.0 – 99.5 °F)
+                </Text>
+              </View>
+            ) : vitalName === 'Weight' ? (
+              <View style={styles.modalFieldGroup}>
+                <Text style={styles.modalFieldLabel}>Weight (kg) *</Text>
+                <View
+                  style={[
+                    styles.inputWithIconContainer,
+                    !!fieldErrors.value && styles.inputErrorBorder,
+                  ]}
+                >
+                  <MaterialIcons
+                    name="fitness-center"
+                    size={ws(18)}
+                    color={fieldErrors.value ? Colors.redColor : Colors.primaryColor}
+                    style={{ marginRight: ws(8) }}
+                  />
+                  <TextInput
+                    style={styles.textInputWithIcon}
+                    placeholder="Enter weight in kg"
+                    placeholderTextColor={Colors.slate_94A3B8}
+                    keyboardType="decimal-pad"
+                    value={value}
+                    onChangeText={onChangeValue}
+                  />
+                  <Text style={styles.inputUnitSuffix}>kg</Text>
+                </View>
+                {!!fieldErrors.value && (
+                  <View style={styles.errorRow}>
+                    <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
+                    <Text style={styles.errorText}>{fieldErrors.value}</Text>
+                  </View>
+                )}
+                <Text style={styles.helperText}>Accepted range: 1 – 500 kg</Text>
               </View>
             ) : (
-              <View style={styles.fieldWrapper}>
-                <Text style={styles.label}>
-                  {vitalName} Value ({vitalName === 'Weight' ? 'kg' : vitalName === 'Temperature' ? '°F' : '%'}) *
-                </Text>
-                <TextInput
-                  style={styles.input}
-                  value={value}
-                  onChangeText={onChangeValue}
-                  placeholder={`Enter ${vitalName} value`}
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="numeric"
-                />
+              <View style={styles.modalFieldGroup}>
+                <Text style={styles.modalFieldLabel}>{vitalName === 'SpO2' ? 'SpO2 (%) *' : `${vitalName} *`}</Text>
+                <View
+                  style={[
+                    styles.inputWithIconContainer,
+                    !!fieldErrors.value && styles.inputErrorBorder,
+                  ]}
+                >
+                  <TextInput
+                    style={styles.textInputWithIcon}
+                    placeholder={`Enter ${vitalName} reading`}
+                    placeholderTextColor={Colors.slate_94A3B8}
+                    keyboardType="decimal-pad"
+                    value={value}
+                    onChangeText={onChangeValue}
+                  />
+                  {vitalName === 'SpO2' && <Text style={styles.inputUnitSuffix}>%</Text>}
+                </View>
+                {!!fieldErrors.value && (
+                  <View style={styles.errorRow}>
+                    <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
+                    <Text style={styles.errorText}>{fieldErrors.value}</Text>
+                  </View>
+                )}
+                {vitalName === 'SpO2' && (
+                  <Text style={styles.helperText}>Accepted range: 70–100% (Normal: 95–100%)</Text>
+                )}
+              </View>
+            )}
+
+            {/* General API Error Row */}
+            {!!fieldErrors.general && (
+              <View style={styles.errorRow}>
+                <MaterialIcons name="error-outline" size={ws(15)} color={Colors.redColor} />
+                <Text style={styles.errorText}>{fieldErrors.general}</Text>
               </View>
             )}
           </ScrollView>
 
-          <View style={styles.footerRow}>
+          {/* Bottom Action Buttons */}
+          <View style={styles.modalActions}>
             <TouchableOpacity
               style={styles.cancelBtn}
-              activeOpacity={0.8}
-              onPress={onClose}
-              disabled={isSubmitting}
+              onPress={() => {
+                Keyboard.dismiss();
+                onClose();
+              }}
             >
-              <Text style={styles.cancelBtnText}>Close</Text>
+              <Text style={styles.cancelText}>Close</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.submitBtn}
-              activeOpacity={0.85}
+            <AppButton
+              title="Save"
+              loading={isSubmitting}
               onPress={onSubmit}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator size="small" color={Colors.white} />
-              ) : (
-                <Text style={styles.submitBtnText}>
-                  {isEditing ? 'Update Vital' : 'Save Entry'}
-                </Text>
-              )}
-            </TouchableOpacity>
+              style={styles.saveBtn}
+            />
           </View>
+
+          {/* Date & Time Pickers */}
+          <AppDatePickerModal
+            visible={showDatePicker}
+            onClose={onCloseDatePicker}
+            initialDate={selectedDate}
+            maxDate={new Date()}
+            useNativeModal={false}
+            onSelectDate={onSelectDate}
+            title="Select Date"
+          />
+
+          <AppTimePickerModal
+            visible={showTimePicker}
+            onClose={onCloseTimePicker}
+            initialTime={selectedTime}
+            useNativeModal={false}
+            onSelectTime={onSelectTime}
+            title="Select Time"
+          />
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -211,132 +489,161 @@ export const AddEditVitalModal: React.FC<Props> = ({
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
+  modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
     justifyContent: 'flex-end',
   },
   backdropPressable: {
     flex: 1,
   },
-  sheetCard: {
+  modalBox: {
     backgroundColor: Colors.white,
     borderTopLeftRadius: ws(24),
     borderTopRightRadius: ws(24),
     paddingHorizontal: ws(20),
-    paddingTop: hs(12),
-    maxHeight: '85%',
+    paddingTop: hs(20),
+    maxHeight: '90%',
   },
-  handle: {
-    width: ws(36),
-    height: hs(4),
-    borderRadius: ws(2),
-    backgroundColor: '#CBD5E1',
-    alignSelf: 'center',
-    marginBottom: hs(12),
-  },
-  header: {
+  modalHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: hs(16),
-    paddingBottom: hs(10),
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    justifyContent: 'space-between',
+    paddingBottom: hs(14),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
   },
-  title: {
-    flex: 1,
-    fontSize: fs(16),
+  modalTitle: {
     ...TYPOGRAPHY.bold,
+    fontSize: fs(18),
     color: Colors.primaryFontColor,
   },
-  formScroll: {
-    marginBottom: hs(12),
+  modalScrollBody: {
+    maxHeight: hs(420),
+    marginTop: hs(12),
   },
-  rowTwoCols: {
-    flexDirection: 'row',
-    gap: ws(10),
-    marginBottom: hs(12),
+  modalScrollContent: {
+    paddingBottom: hs(16),
   },
-  colHalf: {
-    flex: 1,
+  modalFieldGroup: {
+    marginBottom: hs(14),
   },
-  fieldWrapper: {
-    marginBottom: hs(12),
-  },
-  label: {
-    fontSize: fs(12),
+  modalFieldLabel: {
     ...TYPOGRAPHY.medium,
+    fontSize: fs(13),
     color: Colors.primaryFontColor,
     marginBottom: hs(6),
   },
-  input: {
-    height: hs(44),
-    backgroundColor: '#F8FAFC',
-    borderRadius: ws(12),
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: ws(12),
-    fontSize: fs(13),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
-  },
-  pickerBtn: {
-    height: hs(44),
-    backgroundColor: '#F8FAFC',
-    borderRadius: ws(12),
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: ws(12),
+  memberBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: ws(12),
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(12),
+    backgroundColor: Colors.slate_F8FAFC,
   },
-  pickerText: {
-    fontSize: fs(13),
-    ...TYPOGRAPHY.medium,
+  memberBoxReadOnly: {
+    backgroundColor: Colors.slate_F1F5F9,
+    borderColor: Colors.slate_E2E8F0,
+  },
+  memberBoxText: {
+    ...TYPOGRAPHY.semiBold,
+    fontSize: fs(14),
     color: Colors.primaryFontColor,
   },
-  footerRow: {
+  dateTimeRow: {
     flexDirection: 'row',
     gap: ws(12),
-    paddingVertical: hs(16),
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    marginBottom: hs(14),
+  },
+  pickerTriggerBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: ws(12),
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(10),
+    backgroundColor: Colors.white,
+  },
+  pickerInput: {
+    flex: 1,
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(13),
+    color: Colors.primaryFontColor,
+    paddingVertical: 0,
+  },
+  inputWithIconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: ws(12),
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(11),
+    backgroundColor: Colors.white,
+  },
+  textInputWithIcon: {
+    flex: 1,
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(14),
+    color: Colors.primaryFontColor,
+    paddingVertical: 0,
+  },
+  inputUnitSuffix: {
+    ...TYPOGRAPHY.medium,
+    fontSize: fs(12),
+    color: Colors.secondaryFontColor,
+    marginLeft: ws(6),
+  },
+  inputErrorBorder: {
+    borderColor: Colors.redColor,
+    backgroundColor: Colors.red_FFF5F5,
+  },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ws(4),
+    marginTop: hs(4),
+  },
+  errorText: {
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(11),
+    color: Colors.redColor,
+  },
+  helperText: {
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(11),
+    color: Colors.secondaryFontColor,
+    marginTop: hs(4),
+  },
+  modalActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ws(12),
+    paddingTop: hs(14),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
   },
   cancelBtn: {
     flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
-    height: hs(48),
-    borderRadius: fs(12),
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
+    paddingVertical: hs(12),
+    borderRadius: ws(12),
     alignItems: 'center',
-  },
-  cancelBtnText: {
-    fontSize: fs(14),
-    ...TYPOGRAPHY.bold,
-    color: '#64748B',
-  },
-  submitBtn: {
-    flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
-    height: hs(48),
-    borderRadius: fs(12),
-    backgroundColor: Colors.primaryColor,
     justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: Colors.primaryColor,
-    shadowOffset: { width: 0, height: hs(3) },
-    shadowOpacity: 0.2,
-    shadowRadius: ws(6),
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.slate_F8FAFC,
   },
-  submitBtnText: {
+  cancelText: {
+    ...TYPOGRAPHY.semiBold,
     fontSize: fs(14),
-    ...TYPOGRAPHY.bold,
-    color: Colors.white,
+    color: Colors.secondaryFontColor,
+  },
+  saveBtn: {
+    flex: 2,
+    borderRadius: ws(12),
   },
 });

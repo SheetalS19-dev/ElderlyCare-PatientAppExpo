@@ -98,6 +98,6 @@ const styles = StyleSheet.create({
   },
   inactiveDot: {
     width: ws(6),
-    backgroundColor: '#CBD5E1',
+    backgroundColor: Colors.gray_CBD5E1,
   },
 });

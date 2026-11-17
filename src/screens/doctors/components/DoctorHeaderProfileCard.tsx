@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     borderWidth: 2,
     borderColor: Colors.aquaBorder,
   },

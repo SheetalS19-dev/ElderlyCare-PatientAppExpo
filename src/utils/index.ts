@@ -12,3 +12,6 @@ export * from './locationHelper';
 export * from './apiLogger';
 export * from './notificationHelper';
 export * from './rescheduleHelper';
+export * from './vitalUtils';
+export * from './userUtils';
+export * from '../validation';

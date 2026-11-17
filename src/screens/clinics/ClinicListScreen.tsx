@@ -1,17 +1,15 @@
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useMemo, useState } from 'react';
+import React from 'react';
 import {
   FlatList,
   Image,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AppHeader,
   CitySelectModal,
@@ -20,113 +18,37 @@ import {
   LoadingIndicator,
   SearchBox,
 } from '../../components';
-import { ApiEndpoints, Colors } from '../../constants';
-import type { RootStackParamList } from '../../navigation/types';
-import { useGetClinicsQuery } from '../../redux/apis/clinicApi';
-import { useGetCitiesQuery } from '../../redux/apis/doctorApi';
-import type { CityModel, ClinicModel } from '../../types';
+import { Colors } from '../../constants';
 import {
-  detectDeviceCityName,
-  formatCityDisplayName,
   fs,
   getImageUrl,
   hs,
-  matchCityFromList,
-  showToast,
   TYPOGRAPHY,
   ws,
 } from '../../utils';
+import { useClinicList } from './useClinicList';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'ClinicList'>;
-
-export const ClinicListScreen = ({ navigation, route }: Props) => {
-  const insets = useSafeAreaInsets();
-  const rawRouteCityId = (route?.params as any)?.cityId ? String((route.params as any).cityId).trim() : '';
-  const routeCityId =
-    rawRouteCityId && rawRouteCityId !== 'ALL' && rawRouteCityId !== 'undefined' && rawRouteCityId !== 'null'
-      ? rawRouteCityId
-      : '';
-  const routeCityTitle =
-    (route?.params as any)?.cityTitle && (route?.params as any)?.cityTitle !== 'All'
-      ? (route.params as any).cityTitle
-      : '';
-
-  const [selectedCity, setSelectedCity] = useState<{ id: string; title: string }>({
-    id: routeCityId,
-    title: routeCityTitle,
-  });
-  const [citySearch, setCitySearch] = useState('');
-  const [clinicSearch, setClinicSearch] = useState('');
-  const [isCityModalVisible, setIsCityModalVisible] = useState(false);
-  const [deviceLocationCity, setDeviceLocationCity] = useState<string | null>(null);
-  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
-  const [isUsingCurrentLocation, setIsUsingCurrentLocation] = useState(false);
-
-  // Sync route params if navigation re-invokes screen
-  React.useEffect(() => {
-    if ((route?.params as any)?.cityId !== undefined) {
-      const raw = String((route.params as any).cityId || '').trim();
-      const valid = raw && raw !== 'ALL' && raw !== 'undefined' && raw !== 'null' ? raw : '';
-      setSelectedCity({
-        id: valid,
-        title: valid ? ((route.params as any)?.cityTitle || '') : '',
-      });
-    }
-  }, [(route?.params as any)?.cityId, (route?.params as any)?.cityTitle]);
-
-  // Queries
+export const ClinicListScreen: React.FC = () => {
   const {
-    data: clinicsData,
-    isLoading: isClinicsLoading,
-    isFetching: isClinicsFetching,
-    isError: isClinicsError,
-    refetch: refetchClinics,
-  } = useGetClinicsQuery(
-    {
-      cityId: selectedCity.id || undefined,
-    },
-    { refetchOnMountOrArgChange: true }
-  );
-
-  const { data: citiesData } = useGetCitiesQuery(citySearch);
-
-  // Filtered clinic list
-  const clinics: ClinicModel[] = useMemo(() => {
-    let list: ClinicModel[] = [];
-    if (Array.isArray(clinicsData)) list = clinicsData;
-    else if (Array.isArray(clinicsData?.data)) list = clinicsData.data;
-    else if (Array.isArray((clinicsData as any)?.response)) list = (clinicsData as any).response;
-    else if (Array.isArray((clinicsData as any)?.result)) list = (clinicsData as any).result;
-
-    if (!clinicSearch.trim()) return list;
-
-    const query = clinicSearch.toLowerCase().trim();
-    return list.filter(
-      (item) =>
-        item.title?.toLowerCase().includes(query) ||
-        item.name?.toLowerCase().includes(query) ||
-        item.address?.toLowerCase().includes(query) ||
-        item.city_title?.toLowerCase().includes(query) ||
-        (item as any)?.city?.toLowerCase().includes(query)
-    );
-  }, [clinicsData, clinicSearch]);
-
-  // Cities list
-  const cities: CityModel[] = useMemo(() => {
-    if (Array.isArray(citiesData)) return citiesData;
-    if (Array.isArray(citiesData?.data)) return citiesData.data;
-    return [];
-  }, [citiesData]);
-
-  const handleSelectCity = (city: CityModel) => {
-    const cityTitle = city.state_title ? `${city.title}, ${city.state_title}` : city.title ?? '';
-    setSelectedCity({ id: String(city.id ?? ''), title: cityTitle });
-    setIsCityModalVisible(false);
-  };
-
-  const handleClearCity = () => {
-    setSelectedCity({ id: '', title: '' });
-  };
+    navigation,
+    insets,
+    selectedCity,
+    clinicSearch,
+    setClinicSearch,
+    isCityModalVisible,
+    setIsCityModalVisible,
+    deviceLocationCity,
+    isDetectingLocation,
+    isUsingCurrentLocation,
+    cities,
+    clinics,
+    isClinicsLoading,
+    isClinicsFetching,
+    isClinicsError,
+    refetchClinics,
+    handleClearCity,
+    handleCityModalSelect,
+  } = useClinicList();
 
   return (
     <View style={styles.container}>
@@ -184,7 +106,10 @@ export const ClinicListScreen = ({ navigation, route }: Props) => {
           <FlatList
             data={clinics}
             keyExtractor={(item, index) => `clinic-${item.id ?? index}`}
-            contentContainerStyle={[styles.listContainer, { flexGrow: 1, paddingBottom: hs(80) + Math.max(insets.bottom, hs(24)) }]}
+            contentContainerStyle={[
+              styles.listContainer,
+              { flexGrow: 1, paddingBottom: hs(80) + Math.max(insets.bottom, hs(24)) },
+            ]}
             showsVerticalScrollIndicator={false}
             refreshing={isClinicsFetching}
             onRefresh={refetchClinics}
@@ -238,7 +163,7 @@ export const ClinicListScreen = ({ navigation, route }: Props) => {
                 <View style={styles.clinicDetails}>
                   <View style={styles.badgeRow}>
                     <View style={styles.verifiedBadge}>
-                      <MaterialIcons name="verified" size={fs(12)} color="#059669" />
+                      <MaterialIcons name="verified" size={fs(12)} color={Colors.green_059669} />
                       <Text style={styles.verifiedText}>Verified Center</Text>
                     </View>
                   </View>
@@ -269,38 +194,7 @@ export const ClinicListScreen = ({ navigation, route }: Props) => {
         currentCityName={deviceLocationCity ?? undefined}
         isDetectingLocation={isDetectingLocation}
         activeLocationLabel={selectedCity.title || 'All Cities'}
-        onSelectCity={async (cityObj) => {
-          setIsCityModalVisible(false);
-          if (cityObj === undefined) {
-            setIsUsingCurrentLocation(true);
-            setIsDetectingLocation(true);
-            try {
-              const detected = await detectDeviceCityName();
-              if (detected) {
-                setDeviceLocationCity(detected);
-                const matched = matchCityFromList(detected, cities);
-                if (matched) {
-                  setSelectedCity({ id: String(matched.id ?? ''), title: formatCityDisplayName(matched) });
-                  showToast(`Location set to ${matched.title || detected}`);
-                } else {
-                  setSelectedCity({ id: '', title: '' });
-                  showToast(`Detected ${detected}; showing all clinics`);
-                }
-              } else {
-                setIsUsingCurrentLocation(false);
-                showToast('Could not detect current location');
-              }
-            } finally {
-              setIsDetectingLocation(false);
-            }
-          } else if (cityObj) {
-            setIsUsingCurrentLocation(false);
-            setSelectedCity({ id: String(cityObj.id ?? ''), title: formatCityDisplayName(cityObj) });
-          } else {
-            setIsUsingCurrentLocation(false);
-            setSelectedCity({ id: '', title: '' });
-          }
-        }}
+        onSelectCity={handleCityModalSelect}
       />
     </View>
   );
@@ -385,7 +279,8 @@ const styles = StyleSheet.create({
     height: ws(64),
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
+    marginRight: ws(12),
   },
   placeholderImage: {
     width: ws(64),
@@ -393,33 +288,38 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: 'hidden',
     backgroundColor: Colors.aquaSoft,
+    justifyContent: 'center',
     alignItems: 'center',
+    marginRight: ws(12),
+  },
+  clinicDetails: {
+    flex: 1,
     justifyContent: 'center',
   },
-  clinicDetails: { flex: 1, marginLeft: ws(12), marginRight: ws(8) },
   badgeRow: {
     flexDirection: 'row',
-    marginBottom: hs(3),
+    alignItems: 'center',
+    marginBottom: hs(4),
   },
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: Colors.green_ECFDF5,
     paddingHorizontal: ws(6),
     paddingVertical: hs(2),
-    borderRadius: fs(4),
+    borderRadius: fs(6),
     gap: ws(3),
   },
   verifiedText: {
-    fontSize: fs(9),
-    ...TYPOGRAPHY.bold,
-    color: '#059669',
+    fontSize: fs(10),
+    ...TYPOGRAPHY.medium,
+    color: Colors.green_059669,
   },
   clinicTitle: {
     fontSize: fs(14),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginBottom: hs(3),
+    marginBottom: hs(2),
   },
   clinicAddress: {
     fontSize: fs(11),
@@ -428,50 +328,13 @@ const styles = StyleSheet.create({
     lineHeight: fs(16),
   },
   chevronCircle: {
-    width: ws(32),
-    height: ws(32),
-    aspectRatio: 1,
+    width: ws(28),
+    height: ws(28),
     borderRadius: 999,
     overflow: 'hidden',
     backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: fs(20),
-    borderTopRightRadius: fs(20),
-    padding: ws(16),
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: hs(12),
-  },
-  modalTitle: {
-    fontSize: fs(16),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
-  },
-  cityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: hs(12),
-    paddingHorizontal: ws(8),
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  cityItemText: {
-    marginLeft: ws(10),
-    fontSize: fs(14),
-    ...TYPOGRAPHY.regular,
-    color: Colors.primaryFontColor,
+    marginLeft: ws(8),
   },
 });

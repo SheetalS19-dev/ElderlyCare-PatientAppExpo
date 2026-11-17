@@ -1,8 +1,10 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,361 +12,531 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AppButton, AppDatePickerModal } from '../../../components';
 import { Colors } from '../../../constants';
-import { DateTimeUtils } from '../../../utils/dateTimeUtils';
-import { fs, hs, ws } from '../../../utils/metrics';
-import { TYPOGRAPHY } from '../../../utils/typography';
+import { DateTimeUtils, fs, hs, TYPOGRAPHY, ws } from '../../../utils';
 
-interface Props {
+export const RELATION_OPTIONS = [
+  'Husband',
+  'Wife',
+  'Father',
+  'Mother',
+  'Son',
+  'Daughter',
+  'Brother',
+  'Sister',
+  'Grandfather',
+  'Grandmother',
+  'Other',
+];
+
+interface AddEditFamilyMemberModalProps {
   visible: boolean;
-  isEditing: boolean;
-  firstName: string;
-  onChangeFirstName: (t: string) => void;
-  lastName: string;
-  onChangeLastName: (t: string) => void;
-  phone: string;
-  onChangePhone: (t: string) => void;
-  gender: string;
-  onSelectGender: (g: string) => void;
-  dob: string;
-  onOpenDatePicker: () => void;
-  onSubmit: () => void;
   onClose: () => void;
+  editingId: string | null;
+  firstName: string;
+  setFirstName: (val: string) => void;
+  lastName: string;
+  setLastName: (val: string) => void;
+  phone: string;
+  setPhone: (val: string) => void;
+  dob: string;
+  setDob: (val: string) => void;
+  gender: string;
+  setGender: (val: string) => void;
+  relation: string;
+  setRelation: (val: string) => void;
+  countryCode: { name: string; code: string; dialCode: string; flag: string };
+  errors: Record<string, string | undefined>;
+  clearError: (field: string) => void;
+  onSave: () => void;
   isSubmitting: boolean;
 }
 
-const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
-
-export const AddEditFamilyMemberModal: React.FC<Props> = ({
+export const AddEditFamilyMemberModal: React.FC<AddEditFamilyMemberModalProps> = ({
   visible,
-  isEditing,
-  firstName,
-  onChangeFirstName,
-  lastName,
-  onChangeLastName,
-  phone,
-  onChangePhone,
-  gender,
-  onSelectGender,
-  dob,
-  onOpenDatePicker,
-  onSubmit,
   onClose,
+  editingId,
+  firstName,
+  setFirstName,
+  lastName,
+  setLastName,
+  phone,
+  setPhone,
+  dob,
+  setDob,
+  gender,
+  setGender,
+  relation,
+  setRelation,
+  countryCode,
+  errors,
+  clearError,
+  onSave,
   isSubmitting,
 }) => {
+  const insets = useSafeAreaInsets();
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showRelationList, setShowRelationList] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.sheetCard}>
-          <View style={styles.sheetHandle} />
-
-          <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>
-              {isEditing ? 'Edit Family Member' : 'Add Family Member'}
-            </Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <MaterialIcons name="close" size={ws(22)} color="#64748B" />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollForm}>
-            {/* First & Last Name */}
-            <View style={styles.rowTwoCols}>
-              <View style={styles.colHalf}>
-                <Text style={styles.fieldLabel}>First Name *</Text>
-                <TextInput
-                  style={styles.inputField}
-                  value={firstName}
-                  onChangeText={onChangeFirstName}
-                  placeholder="First name"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
-              <View style={styles.colHalf}>
-                <Text style={styles.fieldLabel}>Last Name *</Text>
-                <TextInput
-                  style={styles.inputField}
-                  value={lastName}
-                  onChangeText={onChangeLastName}
-                  placeholder="Last Name"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
-            </View>
-
-            {/* Phone */}
-            <View style={styles.fieldWrapper}>
-              <Text style={styles.fieldLabel}>Mobile Number</Text>
-              <View style={styles.phoneInputRow}>
-                <TextInput
-                  style={styles.phoneInput}
-                  value={phone}
-                  onChangeText={onChangePhone}
-                  placeholder="10-digit mobile number"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="phone-pad"
-                  maxLength={10}
-                />
-              </View>
-            </View>
-
-            {/* Gender Pills */}
-            <View style={styles.fieldWrapper}>
-              <Text style={styles.fieldLabel}>Gender</Text>
-              <View style={styles.genderRow}>
-                {GENDER_OPTIONS.map((g) => {
-                  const isSelected = gender === g;
-                  return (
-                    <TouchableOpacity
-                      key={g}
-                      style={[styles.genderPill, isSelected && styles.genderPillActive]}
-                      onPress={() => onSelectGender(g)}
-                    >
-                      <Text
-                        style={[
-                          styles.genderPillText,
-                          isSelected && styles.genderPillTextActive,
-                        ]}
-                      >
-                        {g}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Date of Birth */}
-            <View style={styles.fieldWrapper}>
-              <Text style={styles.fieldLabel}>Date of Birth</Text>
-              <TouchableOpacity
-                style={styles.datePickerBtn}
-                activeOpacity={0.8}
-                onPress={onOpenDatePicker}
-              >
-                <Text style={[styles.dateText, !dob && styles.placeholderText]}>
-                  {dob ? DateTimeUtils.formatDob(dob) : DateTimeUtils.DOB_PLACEHOLDER}
+      <KeyboardAvoidingView
+        style={styles.modalOverlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <TouchableOpacity style={styles.backdropPressable} activeOpacity={1} onPress={onClose} />
+        <View style={[styles.modalBox, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+          <ScrollView
+            ref={scrollRef}
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: hs(32) }}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.modalHeader}>
+              <View style={styles.modalTitleRow}>
+                <View style={styles.modalIconCircle}>
+                  <MaterialIcons
+                    name={editingId ? 'edit' : 'person-add'}
+                    size={20}
+                    color={Colors.primaryColor}
+                  />
+                </View>
+                <Text style={styles.modalTitle}>
+                  {editingId ? 'Edit Family Member' : 'Add New Family Member'}
                 </Text>
-                <MaterialIcons name="calendar-today" size={ws(18)} color="#64748B" />
+              </View>
+              <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <MaterialIcons name="close" size={24} color={Colors.secondaryFontColor} />
+              </TouchableOpacity>
+            </View>
+
+            {/* 2-Column Row for First Name and Last Name */}
+            <View style={styles.twoColRow}>
+              <View style={styles.col}>
+                <Text style={[styles.inputLabel, styles.firstInputLabel]}>First Name *</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Enter first name"
+                  placeholderTextColor={Colors.slate_94A3B8}
+                  value={firstName}
+                  onChangeText={(v) => {
+                    setFirstName(v);
+                    clearError('firstName');
+                  }}
+                />
+                {!!errors.firstName && <Text style={styles.errorText}>{errors.firstName}</Text>}
+              </View>
+
+              <View style={styles.col}>
+                <Text style={[styles.inputLabel, styles.firstInputLabel]}>Last Name</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Enter last name"
+                  placeholderTextColor={Colors.slate_94A3B8}
+                  value={lastName}
+                  onChangeText={(v) => {
+                    setLastName(v);
+                    clearError('lastName');
+                  }}
+                />
+                {!!errors.lastName && <Text style={styles.errorText}>{errors.lastName}</Text>}
+              </View>
+            </View>
+
+            <Text style={styles.inputLabel}>Mobile Number *</Text>
+            <View style={styles.phoneInputRow}>
+              <TextInput
+                style={styles.phoneInput}
+                placeholder="Enter 10-digit mobile number"
+                placeholderTextColor={Colors.slate_94A3B8}
+                keyboardType="phone-pad"
+                maxLength={10}
+                value={phone}
+                onChangeText={(v) => {
+                  setPhone(v.replace(/[^0-9]/g, ''));
+                  clearError('phone');
+                }}
+              />
+            </View>
+            {!!errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
+
+            {/* Date of Birth Selection Tile */}
+            <Text style={styles.inputLabel}>Date of Birth *</Text>
+            <TouchableOpacity
+              style={styles.dateSelectorTile}
+              onPress={() => setShowDatePicker(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.dateSelectorText, !dob ? styles.dateSelectorPlaceholder : null]}>
+                {dob ? DateTimeUtils.formatDob(dob) : DateTimeUtils.DOB_PLACEHOLDER}
+              </Text>
+              <MaterialIcons name="calendar-today" size={16} color={Colors.primaryColor} />
+            </TouchableOpacity>
+            {!!errors.dob && <Text style={styles.errorText}>{errors.dob}</Text>}
+
+            {/* Gender Selector */}
+            <Text style={styles.inputLabel}>Gender *</Text>
+            <View style={styles.genderRow}>
+              {['Male', 'Female', 'Other'].map((g) => (
+                <TouchableOpacity
+                  key={g}
+                  style={[styles.genderChip, gender === g && styles.genderChipSelected]}
+                  onPress={() => {
+                    setGender(g);
+                    clearError('gender');
+                  }}
+                >
+                  <Text style={[styles.genderChipText, gender === g && styles.genderChipTextSelected]}>
+                    {g}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {!!errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
+
+            {/* Relation Selector */}
+            <Text style={styles.inputLabel}>Relation *</Text>
+            <TouchableOpacity
+              style={[
+                styles.dateSelectorTile,
+                showRelationList && styles.selectorTileActive,
+              ]}
+              onPress={() => {
+                setShowRelationList((v) => {
+                  const next = !v;
+                  if (next) {
+                    setTimeout(() => {
+                      scrollRef.current?.scrollToEnd({ animated: true });
+                    }, 120);
+                  }
+                  return next;
+                });
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.dateSelectorText, !relation ? styles.dateSelectorPlaceholder : null]}>
+                {relation || 'Select relation'}
+              </Text>
+              <MaterialIcons
+                name={showRelationList ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                size={20}
+                color={Colors.primaryColor}
+              />
+            </TouchableOpacity>
+            {!!errors.relation && <Text style={styles.errorText}>{errors.relation}</Text>}
+
+            {/* Dropdown Options List */}
+            {showRelationList && (
+              <View style={styles.relationDropdownList}>
+                <ScrollView
+                  nestedScrollEnabled
+                  bounces={false}
+                  showsVerticalScrollIndicator={true}
+                  style={styles.dropdownScrollView}
+                  contentContainerStyle={styles.dropdownScrollContent}
+                >
+                  {RELATION_OPTIONS.map((opt, index) => {
+                    const isSelected = relation === opt;
+                    const isLast = index === RELATION_OPTIONS.length - 1;
+                    return (
+                      <TouchableOpacity
+                        key={opt}
+                        style={[
+                          styles.relationOptionItem,
+                          isSelected && styles.relationOptionItemSelected,
+                          isLast && styles.relationOptionItemLast,
+                        ]}
+                        onPress={() => {
+                          setRelation(opt);
+                          setShowRelationList(false);
+                          clearError('relation');
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.relationOptionText,
+                            isSelected && styles.relationOptionTextSelected,
+                          ]}
+                        >
+                          {opt}
+                        </Text>
+                        {isSelected && (
+                          <MaterialIcons name="check" size={ws(18)} color={Colors.primaryColor} />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Action Buttons */}
+            <View style={styles.modalActionRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={onClose}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSubmitBtn, isSubmitting && styles.modalSubmitBtnDisabled]}
+                onPress={onSave}
+                disabled={isSubmitting}
+                activeOpacity={0.8}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color={Colors.white} />
+                ) : (
+                  <Text style={styles.modalSubmitText}>
+                    {editingId ? 'Update Member' : 'Add Member'}
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
           </ScrollView>
-
-          <View style={styles.sheetFooterRow}>
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              activeOpacity={0.8}
-              onPress={onClose}
-              disabled={isSubmitting}
-            >
-              <Text style={styles.cancelBtnText} numberOfLines={1}>Close</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.submitBtn}
-              activeOpacity={0.85}
-              onPress={onSubmit}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator size="small" color={Colors.white} />
-              ) : (
-                <Text style={styles.submitBtnText} numberOfLines={1}>
-                  {isEditing ? 'Update Details' : 'Add Member'}
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
+
+      <AppDatePickerModal
+        visible={showDatePicker}
+        onClose={() => setShowDatePicker(false)}
+        initialDate={dob}
+        maxDate={new Date()}
+        onSelectDate={(dateStr) => {
+          setDob(dateStr);
+          clearError('dob');
+        }}
+        title="Select Date of Birth"
+      />
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
-  sheetCard: {
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  backdropPressable: { flex: 1 },
+  modalBox: {
     backgroundColor: Colors.white,
-    borderTopLeftRadius: ws(24),
-    borderTopRightRadius: ws(24),
-    paddingHorizontal: ws(20),
-    paddingTop: hs(12),
-    maxHeight: '85%',
+    borderTopLeftRadius: fs(20),
+    borderTopRightRadius: fs(20),
+    paddingHorizontal: ws(16),
+    paddingTop: hs(14),
+    maxHeight: '90%',
   },
-  sheetHandle: {
-    width: ws(36),
-    height: hs(4),
-    borderRadius: ws(2),
-    backgroundColor: '#CBD5E1',
-    alignSelf: 'center',
-    marginBottom: hs(12),
-  },
-  sheetHeader: {
+  modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: hs(16),
-    paddingBottom: hs(10),
+    justifyContent: 'space-between',
+    marginBottom: hs(10),
+    paddingBottom: hs(8),
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: Colors.slate_F1F5F9,
   },
-  sheetTitle: {
-    flex: 1,
-    fontSize: fs(16),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
-  },
-  scrollForm: {
-    marginBottom: hs(12),
-  },
-  rowTwoCols: {
+  modalTitleRow: {
     flexDirection: 'row',
-    gap: ws(10),
-    marginBottom: hs(12),
+    alignItems: 'center',
+    gap: ws(8),
   },
-  colHalf: {
-    flex: 1,
+  modalIconCircle: {
+    width: ws(32),
+    height: ws(32),
+    borderRadius: 999,
+    backgroundColor: Colors.aquaSoft,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  fieldWrapper: {
-    marginBottom: hs(12),
+  modalTitle: {
+    fontSize: fs(15),
+    ...TYPOGRAPHY.bold,
+    color: Colors.ink,
   },
-  fieldLabel: {
+  inputLabel: {
     fontSize: fs(12),
     ...TYPOGRAPHY.medium,
-    color: Colors.primaryFontColor,
-    marginBottom: hs(6),
+    color: Colors.slate_1E293B,
+    marginBottom: hs(3),
+    marginTop: hs(8),
   },
-  inputField: {
-    height: hs(44),
-    backgroundColor: '#F8FAFC',
-    borderRadius: ws(12),
+  firstInputLabel: {
+    marginTop: hs(2),
+  },
+  textInput: {
+    height: hs(38),
+    backgroundColor: Colors.slate_F8FAFC,
+    borderRadius: fs(8),
     borderWidth: 1,
     borderColor: Colors.border,
-    paddingHorizontal: ws(12),
+    paddingHorizontal: ws(10),
     fontSize: fs(13),
+    color: Colors.slate_1E293B,
     ...TYPOGRAPHY.regular,
-    color: Colors.primaryFontColor,
   },
   phoneInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: hs(44),
-    backgroundColor: '#F8FAFC',
-    borderRadius: ws(12),
+    height: hs(38),
+    backgroundColor: Colors.slate_F8FAFC,
+    borderRadius: fs(8),
     borderWidth: 1,
     borderColor: Colors.border,
-    overflow: 'hidden',
-  },
-  countryCodeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: ws(10),
-    borderRightWidth: 1,
-    borderRightColor: Colors.border,
-    height: '100%',
-  },
-  dialCodeText: {
-    fontSize: fs(13),
-    ...TYPOGRAPHY.semiBold,
-    color: '#1E293B',
   },
   phoneInput: {
     flex: 1,
-    height: '100%',
     paddingHorizontal: ws(10),
     fontSize: fs(13),
-    color: Colors.primaryFontColor,
+    color: Colors.slate_1E293B,
     ...TYPOGRAPHY.regular,
   },
-  genderRow: {
-    flexDirection: 'row',
-    gap: ws(10),
-  },
-  genderPill: {
-    flex: 1,
-    height: hs(40),
-    borderRadius: ws(10),
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  genderPillActive: {
-    backgroundColor: Colors.primaryColor,
-    borderColor: Colors.primaryColor,
-  },
-  genderPillText: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.medium,
-    color: Colors.primaryFontColor,
-  },
-  genderPillTextActive: {
-    color: Colors.white,
-    ...TYPOGRAPHY.bold,
-  },
-  datePickerBtn: {
-    height: hs(44),
-    backgroundColor: '#F8FAFC',
-    borderRadius: ws(12),
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: ws(12),
+  dateSelectorTile: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    height: hs(38),
+    backgroundColor: Colors.slate_F8FAFC,
+    borderRadius: fs(8),
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: ws(10),
   },
-  dateText: {
+  dateSelectorText: {
     fontSize: fs(13),
-    ...TYPOGRAPHY.medium,
-    color: Colors.primaryFontColor,
-  },
-  placeholderText: {
-    color: '#94A3B8',
+    color: Colors.slate_1E293B,
     ...TYPOGRAPHY.regular,
   },
-  sheetFooterRow: {
-    flexDirection: 'row',
-    gap: ws(12),
-    paddingVertical: hs(16),
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+  dateSelectorPlaceholder: {
+    color: Colors.slate_94A3B8,
   },
-  cancelBtn: {
+  genderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: hs(3),
+    marginBottom: hs(6),
+    gap: ws(8),
+  },
+  genderChip: {
     flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
-    height: hs(48),
-    borderRadius: ws(12),
-    backgroundColor: '#F1F5F9',
+    paddingVertical: hs(7),
+    borderRadius: fs(8),
+    backgroundColor: Colors.slate_F1F5F9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  genderChipSelected: {
+    backgroundColor: Colors.primaryColor,
+    borderColor: Colors.primaryColor,
+  },
+  genderChipText: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
+    color: Colors.slate_1E293B,
+  },
+  genderChipTextSelected: {
+    ...TYPOGRAPHY.bold,
+    color: Colors.white,
+  },
+  twoColRow: {
+    flexDirection: 'row',
+    gap: ws(10),
+  },
+  col: {
+    flex: 1,
+  },
+  selectorTileActive: {
+    borderColor: Colors.primaryColor,
+  },
+  relationDropdownList: {
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: fs(10),
+    marginTop: hs(4),
+    marginBottom: hs(8),
+    maxHeight: hs(190),
+    overflow: 'hidden',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: hs(2) },
+    shadowOpacity: 0.08,
+    shadowRadius: fs(4),
+    elevation: 3,
+  },
+  dropdownScrollView: {
+    maxHeight: hs(190),
+  },
+  dropdownScrollContent: {
+    flexGrow: 1,
+    paddingVertical: hs(2),
+  },
+  relationOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: hs(11),
+    paddingHorizontal: ws(14),
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.slate_F1F5F9,
+  },
+  relationOptionItemLast: {
+    borderBottomWidth: 0,
+  },
+  relationOptionItemSelected: {
+    backgroundColor: Colors.aquaSoft,
+  },
+  relationOptionText: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.medium,
+    color: Colors.slate_1E293B,
+  },
+  relationOptionTextSelected: {
+    ...TYPOGRAPHY.bold,
+    color: Colors.primaryColor,
+  },
+  errorText: {
+    fontSize: fs(11),
+    color: Colors.redColor,
+    marginTop: hs(2),
+    ...TYPOGRAPHY.regular,
+  },
+  modalActionRow: {
+    flexDirection: 'row',
+    gap: ws(10),
+    marginTop: hs(16),
+  },
+  modalCancelBtn: {
+    flex: 1,
+    height: hs(44),
+    borderRadius: fs(10),
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.white,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cancelBtnText: {
-    fontSize: fs(14),
-    ...TYPOGRAPHY.bold,
-    color: '#64748B',
+  modalCancelText: {
+    fontSize: fs(13.5),
+    ...TYPOGRAPHY.medium,
+    color: Colors.slate_64748B,
   },
-  submitBtn: {
-    flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
-    height: hs(48),
-    borderRadius: ws(12),
+  modalSubmitBtn: {
+    flex: 1.2,
+    height: hs(44),
+    borderRadius: fs(10),
     backgroundColor: Colors.primaryColor,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: Colors.primaryColor,
-    shadowOffset: { width: 0, height: hs(3) },
-    shadowOpacity: 0.2,
-    shadowRadius: ws(6),
-    elevation: 3,
   },
-  submitBtnText: {
-    fontSize: fs(14),
+  modalSubmitBtnDisabled: {
+    opacity: 0.7,
+  },
+  modalSubmitText: {
+    fontSize: fs(13.5),
     ...TYPOGRAPHY.bold,
     color: Colors.white,
   },

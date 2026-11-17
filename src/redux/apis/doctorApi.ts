@@ -97,6 +97,10 @@ export const doctorApi = baseApi.injectEndpoints({
         url: ApiEndpoints.getDoctorReviewUrl,
         params: { doctor_id: doctorId },
       }),
+      providesTags: (_res: any, _err: any, doctorId: string) => [
+        { type: 'DoctorReview', id: String(doctorId) },
+        { type: 'DoctorReview', id: 'LIST' },
+      ],
     }),
 
     getDoctorsByDeptAndCity: builder.query({

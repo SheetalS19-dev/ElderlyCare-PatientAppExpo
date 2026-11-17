@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     marginTop: hs(12),
     paddingTop: hs(10),
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: Colors.slate_F1F5F9,
   },
   problemLabel: {
     fontSize: fs(11),

@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Colors } from '../../constants';
 import { fs, ws } from '../../utils/metrics';
 
 interface StarRatingProps {
@@ -31,7 +32,7 @@ export const StarRating: React.FC<StarRatingProps> = ({
       <MaterialIcons
         name={iconName as any}
         size={iconSize}
-        color={isFilled || isHalf ? '#FFC107' : '#CBD5E1'}
+        color={isFilled || isHalf ? Colors.yellow_FFC107 : Colors.gray_CBD5E1}
         style={{ marginRight: ws(4) }}
       />
     );

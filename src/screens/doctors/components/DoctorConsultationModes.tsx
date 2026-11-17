@@ -49,7 +49,7 @@ export const DoctorConsultationModes = memo(({
                   <View
                     style={[
                       styles.selectedBadgeCorner,
-                      isEmergency && { backgroundColor: '#EF4444' },
+                      isEmergency && { backgroundColor: Colors.redColor },
                     ]}
                   >
                     <MaterialIcons name="check" size={12} color={Colors.white} />
@@ -62,7 +62,7 @@ export const DoctorConsultationModes = memo(({
                   style={[
                     styles.feeIconCircle,
                     {
-                      backgroundColor: isEmergency ? '#FEE2E2' : Colors.aquaSoft,
+                      backgroundColor: isEmergency ? Colors.red_FEE2E2 : Colors.aquaSoft,
                     },
                   ]}
                 >
@@ -70,7 +70,7 @@ export const DoctorConsultationModes = memo(({
                     <MaterialCommunityIcons
                       name="ambulance"
                       size={22}
-                      color="#EF4444"
+                      color={Colors.redColor}
                     />
                   ) : mode.isCommunity ? (
                     <MaterialCommunityIcons
@@ -96,7 +96,7 @@ export const DoctorConsultationModes = memo(({
         </View>
       ) : (
         <View style={styles.emptyInfoCard}>
-          <MaterialIcons name="event-busy" size={18} color="#64748B" />
+          <MaterialIcons name="event-busy" size={18} color={Colors.slate_64748B} />
           <Text style={styles.emptyInfoText}>
             Consultation modes and fees are currently unavailable for this doctor.
           </Text>
@@ -130,14 +130,14 @@ const styles = StyleSheet.create({
   },
   feeCardSelected: {
     borderColor: Colors.primaryColor,
-    backgroundColor: '#F0FDFA',
+    backgroundColor: Colors.teal_CCFBF1,
   },
   feeCardEmergency: {
-    borderColor: '#FECDD3',
+    borderColor: Colors.red_FFE8E8,
   },
   feeCardEmergencySelected: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
+    borderColor: Colors.redColor,
+    backgroundColor: Colors.red_FFF0F0,
   },
   selectedBadgeCorner: {
     position: 'absolute',
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     height: hs(16),
     borderRadius: fs(8),
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderColor: Colors.gray_CBD5E1,
   },
   feeIconCircle: {
     width: ws(40),
@@ -193,17 +193,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: ws(8),
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     borderRadius: fs(12),
     padding: ws(14),
     marginBottom: hs(14),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.slate_E2E8F0,
   },
   emptyInfoText: {
     flex: 1,
     fontSize: fs(12),
     ...TYPOGRAPHY.medium,
-    color: '#64748B',
+    color: Colors.slate_64748B,
   },
 });

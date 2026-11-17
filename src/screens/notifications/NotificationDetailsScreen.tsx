@@ -1,27 +1,18 @@
 import React from 'react';
-import { View, Text, Image, ScrollView, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../../navigation/types';
-import { AppHeader, LoadingIndicator, ErrorState } from '../../components';
-import { Colors, ApiEndpoints } from '../../constants';
-import { useGetNotificationByIdQuery } from '../../redux/apis/notificationApi';
-import type { NotificationModel } from '../../types';
-import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppHeader, ErrorState, LoadingIndicator } from '../../components';
+import { ApiEndpoints, Colors } from '../../constants';
+import { DateTimeUtils, fs, hs, TYPOGRAPHY, ws } from '../../utils';
+import { useNotificationDetails } from './useNotificationDetails';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'NotificationDetails'>;
-
-export const NotificationDetailsScreen = ({ navigation, route }: Props) => {
-  const { notificationId } = route.params ?? {};
-
+export const NotificationDetailsScreen: React.FC = () => {
   const {
-    data,
+    navigation,
+    notification,
     isLoading,
     isError,
     refetch,
-  } = useGetNotificationByIdQuery(notificationId, { skip: !notificationId });
-
-  const notification: NotificationModel | null = data?.data ?? data ?? null;
+  } = useNotificationDetails();
 
   if (isLoading) {
     return (
@@ -57,7 +48,7 @@ export const NotificationDetailsScreen = ({ navigation, route }: Props) => {
           <Text style={styles.title}>{notification.title}</Text>
           <Text style={styles.body}>{notification.body}</Text>
           {!!notification.created_at && (
-            <Text style={styles.date}>{notification.created_at}</Text>
+            <Text style={styles.date}>{DateTimeUtils.getDataFormat(notification.created_at)}</Text>
           )}
         </View>
       </ScrollView>
@@ -73,13 +64,13 @@ const styles = StyleSheet.create({
     height: hs(200),
     borderRadius: fs(12),
     marginBottom: hs(16),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
   },
   card: {
     backgroundColor: Colors.white,
     borderRadius: fs(12),
     padding: ws(16),
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 6,
@@ -101,6 +92,6 @@ const styles = StyleSheet.create({
   date: {
     fontSize: fs(12),
     ...TYPOGRAPHY.medium,
-    color: Colors.secondaryFontColor,
+    color: Colors.slate_94A3B8,
   },
 });

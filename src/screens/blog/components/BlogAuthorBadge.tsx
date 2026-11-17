@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: hs(12),
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: Colors.slate_F1F5F9,
     marginBottom: hs(14),
   },
   authorRow: {

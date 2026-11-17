@@ -53,8 +53,8 @@ export const VitalHistoryItemCard = memo(({
     }
   }
 
-  const itemWeightColor = isDecreased ? '#EF4444' : isIncreased ? '#10B981' : Colors.primaryColor;
-  const itemWeightBg = isDecreased ? '#FEE2E2' : isIncreased ? '#ECFDF5' : Colors.aquaSoft;
+  const itemWeightColor = isDecreased ? Colors.redColor : isIncreased ? Colors.green_10B981 : Colors.primaryColor;
+  const itemWeightBg = isDecreased ? Colors.red_FEE2E2 : isIncreased ? Colors.green_ECFDF5 : Colors.aquaSoft;
   const itemWeightIcon = isDecreased
     ? 'trending-down'
     : isIncreased
@@ -140,7 +140,7 @@ export const VitalHistoryItemCard = memo(({
               onPress={() => onDelete(String(item.id))}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <MaterialIcons name="delete-outline" size={16} color="#EF4444" />
+              <MaterialIcons name="delete-outline" size={16} color={Colors.redColor} />
             </TouchableOpacity>
           )}
         </View>
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: fs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.slate_E2E8F0,
   },
   historyRow: {
     flexDirection: 'row',
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   historySubValueText: {
     fontSize: fs(12),
     ...TYPOGRAPHY.medium,
-    color: '#64748B',
+    color: Colors.slate_64748B,
     marginTop: hs(1),
   },
   historyStatusBadge: {
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   historyDateText: {
     fontSize: fs(11),
     ...TYPOGRAPHY.regular,
-    color: '#94A3B8',
+    color: Colors.slate_94A3B8,
   },
   actionRow: {
     marginLeft: ws(8),
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     width: ws(28),
     height: ws(28),
     borderRadius: fs(6),
-    backgroundColor: '#FEE2E2',
+    backgroundColor: Colors.red_FEE2E2,
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -161,14 +161,14 @@ export const SearchableSelectModal = <T,>({
               <TextInput
                 style={styles.searchInput}
                 placeholder={searchPlaceholder}
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={Colors.slate_94A3B8}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 autoCorrect={false}
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <MaterialIcons name="cancel" size={fs(18)} color="#94A3B8" />
+                  <MaterialIcons name="cancel" size={fs(18)} color={Colors.slate_94A3B8} />
                 </TouchableOpacity>
               )}
             </View>
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     paddingTop: hs(10),
     minHeight: '55%',
     maxHeight: '82%',
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.12,
     shadowRadius: 10,
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
     width: ws(36),
     height: hs(4),
     borderRadius: fs(2),
-    backgroundColor: '#CBD5E1',
+    backgroundColor: Colors.gray_CBD5E1,
     alignSelf: 'center',
     marginBottom: hs(12),
   },
@@ -322,14 +322,14 @@ const styles = StyleSheet.create({
     width: ws(32),
     height: ws(32),
     borderRadius: ws(16),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     justifyContent: 'center',
     alignItems: 'center',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     borderRadius: fs(12),
     paddingHorizontal: ws(12),
     height: hs(44),
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     borderRadius: fs(12),
     paddingVertical: hs(12),
     paddingHorizontal: ws(14),

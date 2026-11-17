@@ -9,24 +9,34 @@ import { DateTimeUtils, fs, hs, TYPOGRAPHY, ws } from '../../../utils';
 interface DoctorReviewsSectionProps {
   reviews: DoctorReviewModel[];
   doctorName: string;
+  reviewCount?: number;
 }
 
-export const DoctorReviewsSection = memo(({ reviews, doctorName }: DoctorReviewsSectionProps) => {
+export const DoctorReviewsSection = memo(({ reviews, doctorName, reviewCount }: DoctorReviewsSectionProps) => {
+  const displayCount = reviewCount != null && reviewCount >= reviews.length ? reviewCount : reviews.length;
+
   return (
     <>
       <Text style={styles.sectionTitle}>
-        Patient Reviews ({reviews.length})
+        Patient Reviews ({displayCount})
       </Text>
 
       {reviews.length > 0 ? (
         reviews.map((review: DoctorReviewModel, index: number) => {
-          const reviewerName = review.user_name || 'Patient';
+          const reviewerName =
+            [review.f_name, review.l_name].filter(Boolean).join(' ').trim() ||
+            [(review as any).user_f_name, (review as any).user_l_name].filter(Boolean).join(' ').trim() ||
+            review.user_name ||
+            (review as any).patient_name ||
+            (review as any).name ||
+            'Patient';
+
           const rawReviewDate =
             review.created_at ||
+            review.updated_at ||
             (review as any).date ||
             (review as any).created_date ||
             (review as any).review_date ||
-            (review as any).updated_at ||
             '';
           const reviewDate = rawReviewDate
             ? DateTimeUtils.getDataFormat(rawReviewDate) || rawReviewDate
@@ -60,9 +70,9 @@ export const DoctorReviewsSection = memo(({ reviews, doctorName }: DoctorReviews
                   </View>
                 </View>
               </View>
-              {!!reviewComment && (
+              {reviewComment ? (
                 <Text style={styles.reviewDescription}>{reviewComment}</Text>
-              )}
+              ) : null}
             </AppCard>
           );
         })

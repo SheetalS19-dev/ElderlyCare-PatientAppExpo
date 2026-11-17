@@ -210,6 +210,7 @@ export const baseApi = createApi({
     'BlogTag',
     'BlogComment',
     'CancellationHistory',
+    'DoctorReview',
   ],
   endpoints: () => ({}),
 });

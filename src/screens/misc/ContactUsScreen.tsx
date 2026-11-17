@@ -1,59 +1,27 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import React from 'react';
 import {
-  Linking,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppHeader, GradientFill } from '../../components';
 import { AppConstants, Colors } from '../../constants';
-import type { RootStackParamList } from '../../navigation/types';
-import { fs, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
+import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
+import { useContactUs } from './useContactUs';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'ContactUs'>;
-
-export const ContactUsScreen = ({ navigation }: Props) => {
-  const insets = useSafeAreaInsets();
-
-  const handlePhoneCall = () => {
-    Linking.openURL(`tel:${AppConstants.support.helplineRawPhone}`).catch(() => showToast('Could not place call'));
-  };
-
-  const handleWhatsApp = () => {
-    Linking.openURL(`https://wa.me/${AppConstants.support.helplineRawPhone}?text=Hello%20Support`).catch(() =>
-      showToast('Could not open WhatsApp')
-    );
-  };
-
-  const handleSupportEmail = () => {
-    Linking.openURL(`mailto:${AppConstants.support.supportEmail}`).catch(() =>
-      showToast('Could not open email client')
-    );
-  };
-
-  const handleInfoEmail = () => {
-    Linking.openURL(`mailto:${AppConstants.support.infoEmail}`).catch(() =>
-      showToast('Could not open email client')
-    );
-  };
-
-  const handleOpenMap = () => {
-    const mapUrl = Platform.select({
-      ios: `maps:0,0?q=${encodeURIComponent(AppConstants.support.address)}`,
-      android: `geo:0,0?q=${encodeURIComponent(AppConstants.support.address)}`,
-      default: `https://maps.google.com/?q=${encodeURIComponent(AppConstants.support.address)}`,
-    });
-    Linking.openURL(mapUrl).catch(() =>
-      Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(AppConstants.support.address)}`).catch(() =>
-        showToast('Could not open map')
-      )
-    );
-  };
+export const ContactUsScreen: React.FC = () => {
+  const {
+    navigation,
+    insets,
+    handlePhoneCall,
+    handleWhatsApp,
+    handleSupportEmail,
+    handleInfoEmail,
+    handleOpenMap,
+  } = useContactUs();
 
   return (
     <View style={styles.container}>
@@ -101,56 +69,94 @@ export const ContactUsScreen = ({ navigation }: Props) => {
           </View>
         </TouchableOpacity>
 
-        {/* Support Email */}
-        <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleSupportEmail}>
-          <View style={[styles.iconCircle, { backgroundColor: Colors.aqua }]}>
-            <MaterialIcons name="email" size={fs(22)} color={Colors.teal} />
-          </View>
-          <View style={styles.info}>
-            <Text style={styles.label}>SUPPORT EMAIL</Text>
-            <Text style={styles.value}>{AppConstants.support.supportEmail}</Text>
-            <Text style={styles.subLabel}>For general support and queries</Text>
-          </View>
-          <View style={[styles.actionPill, { backgroundColor: Colors.aqua }]}>
-            <MaterialIcons name="mail-outline" size={fs(13)} color={Colors.teal} style={{ marginRight: ws(3) }} />
-            <Text style={[styles.actionPillText, { color: Colors.teal }]}>Write</Text>
-            <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.teal} />
-          </View>
-        </TouchableOpacity>
-
-        {/* Info Email */}
-        <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleInfoEmail}>
+        {/* WhatsApp Support */}
+        <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleWhatsApp}>
           <View style={[styles.iconCircle, { backgroundColor: Colors.green_ECFDF5 }]}>
-            <MaterialIcons name="mail-outline" size={fs(22)} color={Colors.green_10B981} />
+            <MaterialIcons name="chat" size={fs(22)} color={Colors.green_10B981} />
           </View>
           <View style={styles.info}>
-            <Text style={styles.label}>GENERAL INFO</Text>
-            <Text style={styles.value}>{AppConstants.support.infoEmail}</Text>
-            <Text style={styles.subLabel}>For information, feedback and more</Text>
+            <Text style={styles.label}>WHATSAPP CARE CHAT</Text>
+            <Text style={styles.value}>{AppConstants.support.helplineFormattedPhone}</Text>
+            <Text style={styles.subLabel}>Chat directly with our support desk</Text>
           </View>
           <View style={[styles.actionPill, { backgroundColor: Colors.green_ECFDF5 }]}>
-            <MaterialIcons name="mail-outline" size={fs(13)} color={Colors.green_10B981} style={{ marginRight: ws(3) }} />
-            <Text style={[styles.actionPillText, { color: Colors.green_10B981 }]}>Write</Text>
+            <Text style={[styles.actionPillText, { color: Colors.green_10B981 }]}>Chat</Text>
             <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.green_10B981} />
           </View>
         </TouchableOpacity>
 
-        {/* Address / Visit Us On */}
-        <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleOpenMap}>
-          <View style={[styles.iconCircle, { backgroundColor: Colors.yellow_FEF3C7 }]}>
-            <MaterialIcons name="location-on" size={fs(22)} color={Colors.yellow_F59E0B} />
+        {/* Support Email */}
+        <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleSupportEmail}>
+          <View style={[styles.iconCircle, { backgroundColor: Colors.aquaSoft }]}>
+            <MaterialIcons name="mail-outline" size={fs(22)} color={Colors.primaryColor} />
           </View>
           <View style={styles.info}>
-            <Text style={styles.label}>VISIT US ON</Text>
-            <Text style={[styles.value, { fontSize: fs(13), lineHeight: fs(18) }]} numberOfLines={2}>
-              {AppConstants.support.address}
-            </Text>
+            <Text style={styles.label}>PATIENT SUPPORT EMAIL</Text>
+            <Text style={styles.value}>{AppConstants.support.supportEmail}</Text>
+            <Text style={styles.subLabel}>For technical & billing assistance</Text>
           </View>
-          <View style={[styles.actionPill, { backgroundColor: Colors.yellow_FEF3C7 }]}>
-            <Text style={[styles.actionPillText, { color: Colors.yellow_D97706 }]}>Locate</Text>
-            <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.yellow_D97706} />
+          <View style={[styles.actionPill, { backgroundColor: Colors.aquaSoft }]}>
+            <Text style={[styles.actionPillText, { color: Colors.primaryColor }]}>Email</Text>
+            <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.primaryColor} />
           </View>
         </TouchableOpacity>
+
+        {/* General Info Email */}
+        <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleInfoEmail}>
+          <View style={[styles.iconCircle, { backgroundColor: Colors.slate_F1F5F9 }]}>
+            <MaterialIcons name="info-outline" size={fs(22)} color={Colors.secondaryFontColor} />
+          </View>
+          <View style={styles.info}>
+            <Text style={styles.label}>GENERAL INQUIRIES</Text>
+            <Text style={styles.value}>{AppConstants.support.infoEmail}</Text>
+            <Text style={styles.subLabel}>Partnerships, clinic network & general info</Text>
+          </View>
+          <View style={[styles.actionPill, { backgroundColor: Colors.slate_F1F5F9 }]}>
+            <Text style={[styles.actionPillText, { color: Colors.secondaryFontColor }]}>Inquire</Text>
+            <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.secondaryFontColor} />
+          </View>
+        </TouchableOpacity>
+
+        {/* Office Address Card */}
+        <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleOpenMap}>
+          <View style={[styles.iconCircle, { backgroundColor: Colors.aquaSoft }]}>
+            <MaterialIcons name="location-on" size={fs(22)} color={Colors.primaryColor} />
+          </View>
+          <View style={styles.info}>
+            <Text style={styles.label}>HEADQUARTERS</Text>
+            <Text style={styles.addressValue} numberOfLines={3}>
+              {AppConstants.support.address}
+            </Text>
+            <Text style={styles.subLabel}>Tap to view on Google Maps</Text>
+          </View>
+          <View style={[styles.actionPill, { backgroundColor: Colors.aquaSoft }]}>
+            <Text style={[styles.actionPillText, { color: Colors.primaryColor }]}>Map</Text>
+            <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.primaryColor} />
+          </View>
+        </TouchableOpacity>
+
+        {/* FAQ Quick Link Card */}
+        <View style={styles.faqBanner}>
+          <View style={styles.faqBannerRow}>
+            <View style={styles.faqIconCircle}>
+              <MaterialIcons name="help-outline" size={fs(24)} color={Colors.primaryColor} />
+            </View>
+            <View style={styles.faqTextCol}>
+              <Text style={styles.faqTitle}>Need instant answers?</Text>
+              <Text style={styles.faqDesc}>
+                Browse our frequently asked questions for booking, appointments, and care guidance.
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.faqBtn}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('Faq')}
+          >
+            <Text style={styles.faqBtnText}>Visit FAQ Section</Text>
+            <MaterialIcons name="arrow-forward" size={fs(14)} color={Colors.white} />
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
@@ -165,16 +171,16 @@ const styles = StyleSheet.create({
     padding: ws(16),
   },
   heroCard: {
-    backgroundColor: Colors.navy,
-    borderRadius: fs(20),
-    padding: ws(20),
-    marginBottom: hs(20),
+    borderRadius: fs(18),
     overflow: 'hidden',
-    shadowColor: Colors.navy,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 6,
+    padding: ws(20),
+    marginBottom: hs(16),
+    position: 'relative',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
   heroRow: {
     flexDirection: 'row',
@@ -186,7 +192,7 @@ const styles = StyleSheet.create({
     paddingRight: ws(12),
   },
   heroTitle: {
-    fontSize: fs(16),
+    fontSize: fs(20),
     ...TYPOGRAPHY.bold,
     color: Colors.white,
     marginBottom: hs(4),
@@ -194,30 +200,32 @@ const styles = StyleSheet.create({
   heroSubtitle: {
     fontSize: fs(12),
     ...TYPOGRAPHY.regular,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: Colors.blue_D6E8F6,
     lineHeight: fs(18),
   },
   heroIconCircle: {
-    width: ws(52),
-    height: hs(52),
-    borderRadius: fs(26),
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: ws(56),
+    height: ws(56),
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   sectionHeader: {
-    marginBottom: hs(14),
+    marginBottom: hs(12),
+    marginTop: hs(4),
   },
   sectionTitle: {
-    fontSize: fs(15),
+    fontSize: fs(16),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
+    marginBottom: hs(2),
   },
   sectionSubtitle: {
     fontSize: fs(12),
     ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    marginTop: hs(2),
   },
   card: {
     flexDirection: 'row',
@@ -227,120 +235,114 @@ const styles = StyleSheet.create({
     padding: ws(14),
     marginBottom: hs(12),
     borderWidth: 1,
-    borderColor: Colors.borderColor,
+    borderColor: Colors.border,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
     elevation: 2,
   },
   iconCircle: {
     width: ws(44),
-    height: hs(44),
-    borderRadius: fs(14),
+    height: ws(44),
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: ws(12),
   },
   info: {
     flex: 1,
-    paddingRight: ws(8),
+    marginRight: ws(8),
   },
   label: {
-    fontSize: fs(10),
-    ...TYPOGRAPHY.medium,
+    fontSize: fs(9),
+    ...TYPOGRAPHY.bold,
     color: Colors.secondaryFontColor,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
+    marginBottom: hs(2),
   },
   value: {
-    fontSize: fs(13.5),
+    fontSize: fs(13),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    marginTop: hs(2),
+    marginBottom: hs(2),
+  },
+  addressValue: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
+    color: Colors.primaryFontColor,
+    lineHeight: fs(16),
+    marginBottom: hs(2),
   },
   subLabel: {
-    fontSize: fs(10.5),
+    fontSize: fs(10),
     ...TYPOGRAPHY.regular,
-    color: Colors.secondaryFontColor,
-    marginTop: hs(2),
+    color: Colors.slate_94A3B8,
   },
   actionPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.lightBlueTint,
     paddingHorizontal: ws(10),
     paddingVertical: hs(6),
-    borderRadius: fs(10),
+    borderRadius: fs(12),
     gap: ws(2),
   },
   actionPillText: {
     fontSize: fs(11),
     ...TYPOGRAPHY.bold,
-    color: Colors.primaryColor,
   },
-  wellbeingCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.lightBlueTint,
+  faqBanner: {
+    backgroundColor: Colors.aquaSoft,
     borderRadius: fs(16),
     padding: ws(16),
-    marginTop: hs(12),
-    borderWidth: 1,
-    borderColor: Colors.lightBlueBorder,
-  },
-  wellbeingIconBox: {
-    width: ws(40),
-    height: hs(40),
-    borderRadius: fs(20),
-    backgroundColor: Colors.lightBlueBorder,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: ws(12),
-  },
-  wellbeingMeta: {
-    flex: 1,
-    paddingRight: ws(8),
-  },
-  wellbeingTitle: {
-    fontSize: fs(13),
-    ...TYPOGRAPHY.bold,
-    color: Colors.blue_1E3A8A,
-  },
-  wellbeingSubtitle: {
-    fontSize: fs(11),
-    ...TYPOGRAPHY.regular,
-    color: Colors.primaryColor,
-    marginTop: hs(2),
-  },
-  faqCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.lightBlueTint,
-    borderRadius: fs(16),
-    padding: ws(14),
     marginTop: hs(6),
     borderWidth: 1,
-    borderColor: Colors.lightBlueBorder,
+    borderColor: Colors.aqua,
+  },
+  faqBannerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: hs(12),
   },
   faqIconCircle: {
-    width: ws(44),
-    height: hs(44),
-    borderRadius: fs(14),
+    width: ws(40),
+    height: ws(40),
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: Colors.white,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: ws(12),
   },
-  faqTitle: {
-    fontSize: fs(14),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
+  faqTextCol: {
+    flex: 1,
   },
-  faqSubtitle: {
+  faqTitle: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
+    color: Colors.primaryColor,
+    marginBottom: hs(2),
+  },
+  faqDesc: {
     fontSize: fs(11),
     ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    marginTop: hs(2),
+    lineHeight: fs(16),
+  },
+  faqBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primaryColor,
+    paddingVertical: hs(10),
+    borderRadius: fs(10),
+    gap: ws(6),
+  },
+  faqBtnText: {
+    color: Colors.white,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
   },
 });

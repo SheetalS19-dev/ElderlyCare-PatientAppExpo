@@ -17,6 +17,7 @@ export interface AppTimePickerModalProps {
   onSelectTime: (timeStr: string) => void;
   initialTime?: string; // "14:28", "09:15", "04:10 PM", etc.
   title?: string;
+  useNativeModal?: boolean;
 }
 
 const HOURS = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -74,6 +75,7 @@ export const AppTimePickerModal: React.FC<AppTimePickerModalProps> = ({
   onSelectTime,
   initialTime,
   title = 'Select Time',
+  useNativeModal = true,
 }) => {
   const [hour, setHour] = useState<number>(12);
   const [minute, setMinute] = useState<number>(0);
@@ -119,9 +121,10 @@ export const AppTimePickerModal: React.FC<AppTimePickerModalProps> = ({
       ? ((hour % 12) * 30)
       : ((minute / 5) * 30);
 
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
+  if (!visible) return null;
+
+  const content = (
+    <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
         <View style={styles.modalCard}>
           {/* Header */}
@@ -135,7 +138,7 @@ export const AppTimePickerModal: React.FC<AppTimePickerModalProps> = ({
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={styles.closeBtn}
             >
-              <MaterialIcons name="close" size={fs(18)} color="#64748B" />
+              <MaterialIcons name="close" size={fs(18)} color={Colors.slate_64748B} />
             </TouchableOpacity>
           </View>
 
@@ -292,6 +295,15 @@ export const AppTimePickerModal: React.FC<AppTimePickerModalProps> = ({
           </View>
         </View>
       </View>
+    );
+
+  if (useNativeModal === false) {
+    return <View style={[StyleSheet.absoluteFill, { zIndex: 9999 }]}>{content}</View>;
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      {content}
     </Modal>
   );
 };
@@ -315,7 +327,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(18),
     paddingTop: hs(16),
     paddingBottom: hs(18),
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
@@ -335,7 +347,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fs(15),
     ...TYPOGRAPHY.bold,
-    color: '#1E293B',
+    color: Colors.primaryFontColor,
   },
   closeBtn: {
     padding: ws(4),
@@ -344,7 +356,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     borderRadius: fs(14),
     paddingHorizontal: ws(12),
     paddingVertical: hs(8),
@@ -370,7 +382,7 @@ const styles = StyleSheet.create({
   digitText: {
     fontSize: fs(24),
     ...TYPOGRAPHY.bold,
-    color: '#1E293B',
+    color: Colors.primaryFontColor,
   },
   digitTextActive: {
     color: Colors.white,
@@ -378,7 +390,7 @@ const styles = StyleSheet.create({
   colonText: {
     fontSize: fs(24),
     ...TYPOGRAPHY.bold,
-    color: '#64748B',
+    color: Colors.slate_64748B,
     marginHorizontal: ws(2),
   },
   periodContainer: {
@@ -400,7 +412,7 @@ const styles = StyleSheet.create({
   periodText: {
     fontSize: fs(12),
     ...TYPOGRAPHY.bold,
-    color: '#64748B',
+    color: Colors.slate_64748B,
   },
   periodTextActive: {
     color: Colors.white,
@@ -415,7 +427,7 @@ const styles = StyleSheet.create({
   modeHintText: {
     fontSize: fs(12),
     ...TYPOGRAPHY.semiBold,
-    color: '#64748B',
+    color: Colors.slate_64748B,
   },
   switchModePill: {
     flexDirection: 'row',
@@ -439,7 +451,7 @@ const styles = StyleSheet.create({
     width: DIAL_SIZE,
     height: DIAL_SIZE,
     borderRadius: DIAL_RADIUS,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     borderWidth: 1.5,
     borderColor: Colors.border,
     position: 'relative',
@@ -490,7 +502,7 @@ const styles = StyleSheet.create({
   numberText: {
     fontSize: fs(13),
     ...TYPOGRAPHY.bold,
-    color: '#334155',
+    color: Colors.slate_334155,
   },
   numberTextSelected: {
     color: Colors.white,
@@ -507,14 +519,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
     height: hs(46),
     borderRadius: fs(12),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelBtnText: {
     fontSize: fs(13),
     ...TYPOGRAPHY.bold,
-    color: '#64748B',
+    color: Colors.slate_64748B,
   },
   confirmBtn: {
     flex: 1,

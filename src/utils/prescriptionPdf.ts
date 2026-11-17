@@ -1,8 +1,7 @@
 import { ApiEndpoints } from '@/constants';
-import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { Platform } from 'react-native';
+import { Colors } from '../constants/colors';
 import { saveLocalFileToDownloads } from './fileDownloader';
 
 interface PrescriptionItem {
@@ -211,7 +210,7 @@ body {
     Helvetica,
     sans-serif;
 
-  color: #111;
+  color: ${Colors.pdf_text};
   font-size: 9px;
 }
 
@@ -249,7 +248,7 @@ body {
 .clinic-info {
   font-size: 7px;
   line-height: 10px;
-  color: #555;
+  color: ${Colors.pdf_muted};
 }
 
 .prescription-title {
@@ -263,7 +262,7 @@ body {
 ========================================= */
 
 .divider {
-  border-top: 1px solid #444;
+  border-top: 1px solid ${Colors.pdf_label};
   margin: 14px 0 8px 0;
 }
 
@@ -324,8 +323,8 @@ body {
 
   padding: 5px 3px;
 
-  border-top: 1px solid #444;
-  border-bottom: 1px solid #777;
+  border-top: 1px solid ${Colors.pdf_label};
+  border-bottom: 1px solid ${Colors.pdf_border};
 }
 
 .medicine-table td {
@@ -334,7 +333,7 @@ body {
 
   padding: 6px 3px;
 
-  border-bottom: 1px solid #eeeeee;
+  border-bottom: 1px solid ${Colors.gray_EEEEEE};
 
   line-height: 9px;
 }
@@ -384,7 +383,7 @@ body {
 }
 
 .section-divider {
-  border-top: 1px solid #888;
+  border-top: 1px solid ${Colors.pdf_label};
   margin-top: 7px;
 }
 
@@ -415,7 +414,7 @@ body {
   margin-top: 25px;
   text-align: center;
 
-  color: #777;
+  color: ${Colors.pdf_border};
   font-size: 7px;
 }
 

@@ -1,147 +1,224 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
-import { StarRating } from '../../../components';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppCard, StarRating } from '../../../components';
 import { Colors } from '../../../constants';
 import type { DoctorModel } from '../../../types';
-import { formatDoctorName, getImageUrl } from '../../../utils';
-import { fs, hs, ws } from '../../../utils/metrics';
-import { TYPOGRAPHY } from '../../../utils/typography';
+import { formatDoctorName, fs, getImageUrl, hs, TYPOGRAPHY, ws } from '../../../utils';
 
 interface Props {
   doctor: DoctorModel;
-  ratingAverage: string;
+  ratingAverage: number;
   reviewsCount: number;
+  onPressClinic?: (clinicId: string) => void;
 }
 
 export const BookingDoctorHeaderCard: React.FC<Props> = ({
   doctor,
   ratingAverage,
   reviewsCount,
+  onPressClinic,
 }) => {
-  const doctorImage = doctor.image ? getImageUrl(doctor.image) : '';
+  const doctorImg = doctor.image ? getImageUrl(doctor.image) : '';
+  const fullName = formatDoctorName(
+    doctor.name || `${doctor.f_name || ''} ${doctor.l_name || ''}`.trim()
+  );
+  const specialization =
+    doctor.department_name ||
+    (doctor as any).dept_name ||
+    (doctor as any).dept_title ||
+    doctor.specialization;
+
+  const patientsCount =
+    doctor.total_appointment_done ?? (doctor as any).patients_served;
+
+  const clinicTitle =
+    doctor.clinic_title || (doctor as any).clinic_name || (doctor as any).clinics_name;
+  const clinicAddress = doctor.clinics_address || (doctor as any).clinic_address;
+  const clinicId = (doctor as any).clinic_id || (doctor as any).clinics_id;
 
   return (
-    <View style={styles.card}>
-      <View style={styles.row}>
-        {doctorImage ? (
-          <Image source={{ uri: doctorImage }} style={styles.doctorImage} />
-        ) : (
-          <View style={styles.placeholderImage}>
-            <MaterialIcons name="person" size={ws(36)} color="#94A3B8" />
-          </View>
-        )}
-
-        <View style={styles.infoCol}>
-          <Text style={styles.doctorName}>{formatDoctorName(doctor.name)}</Text>
-          {!!((doctor as any).clinic_name || (doctor as any).hospital_name || (doctor as any).hospital_address) && (
-            <Text style={styles.deptText}>
-              {(doctor as any).clinic_name || (doctor as any).hospital_name || (doctor as any).hospital_address}
-            </Text>
-          )}
-          {!!doctor.experience && (
-            <Text style={styles.expText}>{doctor.experience} yrs exp.</Text>
+    <>
+      <AppCard style={styles.card}>
+        <View style={styles.doctorHeaderRow}>
+          {doctorImg ? (
+            <Image source={{ uri: doctorImg }} style={styles.doctorAvatar} />
+          ) : (
+            <View style={styles.doctorAvatarFallback}>
+              <MaterialIcons name="person" size={ws(36)} color={Colors.primaryColor} />
+            </View>
           )}
 
-          {/* Rating */}
-          <View style={styles.ratingRow}>
-            <StarRating rating={Number(ratingAverage) || 0} size={ws(14)} />
-            <Text style={styles.ratingText}>
-              {Number(ratingAverage) > 0 ? ratingAverage : '0.0'} ({reviewsCount} reviews)
-            </Text>
+          <View style={styles.doctorInfoCol}>
+            <Text style={styles.doctorNameText}>{fullName || 'Doctor'}</Text>
+            {!!specialization && (
+              <Text style={styles.doctorSpecializationText}>{specialization}</Text>
+            )}
+
+            <View style={styles.doctorRatingRow}>
+              <StarRating rating={ratingAverage} starSize={ws(13)} />
+              <Text style={styles.doctorRatingCountText}>
+                {ratingAverage > 0 ? ratingAverage.toFixed(1) : '0.0'} ({reviewsCount}{' '}
+                {reviewsCount === 1 ? 'review' : 'reviews'})
+              </Text>
+            </View>
+
+            {patientsCount != null && (
+              <View style={styles.doctorPatientsRow}>
+                <MaterialIcons name="people" size={ws(13)} color={Colors.primaryColor} />
+                <Text style={styles.doctorPatientsText}>
+                  {patientsCount} Patients Treated
+                </Text>
+              </View>
+            )}
           </View>
         </View>
-      </View>
+      </AppCard>
 
-      {/* Address */}
-      {!!(doctor as any)?.hospital_address && (
-        <View style={styles.addressRow}>
-          <MaterialIcons name="location-on" size={ws(14)} color={Colors.primaryColor} />
-          <Text style={styles.addressText} numberOfLines={1}>
-            {(doctor as any).hospital_address}
+      {/* Clinic Location Info */}
+      {clinicTitle ? (
+        <TouchableOpacity
+          style={styles.clinicCard}
+          onPress={() => {
+            if (clinicId && onPressClinic) {
+              onPressClinic(String(clinicId));
+            }
+          }}
+          activeOpacity={0.8}
+        >
+          <View style={styles.clinicPinCircle}>
+            <MaterialIcons name="location-on" size={ws(18)} color={Colors.primaryColor} />
+          </View>
+          <View style={styles.clinicMeta}>
+            <Text style={styles.clinicTitle}>{clinicTitle}</Text>
+            {!!clinicAddress && (
+              <Text style={styles.clinicAddress} numberOfLines={2}>
+                {clinicAddress}
+              </Text>
+            )}
+          </View>
+          <MaterialIcons name="chevron-right" size={ws(20)} color={Colors.slate_94A3B8} />
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.emptyInfoCard}>
+          <MaterialIcons name="location-off" size={ws(18)} color={Colors.secondaryFontColor} />
+          <Text style={styles.emptyInfoText}>
+            Primary clinic information is not listed for this doctor.
           </Text>
         </View>
       )}
-    </View>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.white,
+    padding: ws(14),
+    marginBottom: hs(12),
     borderRadius: ws(16),
-    padding: ws(16),
-    marginBottom: hs(14),
-    borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: hs(2) },
-    shadowOpacity: 0.03,
-    shadowRadius: ws(4),
-    elevation: 1,
   },
-  row: {
+  doctorHeaderRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: ws(12),
   },
-  doctorImage: {
-    width: ws(70),
-    height: ws(70),
-    borderRadius: ws(35),
-    backgroundColor: '#F1F5F9',
+  doctorAvatar: {
+    width: ws(68),
+    height: ws(68),
+    borderRadius: ws(34),
+    backgroundColor: Colors.aquaSoft,
   },
-  placeholderImage: {
-    width: ws(70),
-    height: ws(70),
-    borderRadius: ws(35),
-    backgroundColor: '#F1F5F9',
+  doctorAvatarFallback: {
+    width: ws(68),
+    height: ws(68),
+    borderRadius: ws(34),
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  infoCol: {
+  doctorInfoCol: {
     flex: 1,
-    justifyContent: 'center',
+    gap: hs(3),
   },
-  doctorName: {
-    fontSize: fs(15),
+  doctorNameText: {
     ...TYPOGRAPHY.bold,
+    fontSize: fs(15.5),
     color: Colors.primaryFontColor,
-    marginBottom: hs(2),
   },
-  deptText: {
+  doctorSpecializationText: {
+    ...TYPOGRAPHY.medium,
     fontSize: fs(12),
-    ...TYPOGRAPHY.medium,
+    color: Colors.secondaryFontColor,
+  },
+  doctorRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ws(4),
+    marginTop: hs(2),
+  },
+  doctorRatingCountText: {
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(11),
+    color: Colors.secondaryFontColor,
+  },
+  doctorPatientsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ws(4),
+    marginTop: hs(2),
+  },
+  doctorPatientsText: {
+    ...TYPOGRAPHY.semiBold,
+    fontSize: fs(11),
     color: Colors.primaryColor,
-    marginBottom: hs(2),
   },
-  expText: {
-    fontSize: fs(11),
-    ...TYPOGRAPHY.regular,
-    color: Colors.secondaryFontColor,
-    marginBottom: hs(4),
-  },
-  ratingRow: {
+  clinicCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(6),
+    backgroundColor: Colors.white,
+    padding: ws(12),
+    borderRadius: ws(14),
+    marginBottom: hs(12),
+    gap: ws(10),
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  ratingText: {
-    fontSize: fs(11),
-    ...TYPOGRAPHY.medium,
+  clinicPinCircle: {
+    width: ws(36),
+    height: ws(36),
+    borderRadius: ws(18),
+    backgroundColor: Colors.aquaSoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clinicMeta: {
+    flex: 1,
+    gap: hs(2),
+  },
+  clinicTitle: {
+    ...TYPOGRAPHY.semiBold,
+    fontSize: fs(13),
+    color: Colors.primaryFontColor,
+  },
+  clinicAddress: {
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(11.5),
     color: Colors.secondaryFontColor,
   },
-  addressRow: {
+  emptyInfoCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(6),
-    marginTop: hs(12),
-    paddingTop: hs(10),
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F8FAFC,
+    padding: ws(12),
+    borderRadius: ws(12),
+    marginBottom: hs(12),
+    gap: ws(8),
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  addressText: {
-    fontSize: fs(11),
+  emptyInfoText: {
     ...TYPOGRAPHY.regular,
+    fontSize: fs(12),
     color: Colors.secondaryFontColor,
     flex: 1,
   },

@@ -20,6 +20,7 @@ export interface AppDatePickerModalProps {
   maxDate?: Date;
   minDate?: Date;
   title?: string;
+  useNativeModal?: boolean;
 }
 
 const MONTH_NAMES = [
@@ -37,19 +38,37 @@ export const AppDatePickerModal: React.FC<AppDatePickerModalProps> = ({
   maxDate = new Date(),
   minDate = new Date(1920, 0, 1),
   title = 'Select Date of Birth',
+  useNativeModal = true,
 }) => {
   const parsedInitial = useMemo(() => {
     if (initialDate && /^\d{4}-\d{2}-\d{2}$/.test(initialDate)) {
       const [y, m, d] = initialDate.split('-').map((n) => parseInt(n, 10));
       return new Date(y, m - 1, d);
     }
-    return new Date(2000, 0, 1);
+    return new Date();
   }, [initialDate]);
 
   const [currentYear, setCurrentYear] = useState<number>(parsedInitial.getFullYear());
   const [currentMonth, setCurrentMonth] = useState<number>(parsedInitial.getMonth());
   const [selectedDay, setSelectedDay] = useState<number>(parsedInitial.getDate());
   const [showYearSelector, setShowYearSelector] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    if (visible) {
+      if (initialDate && /^\d{4}-\d{2}-\d{2}$/.test(initialDate)) {
+        const [y, m, d] = initialDate.split('-').map((n) => parseInt(n, 10));
+        setCurrentYear(y);
+        setCurrentMonth(m - 1);
+        setSelectedDay(d);
+      } else {
+        const now = new Date();
+        setCurrentYear(now.getFullYear());
+        setCurrentMonth(now.getMonth());
+        setSelectedDay(now.getDate());
+      }
+      setShowYearSelector(false);
+    }
+  }, [visible, initialDate]);
 
   // Generate list of selectable years (from current year down to 1920)
   const availableYears = useMemo(() => {
@@ -118,132 +137,142 @@ export const AppDatePickerModal: React.FC<AppDatePickerModalProps> = ({
     return candidate > maxDate || candidate < minDate;
   };
 
-  return (
-    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
+  if (!visible) return null;
 
-        <View style={styles.modalCard}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <MaterialIcons name="close" size={fs(22)} color="#718096" />
-            </TouchableOpacity>
-          </View>
+  const content = (
+    <View style={styles.overlay}>
+      <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
 
-          {/* Month & Year Bar */}
-          <View style={styles.monthYearBar}>
-            <TouchableOpacity
-              style={styles.yearDropdownBtn}
-              onPress={() => setShowYearSelector(!showYearSelector)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.yearText}>{MONTH_NAMES[currentMonth]} {currentYear}</Text>
-              <MaterialIcons
-                name={showYearSelector ? 'arrow-drop-up' : 'arrow-drop-down'}
-                size={fs(22)}
-                color="#1A202C"
-              />
-            </TouchableOpacity>
+      <View style={styles.modalCard}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>{title}</Text>
+          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <MaterialIcons name="close" size={fs(22)} color={Colors.gray_718096} />
+          </TouchableOpacity>
+        </View>
 
-            {!showYearSelector && (
-              <View style={styles.navArrowsRow}>
-                <TouchableOpacity style={styles.arrowBtn} onPress={handlePrevMonth}>
-                  <MaterialIcons name="chevron-left" size={fs(24)} color="#4A5568" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.arrowBtn} onPress={handleNextMonth}>
-                  <MaterialIcons name="chevron-right" size={fs(24)} color="#4A5568" />
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
+        {/* Month & Year Bar */}
+        <View style={styles.monthYearBar}>
+          <TouchableOpacity
+            style={styles.yearDropdownBtn}
+            onPress={() => setShowYearSelector(!showYearSelector)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.yearText}>{MONTH_NAMES[currentMonth]} {currentYear}</Text>
+            <MaterialIcons
+              name={showYearSelector ? 'arrow-drop-up' : 'arrow-drop-down'}
+              size={fs(22)}
+              color={Colors.gray_1A202C}
+            />
+          </TouchableOpacity>
 
-          {showYearSelector ? (
-            /* Year Picker Grid */
-            <ScrollView style={styles.yearScroll} contentContainerStyle={styles.yearGrid}>
-              {availableYears.map((y) => (
-                <TouchableOpacity
-                  key={y}
-                  style={[styles.yearChip, y === currentYear && styles.yearChipActive]}
-                  onPress={() => {
-                    setCurrentYear(y);
-                    setShowYearSelector(false);
-                  }}
-                >
-                  <Text style={[styles.yearChipText, y === currentYear && styles.yearChipTextActive]}>
-                    {y}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          ) : (
-            /* Calendar Month Matrix */
-            <View style={styles.calendarContainer}>
-              {/* Day Labels Row */}
-              <View style={styles.dayLabelsRow}>
-                {DAY_LABELS.map((lbl, idx) => (
-                  <Text key={`lbl-${idx}`} style={styles.dayLabelText}>
-                    {lbl}
-                  </Text>
-                ))}
-              </View>
-
-              {/* Days Grid */}
-              <View style={styles.daysGrid}>
-                {Array.from({ length: firstDayWeekday }).map((_, idx) => (
-                  <View key={`empty-${idx}`} style={styles.emptyDayCell} />
-                ))}
-
-                {Array.from({ length: daysInMonth }).map((_, idx) => {
-                  const dayNum = idx + 1;
-                  const selected = isSelected(dayNum);
-                  const disabled = isDayDisabled(dayNum);
-
-                  return (
-                    <TouchableOpacity
-                      key={`day-${dayNum}`}
-                      style={styles.dayCell}
-                      onPress={() => handleDayPress(dayNum)}
-                      disabled={disabled}
-                      activeOpacity={0.7}
-                    >
-                      <View
-                        style={[
-                          styles.dayCircle,
-                          selected && styles.dayCircleSelected,
-                          disabled && styles.dayCircleDisabled,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.dayCellText,
-                            selected && styles.dayCellTextSelected,
-                            disabled && styles.dayCellTextDisabled,
-                          ]}
-                        >
-                          {dayNum}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+          {!showYearSelector && (
+            <View style={styles.navArrowsRow}>
+              <TouchableOpacity style={styles.arrowBtn} onPress={handlePrevMonth}>
+                <MaterialIcons name="chevron-left" size={fs(24)} color={Colors.gray_4A5568} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.arrowBtn} onPress={handleNextMonth}>
+                <MaterialIcons name="chevron-right" size={fs(24)} color={Colors.gray_4A5568} />
+              </TouchableOpacity>
             </View>
           )}
+        </View>
 
-          {/* Action Buttons */}
-          <View style={styles.footerRow}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
+        {showYearSelector ? (
+          /* Year Picker Grid */
+          <ScrollView style={styles.yearScroll} contentContainerStyle={styles.yearGrid}>
+            {availableYears.map((y) => (
+              <TouchableOpacity
+                key={y}
+                style={[styles.yearChip, y === currentYear && styles.yearChipActive]}
+                onPress={() => {
+                  setCurrentYear(y);
+                  setShowYearSelector(false);
+                }}
+              >
+                <Text style={[styles.yearChipText, y === currentYear && styles.yearChipTextActive]}>
+                  {y}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        ) : (
+          /* Calendar Month Matrix */
+          <View style={styles.calendarContainer}>
+            {/* Day Labels Row */}
+            <View style={styles.dayLabelsRow}>
+              {DAY_LABELS.map((lbl, idx) => (
+                <Text key={`lbl-${idx}`} style={styles.dayLabelText}>
+                  {lbl}
+                </Text>
+              ))}
+            </View>
 
-            <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
-              <Text style={styles.confirmBtnText}>Set Date</Text>
-            </TouchableOpacity>
+            {/* Days Grid */}
+            <View style={styles.daysGrid}>
+              {Array.from({ length: firstDayWeekday }).map((_, idx) => (
+                <View key={`empty-${idx}`} style={styles.emptyDayCell} />
+              ))}
+
+              {Array.from({ length: daysInMonth }).map((_, idx) => {
+                const dayNum = idx + 1;
+                const selected = isSelected(dayNum);
+                const disabled = isDayDisabled(dayNum);
+
+                return (
+                  <TouchableOpacity
+                    key={`day-${dayNum}`}
+                    style={styles.dayCell}
+                    onPress={() => handleDayPress(dayNum)}
+                    disabled={disabled}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={[
+                        styles.dayCircle,
+                        selected && styles.dayCircleSelected,
+                        disabled && styles.dayCircleDisabled,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.dayCellText,
+                          selected && styles.dayCellTextSelected,
+                          disabled && styles.dayCellTextDisabled,
+                        ]}
+                      >
+                        {dayNum}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
+        )}
+
+        {/* Action Buttons */}
+        <View style={styles.footerRow}>
+          <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+            <Text style={styles.cancelBtnText}>Cancel</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
+            <Text style={styles.confirmBtnText}>Set Date</Text>
+          </TouchableOpacity>
         </View>
       </View>
+    </View>
+  );
+
+  if (useNativeModal === false) {
+    return <View style={[StyleSheet.absoluteFill, { zIndex: 9999 }]}>{content}</View>;
+  }
+
+  return (
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+      {content}
     </Modal>
   );
 };
@@ -266,10 +295,10 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: ws(360),
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.white,
     borderRadius: fs(16),
     padding: ws(16),
-    shadowColor: '#000000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
@@ -287,7 +316,7 @@ const styles = StyleSheet.create({
     flex: 1,
     ...TYPOGRAPHY.bold,
     fontSize: fs(15),
-    color: '#1A202C',
+    color: Colors.gray_1A202C,
   },
   monthYearBar: {
     flexDirection: 'row',
@@ -302,12 +331,12 @@ const styles = StyleSheet.create({
     paddingVertical: hs(4),
     paddingHorizontal: ws(8),
     borderRadius: fs(6),
-    backgroundColor: '#F7FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
   },
   yearText: {
     ...TYPOGRAPHY.bold,
     fontSize: fs(14),
-    color: '#1A202C',
+    color: Colors.gray_1A202C,
   },
   navArrowsRow: {
     flexDirection: 'row',
@@ -329,7 +358,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     ...TYPOGRAPHY.medium,
     fontSize: fs(12),
-    color: '#718096',
+    color: Colors.gray_718096,
   },
   daysGrid: {
     flexDirection: 'row',
@@ -362,14 +391,14 @@ const styles = StyleSheet.create({
   dayCellText: {
     ...TYPOGRAPHY.medium,
     fontSize: fs(13),
-    color: '#1A202C',
+    color: Colors.gray_1A202C,
   },
   dayCellTextSelected: {
-    color: '#FFFFFF',
+    color: Colors.white,
     ...TYPOGRAPHY.bold,
   },
   dayCellTextDisabled: {
-    color: '#A0AEC0',
+    color: Colors.gray_A0AEC0,
   },
   yearScroll: {
     height: hs(230),
@@ -385,7 +414,7 @@ const styles = StyleSheet.create({
     width: '30%',
     paddingVertical: hs(10),
     borderRadius: fs(8),
-    backgroundColor: '#F7FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     alignItems: 'center',
     marginBottom: hs(8),
     borderWidth: 1,
@@ -398,10 +427,10 @@ const styles = StyleSheet.create({
   yearChipText: {
     ...TYPOGRAPHY.medium,
     fontSize: fs(13),
-    color: '#2D3748',
+    color: Colors.gray_2D3748,
   },
   yearChipTextActive: {
-    color: '#FFFFFF',
+    color: Colors.white,
     ...TYPOGRAPHY.bold,
   },
   footerRow: {
@@ -419,14 +448,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
     height: hs(46),
     borderRadius: fs(12),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     justifyContent: 'center',
     alignItems: 'center',
   },
   cancelBtnText: {
     ...TYPOGRAPHY.bold,
     fontSize: fs(13),
-    color: '#64748B',
+    color: Colors.slate_64748B,
   },
   confirmBtn: {
     flex: 1,
@@ -441,6 +470,6 @@ const styles = StyleSheet.create({
   confirmBtnText: {
     ...TYPOGRAPHY.bold,
     fontSize: fs(13),
-    color: '#FFFFFF',
+    color: Colors.white,
   },
 });

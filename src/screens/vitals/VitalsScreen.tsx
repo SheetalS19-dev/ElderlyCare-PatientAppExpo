@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import React from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -9,72 +9,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppHeader, GradientFill } from '../../components';
-import { Colors, Typography } from '../../constants';
-import type { RootStackParamList } from '../../navigation/types';
+import { Colors } from '../../constants';
 import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
+import { useVitals } from './useVitals';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Vitals'>;
-
-interface VitalCategory {
-  name: string;
-  subtitle: string;
-  icon: keyof typeof MaterialIcons.glyphMap;
-  color: string;
-  bgColor: string;
-  unit: string;
-  idealRange: string;
-}
-
-const VITAL_CATEGORIES: VitalCategory[] = [
-  {
-    name: 'Blood Pressure',
-    subtitle: 'Systolic & Diastolic',
-    icon: 'favorite',
-    color: '#F97316',
-    bgColor: '#FFEDD5',
-    unit: 'mmHg',
-    idealRange: '120/80 mmHg',
-  },
-  {
-    name: 'Sugar',
-    subtitle: 'Fasting & Random Glucose',
-    icon: 'opacity',
-    color: '#0284C7',
-    bgColor: '#E0F2FE',
-    unit: 'mg/dL',
-    idealRange: '70 - 140 mg/dL',
-  },
-  {
-    name: 'Weight',
-    subtitle: 'Body Mass Tracking',
-    icon: 'fitness-center',
-    color: '#8B5CF6',
-    bgColor: '#EDE9FE',
-    unit: 'kg',
-    idealRange: 'Healthy BMI',
-  },
-  {
-    name: 'Temperature',
-    subtitle: 'Body Temperature',
-    icon: 'thermostat',
-    color: '#EAB308',
-    bgColor: '#FEF9C3',
-    unit: '°F',
-    idealRange: '97.8 - 99.1 °F',
-  },
-  {
-    name: 'SpO2',
-    subtitle: 'Blood Oxygen Saturation',
-    icon: 'air',
-    color: '#10B981',
-    bgColor: '#D1FAE5',
-    unit: '%',
-    idealRange: '95 - 100 %',
-  },
-];
-
-export const VitalsScreen = ({ navigation }: Props) => {
+export const VitalsScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const { navigation, vitalCategories, handleVitalPress } = useVitals();
 
   return (
     <View style={styles.container}>
@@ -103,16 +44,16 @@ export const VitalsScreen = ({ navigation }: Props) => {
         {/* Section Title */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Select Parameter to Log</Text>
-          <Text style={styles.sectionCount}>5 Vitals Available</Text>
+          <Text style={styles.sectionCount}>{vitalCategories.length} Vitals Available</Text>
         </View>
 
         {/* Vitals Grid / List */}
-        {VITAL_CATEGORIES.map((item) => (
+        {vitalCategories.map((item) => (
           <TouchableOpacity
             key={item.name}
             activeOpacity={0.85}
             style={styles.vitalCard}
-            onPress={() => navigation.navigate('VitalDetails', { vitalName: item.name })}
+            onPress={() => handleVitalPress(item.name)}
           >
             <View style={[styles.iconBox, { backgroundColor: item.bgColor }]}>
               <MaterialIcons name={item.icon} size={28} color={item.color} />
@@ -139,7 +80,6 @@ export const VitalsScreen = ({ navigation }: Props) => {
             </View>
           </TouchableOpacity>
         ))}
-
       </ScrollView>
     </View>
   );
@@ -154,44 +94,44 @@ const styles = StyleSheet.create({
     padding: ws(16),
   },
   heroCard: {
-    backgroundColor: Colors.navy,
-    borderRadius: fs(20),
-    padding: ws(20),
+    borderRadius: fs(18),
+    paddingHorizontal: ws(20),
+    paddingVertical: hs(22),
     marginBottom: hs(20),
     overflow: 'hidden',
-    shadowColor: Colors.navy,
-    shadowOffset: { width: 0, height: hs(6) },
-    shadowOpacity: 0.25,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: hs(4) },
+    shadowOpacity: 0.15,
     shadowRadius: fs(10),
-    elevation: 6,
+    elevation: 4,
   },
   heroRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    zIndex: 1,
   },
   heroTextCol: {
     flex: 1,
     paddingRight: ws(12),
   },
   heroTitle: {
-    fontSize: fs(16),
     ...TYPOGRAPHY.bold,
+    fontSize: fs(17),
     color: Colors.white,
     marginBottom: hs(4),
   },
   heroSubtitle: {
-    fontSize: fs(12),
     ...TYPOGRAPHY.regular,
-    color: 'rgba(255, 255, 255, 0.9)',
-    lineHeight: hs(18),
+    fontSize: fs(12),
+    color: Colors.white,
+    opacity: 0.9,
+    lineHeight: fs(17),
   },
   heroIconCircle: {
-    width: ws(52),
-    height: ws(52),
-    aspectRatio: 1,
-    borderRadius: 999,
-    overflow: 'hidden',
+    width: ws(56),
+    height: ws(56),
+    borderRadius: ws(28),
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -200,30 +140,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: hs(12),
+    marginBottom: hs(14),
+    paddingHorizontal: ws(4),
   },
   sectionTitle: {
-    fontSize: fs(Typography.fontSize.sm),
     ...TYPOGRAPHY.bold,
+    fontSize: fs(15),
     color: Colors.primaryFontColor,
   },
   sectionCount: {
-    fontSize: fs(11),
-    ...TYPOGRAPHY.medium,
-    color: Colors.secondaryFontColor,
+    ...TYPOGRAPHY.semiBold,
+    fontSize: fs(12),
+    color: Colors.primaryColor,
   },
   vitalCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: fs(18),
+    borderRadius: fs(16),
     padding: ws(14),
     marginBottom: hs(12),
     borderWidth: 1,
-    borderColor: Colors.aquaBorder,
-    shadowColor: Colors.navy,
+    borderColor: Colors.borderColor,
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: hs(2) },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.04,
     shadowRadius: fs(6),
     elevation: 2,
   },
@@ -233,7 +174,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(14),
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: ws(14),
+    marginRight: ws(12),
   },
   vitalInfo: {
     flex: 1,
@@ -242,11 +183,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: hs(2),
+    marginBottom: hs(3),
   },
   vitalName: {
-    fontSize: fs(Typography.fontSize.base),
     ...TYPOGRAPHY.bold,
+    fontSize: fs(15),
     color: Colors.primaryFontColor,
   },
   unitPill: {
@@ -255,12 +196,12 @@ const styles = StyleSheet.create({
     borderRadius: fs(6),
   },
   unitText: {
-    fontSize: fs(10),
     ...TYPOGRAPHY.bold,
+    fontSize: fs(10),
   },
   vitalSubtitle: {
-    fontSize: fs(11),
     ...TYPOGRAPHY.regular,
+    fontSize: fs(12),
     color: Colors.secondaryFontColor,
     marginBottom: hs(4),
   },
@@ -270,19 +211,17 @@ const styles = StyleSheet.create({
     gap: ws(4),
   },
   idealText: {
-    fontSize: fs(10),
     ...TYPOGRAPHY.medium,
-    color: Colors.secondaryFontColor,
+    fontSize: fs(11),
+    color: Colors.slate_64748B,
   },
   arrowCircle: {
-    width: ws(32),
-    height: ws(32),
-    aspectRatio: 1,
-    borderRadius: 999,
-    overflow: 'hidden',
+    width: ws(28),
+    height: ws(28),
+    borderRadius: ws(14),
     backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: ws(10),
-  }
+    marginLeft: ws(8),
+  },
 });

@@ -55,7 +55,7 @@ export const DoctorClinicContactCard = memo(({
               </Text>
               <Text style={styles.clinicSubtitle}>Primary Consulting Clinic</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={20} color="#94A3B8" />
+            <MaterialIcons name="chevron-right" size={20} color={Colors.slate_94A3B8} />
           </TouchableOpacity>
 
           <View style={styles.contactDivider} />
@@ -74,7 +74,7 @@ export const DoctorClinicContactCard = memo(({
                 <Text style={styles.contactLabel}>Phone</Text>
                 <Text style={styles.contactValueLink}>{clinicPhone}</Text>
               </View>
-              <MaterialIcons name="chevron-right" size={18} color="#94A3B8" />
+              <MaterialIcons name="chevron-right" size={18} color={Colors.slate_94A3B8} />
             </TouchableOpacity>
           )}
 
@@ -92,7 +92,7 @@ export const DoctorClinicContactCard = memo(({
                 <Text style={styles.contactLabel}>Email</Text>
                 <Text style={styles.contactValueLink}>{clinicEmail}</Text>
               </View>
-              <MaterialIcons name="chevron-right" size={18} color="#94A3B8" />
+              <MaterialIcons name="chevron-right" size={18} color={Colors.slate_94A3B8} />
             </TouchableOpacity>
           )}
 
@@ -136,7 +136,7 @@ export const DoctorClinicContactCard = memo(({
         </AppCard>
       ) : (
         <View style={styles.emptyInfoCard}>
-          <MaterialIcons name="location-off" size={18} color="#64748B" />
+          <MaterialIcons name="location-off" size={18} color={Colors.slate_64748B} />
           <Text style={styles.emptyInfoText}>
             Primary clinic information is not listed for this doctor.
           </Text>
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
   },
   contactDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     marginVertical: hs(12),
   },
   contactRowItem: {
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
   locatePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF3C7',
+    backgroundColor: Colors.amber_FEF3C7,
     paddingHorizontal: ws(8),
     paddingVertical: hs(4),
     borderRadius: fs(6),
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: ws(6),
-    backgroundColor: '#FEF3C7',
+    backgroundColor: Colors.amber_FEF3C7,
     paddingVertical: hs(10),
     borderRadius: fs(10),
   },
@@ -264,17 +264,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: ws(8),
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     borderRadius: fs(12),
     padding: ws(14),
     marginBottom: hs(14),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.slate_E2E8F0,
   },
   emptyInfoText: {
     flex: 1,
     fontSize: fs(12),
     ...TYPOGRAPHY.medium,
-    color: '#64748B',
+    color: Colors.slate_64748B,
   },
 });

@@ -1,4 +1,5 @@
 import { ApiEndpoints } from '@/constants';
+import { Colors } from '../constants/colors';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -209,7 +210,7 @@ body {
     Helvetica,
     sans-serif;
 
-  color: #111;
+  color: ${Colors.pdf_text};
   font-size: 11px;
 }
 
@@ -243,7 +244,7 @@ body {
 }
 
 .clinic-info {
-  color: #555;
+  color: ${Colors.pdf_muted};
   font-size: 9px;
   line-height: 14px;
 }
@@ -257,7 +258,7 @@ body {
 /* ================= DIVIDER ================= */
 
 .divider {
-  border-top: 1px solid #444;
+  border-top: 1px solid ${Colors.pdf_label};
   margin: 22px 0 18px 0;
 }
 
@@ -312,8 +313,8 @@ body {
 .items-table th {
   padding: 6px 0;
 
-  border-top: 1px solid #444;
-  border-bottom: 1px solid #777;
+  border-top: 1px solid ${Colors.pdf_label};
+  border-bottom: 1px solid ${Colors.pdf_border};
 
   font-weight: bold;
   text-align: left;
@@ -322,7 +323,7 @@ body {
 .items-table td {
   padding: 8px 0;
 
-  border-bottom: 1px solid #eeeeee;
+  border-bottom: 1px solid ${Colors.gray_EEEEEE};
 }
 
 .text-right {
@@ -363,7 +364,7 @@ body {
 
 .generated {
   margin-top: 25px;
-  color: #666;
+  color: ${Colors.pdf_muted};
   font-size: 9px;
 }
 
@@ -371,7 +372,7 @@ body {
   margin-top: 25px;
   text-align: center;
 
-  color: #777;
+  color: ${Colors.pdf_border};
   font-size: 9px;
   line-height: 14px;
 }

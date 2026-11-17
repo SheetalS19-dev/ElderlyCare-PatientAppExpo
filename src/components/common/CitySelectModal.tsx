@@ -298,13 +298,13 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
               style={[
                 styles.cityIconWrap,
                 isCurrentLocationSelected && styles.cityIconWrapSelected,
-                !isCurrentLocationSelected && { backgroundColor: '#E0F2FE' },
+                !isCurrentLocationSelected && { backgroundColor: Colors.sky_E0F2FE },
               ]}
             >
               <MaterialIcons
                 name="my-location"
                 size={fs(18)}
-                color={isCurrentLocationSelected ? Colors.white : '#0284C7'}
+                color={isCurrentLocationSelected ? Colors.white : Colors.sky_0284C7}
               />
             </View>
             <View style={{ flex: 1 }}>
@@ -460,14 +460,14 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search city or state..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={Colors.slate_94A3B8}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 autoCorrect={false}
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <MaterialIcons name="cancel" size={fs(18)} color="#94A3B8" />
+                  <MaterialIcons name="cancel" size={fs(18)} color={Colors.slate_94A3B8} />
                 </TouchableOpacity>
               )}
             </View>
@@ -674,7 +674,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
                                   activeOpacity={0.75}
                                 >
                                   <Text style={styles.loadMoreAreasText}>
-                                    Load 10 more areas ({group.cities.length - expandedCitiesLimit}{' '}
+                                    Load more areas ({group.cities.length - expandedCitiesLimit}{' '}
                                     remaining)
                                   </Text>
                                   <MaterialIcons
@@ -717,7 +717,7 @@ const styles = StyleSheet.create({
     paddingTop: hs(10),
     minHeight: '58%',
     maxHeight: '84%',
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.12,
     shadowRadius: 10,
@@ -727,7 +727,7 @@ const styles = StyleSheet.create({
     width: ws(36),
     height: hs(4),
     borderRadius: fs(2),
-    backgroundColor: '#CBD5E1',
+    backgroundColor: Colors.gray_CBD5E1,
     alignSelf: 'center',
     marginBottom: hs(12),
   },
@@ -770,14 +770,14 @@ const styles = StyleSheet.create({
     width: ws(32),
     height: ws(32),
     borderRadius: ws(16),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     justifyContent: 'center',
     alignItems: 'center',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     borderRadius: fs(12),
     paddingHorizontal: ws(12),
     height: hs(44),
@@ -813,7 +813,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     borderRadius: fs(12),
     paddingVertical: hs(12),
     paddingHorizontal: ws(14),
@@ -858,7 +858,7 @@ const styles = StyleSheet.create({
     marginTop: hs(1),
   },
   stateGroupCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     borderRadius: fs(12),
     marginBottom: hs(8),
     borderWidth: 1,
@@ -867,7 +867,7 @@ const styles = StyleSheet.create({
   },
   stateGroupCardExpanded: {
     borderColor: Colors.primaryColor,
-    backgroundColor: '#F0F9FF',
+    backgroundColor: Colors.sky_E0F2FE,
   },
   stateHeaderRow: {
     flexDirection: 'row',
@@ -879,7 +879,7 @@ const styles = StyleSheet.create({
   nestedAreasBox: {
     backgroundColor: Colors.white,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: Colors.slate_E2E8F0,
     paddingVertical: hs(6),
     paddingHorizontal: ws(12),
   },
@@ -891,7 +891,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(10),
     borderRadius: fs(8),
     marginBottom: hs(4),
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
   },
   nestedCityRowSelected: {
     backgroundColor: Colors.aquaSoft,

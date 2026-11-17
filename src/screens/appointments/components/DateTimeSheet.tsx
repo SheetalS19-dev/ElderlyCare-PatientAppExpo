@@ -10,11 +10,11 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Typography } from '../../../constants';
+import { Colors } from '../../../constants';
 import {
   useGetBookedTimeSlotsQuery,
-  useLazyGetBookedTimeSlotsQuery,
   useGetTimeSlotsQuery,
+  useLazyGetBookedTimeSlotsQuery,
   useLazyGetTimeSlotsQuery,
 } from '../../../redux/apis/bookingApi';
 import type { BookedTimeSlotModel, TimeSlotModel } from '../../../types';
@@ -208,6 +208,15 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
     return false;
   };
 
+  // Filter out booked and past slots so only available slots are shown
+  const availableSlots: TimeSlotModel[] = useMemo(() => {
+    return timeSlots.filter((item) => {
+      const start = item.time_start || item.timeStart || item.start_time || item.time || '';
+      if (!start) return false;
+      return !isSlotBooked(start) && !isSlotPast(start);
+    });
+  }, [timeSlots, bookedSlots, activeDate]);
+
   const [selectedEndTime, setSelectedEndTime] = useState<string>('');
 
   const handleSelectSlot = (slot: any) => {
@@ -337,7 +346,7 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Choose Date And Time</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <MaterialIcons name="close" size={24} color="#4A5568" />
+              <MaterialIcons name="close" size={24} color={Colors.gray_4A5568} />
             </TouchableOpacity>
           </View>
 
@@ -386,18 +395,13 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
               {/* Legend Bar for Color Clarity */}
               <View style={styles.legendRow}>
                 <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
+                  <View style={[styles.legendDot, { backgroundColor: Colors.green_10B981 }]} />
                   <Text style={styles.legendText}>Available</Text>
                 </View>
 
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: Colors.primaryColor }]} />
                   <Text style={styles.legendText}>Selected</Text>
-                </View>
-
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-                  <Text style={styles.legendText}>Booked</Text>
                 </View>
               </View>
 
@@ -406,11 +410,11 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
                   <ActivityIndicator size="small" color={Colors.primaryColor} />
                   <Text style={styles.loadingText}>Loading time slots...</Text>
                 </View>
-              ) : timeSlots.length === 0 ? (
+              ) : availableSlots.length === 0 ? (
                 /* Matching empty state design from screenshot */
                 <View style={styles.emptySlotBox}>
                   <View style={styles.emptyIconCircle}>
-                    <MaterialIcons name="event-busy" size={42} color="#EF4444" />
+                    <MaterialIcons name="event-busy" size={42} color={Colors.redColor} />
                   </View>
                   <Text style={styles.emptyTitle}>No available time slots for this date</Text>
                   <Text style={styles.emptySubtitle}>
@@ -449,31 +453,16 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
                 </View>
               ) : (
                 <View style={styles.slotsGrid}>
-                  {timeSlots.map((item, index) => {
+                  {availableSlots.map((item, index) => {
                     const start = item.time_start || item.timeStart || item.start_time || item.time || '';
                     const end = item.time_end || item.timeEnd || item.end_time || '';
-                    const isBooked = isSlotBooked(start);
-                    const isPast = isSlotPast(start);
-                    const isUnavailable = isBooked || isPast;
                     const isSelected =
                       Boolean(selectedTime || initialTime) &&
                       normalizeTimeStr(selectedTime || initialTime) === normalizeTimeStr(start);
 
-                    let cardBg = '#F0FDF4'; // Light Green
-                    let cardBorder = '#BBF7D0';
-                    let textColor = '#15803D';
-
-                    if (isUnavailable) {
-                      cardBg = '#FEF2F2'; // Light Red
-                      cardBorder = '#FECDD3';
-                      textColor = '#DC2626';
-                    }
-
-                    if (isSelected) {
-                      cardBg = Colors.primaryColor; // Blue (Selected)
-                      cardBorder = Colors.primaryColor;
-                      textColor = '#FFFFFF';
-                    }
+                    const cardBg = isSelected ? Colors.primaryColor : Colors.green_F0FDF4; // Light Green
+                    const cardBorder = isSelected ? Colors.primaryColor : Colors.green_BBF7D0;
+                    const textColor = isSelected ? Colors.white : Colors.green_15803D;
 
                     const displayStart = DateTimeUtils.formatTimeToAmPm(start) || start;
                     const displayEnd = end ? (DateTimeUtils.formatTimeToAmPm(end) || end) : '';
@@ -484,10 +473,8 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
                         style={[
                           styles.slotCard,
                           { backgroundColor: cardBg, borderColor: cardBorder },
-                          isUnavailable && styles.slotCardDisabled,
                         ]}
                         onPress={() => handleSelectSlot(item)}
-                        disabled={isUnavailable}
                         activeOpacity={0.8}
                       >
                         <Text style={[styles.slotText, { color: textColor }]} numberOfLines={1}>
@@ -502,7 +489,7 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
           </ScrollView>
 
           {/* Fixed Continue Button when slots are available */}
-          {timeSlots.length > 0 && !loading && (
+          {availableSlots.length > 0 && !loading && (
             <View style={styles.footerContainer}>
               <TouchableOpacity
                 style={[
@@ -533,7 +520,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: '#F7F8FA',
+    backgroundColor: Colors.bg_F7F8FA,
     borderTopLeftRadius: fs(24),
     borderTopRightRadius: fs(24),
     height: '70%',
@@ -543,7 +530,7 @@ const styles = StyleSheet.create({
     width: ws(40),
     height: hs(4),
     borderRadius: fs(2),
-    backgroundColor: '#CBD5E1',
+    backgroundColor: Colors.gray_CBD5E1,
     alignSelf: 'center',
     marginTop: hs(10),
     marginBottom: hs(4),
@@ -557,12 +544,12 @@ const styles = StyleSheet.create({
     paddingBottom: hs(12),
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.white,
   },
   headerTitle: {
     fontSize: fs(16),
     ...TYPOGRAPHY.bold,
-    color: '#1A202C',
+    color: Colors.gray_1A202C,
   },
   scrollArea: {
     flex: 1,
@@ -578,7 +565,7 @@ const styles = StyleSheet.create({
     width: ws(62),
     height: hs(86),
     borderRadius: fs(10),
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.white,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -592,22 +579,22 @@ const styles = StyleSheet.create({
   dateMonthText: {
     fontSize: fs(11),
     ...TYPOGRAPHY.medium,
-    color: '#718096',
+    color: Colors.gray_718096,
   },
   dateDayNum: {
     fontSize: fs(22),
     ...TYPOGRAPHY.bold,
-    color: '#1A202C',
+    color: Colors.gray_1A202C,
     lineHeight: hs(26),
     marginVertical: hs(2),
   },
   dateDayName: {
     fontSize: fs(11),
     ...TYPOGRAPHY.medium,
-    color: '#718096',
+    color: Colors.gray_718096,
   },
   dateTextActive: {
-    color: '#FFFFFF',
+    color: Colors.white,
   },
   divider: {
     height: 1,
@@ -620,7 +607,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fs(14),
     ...TYPOGRAPHY.bold,
-    color: '#2D3748',
+    color: Colors.gray_2D3748,
     marginBottom: hs(12),
   },
   loadingBox: {
@@ -632,7 +619,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: fs(13),
     ...TYPOGRAPHY.regular,
-    color: '#718096',
+    color: Colors.gray_718096,
   },
   emptySlotBox: {
     paddingVertical: hs(24),
@@ -644,7 +631,7 @@ const styles = StyleSheet.create({
     width: ws(68),
     height: ws(68),
     borderRadius: 999,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: Colors.red_FEE2E2,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: hs(14),
@@ -652,14 +639,14 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: fs(15),
     ...TYPOGRAPHY.bold,
-    color: '#1E293B',
+    color: Colors.primaryFontColor,
     textAlign: 'center',
     marginBottom: hs(6),
   },
   emptySubtitle: {
     fontSize: fs(12),
     ...TYPOGRAPHY.regular,
-    color: '#64748B',
+    color: Colors.slate_64748B,
     textAlign: 'center',
     lineHeight: hs(18),
     paddingHorizontal: ws(10),
@@ -703,7 +690,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     marginBottom: hs(14),
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.white,
     paddingHorizontal: ws(14),
     paddingVertical: hs(9),
     borderRadius: fs(10),
@@ -723,7 +710,7 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: fs(12),
     ...TYPOGRAPHY.medium,
-    color: '#475569',
+    color: Colors.slate_475569,
   },
   slotsGrid: {
     flexDirection: 'row',
@@ -764,7 +751,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   continueBtnDisabled: {
-    backgroundColor: '#94A3B8',
+    backgroundColor: Colors.slate_94A3B8,
   },
   continueBtnText: {
     fontSize: fs(14),

@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { memo } from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppCard } from '../../../components';
@@ -66,14 +66,14 @@ export const AppointmentContactCard = memo(({ appointment, doctorData }: Appoint
           }}
         >
           <View style={styles.contactIconCircle}>
-            <Ionicons name="call-outline" size={fs(18)} color={Colors.primaryColor} />
+            <MaterialIcons name="phone" size={fs(18)} color={Colors.primaryColor} />
           </View>
           <View style={styles.contactTextGroup}>
             <Text style={styles.contactLabel}>Phone</Text>
             <Text style={styles.contactValue}>{docPhone}</Text>
           </View>
           <View style={styles.actionPillBtn}>
-            <Ionicons name="call-outline" size={fs(12)} color={Colors.primaryColor} />
+            <MaterialIcons name="phone" size={fs(12)} color={Colors.primaryColor} />
             <Text style={styles.actionPillBtnText}>Call</Text>
           </View>
         </TouchableOpacity>
@@ -89,14 +89,14 @@ export const AppointmentContactCard = memo(({ appointment, doctorData }: Appoint
           }}
         >
           <View style={styles.contactIconCircle}>
-            <Ionicons name="mail-outline" size={fs(18)} color={Colors.primaryColor} />
+            <MaterialIcons name="email" size={fs(18)} color={Colors.primaryColor} />
           </View>
           <View style={styles.contactTextGroup}>
             <Text style={styles.contactLabel}>Email</Text>
             <Text style={styles.contactValue}>{docEmail}</Text>
           </View>
           <View style={styles.actionPillBtn}>
-            <Ionicons name="mail-outline" size={fs(12)} color={Colors.primaryColor} />
+            <MaterialIcons name="email" size={fs(12)} color={Colors.primaryColor} />
             <Text style={styles.actionPillBtnText}>Email</Text>
           </View>
         </TouchableOpacity>
@@ -112,14 +112,14 @@ export const AppointmentContactCard = memo(({ appointment, doctorData }: Appoint
           }}
         >
           <View style={styles.contactIconCircle}>
-            <Ionicons name="location-outline" size={fs(18)} color={Colors.primaryColor} />
+            <MaterialIcons name="location-on" size={fs(18)} color={Colors.primaryColor} />
           </View>
           <View style={styles.contactTextGroup}>
             <Text style={styles.contactLabel}>Clinic Address</Text>
             <Text style={styles.contactValue} numberOfLines={3}>{clinicAddr}</Text>
           </View>
           <View style={styles.actionPillBtn}>
-            <Ionicons name="navigate-outline" size={fs(12)} color={Colors.primaryColor} />
+            <MaterialIcons name="directions" size={fs(12)} color={Colors.primaryColor} />
             <Text style={styles.actionPillBtnText}>Directions</Text>
           </View>
         </TouchableOpacity>
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: fs(16),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.slate_E2E8F0,
   },
   contactUsTitle: {
     fontSize: fs(14),
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   contactLabel: {
     fontSize: fs(11),
     ...TYPOGRAPHY.regular,
-    color: '#64748B',
+    color: Colors.slate_64748B,
   },
   contactValue: {
     fontSize: fs(13),

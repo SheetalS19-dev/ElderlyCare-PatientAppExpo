@@ -37,7 +37,7 @@ export const AboutUsScreen = ({ navigation }: Props) => {
               <Text style={styles.versionText}>App Version 1.0.0</Text>
             </View>
             <View style={styles.verifiedChip}>
-              <MaterialIcons name="verified" size={fs(12)} color="#10B981" style={{ marginRight: ws(4) }} />
+              <MaterialIcons name="verified" size={fs(12)} color={Colors.green_10B981} style={{ marginRight: ws(4) }} />
               <Text style={styles.verifiedText}>Certified Care</Text>
             </View>
           </View>
@@ -76,8 +76,8 @@ export const AboutUsScreen = ({ navigation }: Props) => {
 
           <AppCard style={styles.gridCard}>
               <View style={styles.gridCardHeaderRow}>
-                <View style={[styles.gridIconCircle, { backgroundColor: '#ECFDF5' }]}>
-                  <MaterialIcons name="favorite" size={fs(18)} color="#10B981" />
+                <View style={[styles.gridIconCircle, { backgroundColor: Colors.green_ECFDF5 }]}>
+                  <MaterialIcons name="favorite" size={fs(18)} color={Colors.green_10B981} />
                 </View>
                 <Text style={styles.gridCardTitle}>Vitals Tracker</Text>
               </View>
@@ -98,8 +98,8 @@ export const AboutUsScreen = ({ navigation }: Props) => {
 
           <AppCard style={styles.gridCard}>
               <View style={styles.gridCardHeaderRow}>
-                <View style={[styles.gridIconCircle, { backgroundColor: '#FEE2E2' }]}>
-                  <MaterialIcons name="people" size={fs(18)} color="#DC2626" />
+                <View style={[styles.gridIconCircle, { backgroundColor: Colors.red_FEE2E2 }]}>
+                  <MaterialIcons name="people" size={fs(18)} color={Colors.red_DC2626} />
                 </View>
                 <Text style={styles.gridCardTitle}>Family Support</Text>
               </View>
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     marginTop: hs(12),
   },
   versionChip: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     paddingHorizontal: ws(10),
     paddingVertical: hs(4),
     borderRadius: fs(10),
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   verifiedChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: Colors.green_ECFDF5,
     paddingHorizontal: ws(10),
     paddingVertical: hs(4),
     borderRadius: fs(10),
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   verifiedText: {
     fontSize: fs(11),
     ...TYPOGRAPHY.semiBold,
-    color: '#059669',
+    color: Colors.green_059669,
   },
   missionCard: {
     marginBottom: hs(14),
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   paragraph: {
     fontSize: fs(12.5),
     ...TYPOGRAPHY.regular,
-    color: '#475569',
+    color: Colors.slate_475569,
     lineHeight: hs(19),
   },
   groupHeaderRow: {
@@ -277,13 +277,13 @@ const styles = StyleSheet.create({
   gridCardDesc: {
     fontSize: fs(11),
     ...TYPOGRAPHY.regular,
-    color: '#64748B',
+    color: Colors.slate_64748B,
     lineHeight: hs(15),
   },
   copyrightText: {
     fontSize: fs(11),
     ...TYPOGRAPHY.regular,
-    color: '#94A3B8',
+    color: Colors.slate_94A3B8,
     textAlign: 'center',
     marginVertical: hs(16),
   },

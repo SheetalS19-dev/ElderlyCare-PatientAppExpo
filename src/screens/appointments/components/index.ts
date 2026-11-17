@@ -6,6 +6,8 @@ export * from './AppointmentTypeSelector';
 export * from './PatientSelectionCard';
 export * from './CouponSectionCard';
 export * from './PriceBreakdownCard';
+export * from './DateTimeSelectorCard';
+export * from './BookingReviewBottomBar';
 export * from './AppointmentStatusCard';
 export * from './AppointmentDoctorCard';
 export * from './AppointmentDetailsDoctorCard';

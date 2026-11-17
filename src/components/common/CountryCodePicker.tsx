@@ -112,24 +112,24 @@ export const CountryCodePicker: React.FC<CountryCodePickerProps> = ({
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Select Country</Text>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <MaterialIcons name="close" size={fs(24)} color="#4A5568" />
+              <MaterialIcons name="close" size={fs(24)} color={Colors.gray_4A5568} />
             </TouchableOpacity>
           </View>
 
           {/* Search Box */}
           <View style={styles.searchBox}>
-            <MaterialIcons name="search" size={fs(20)} color="#718096" style={styles.searchIcon} />
+            <MaterialIcons name="search" size={fs(20)} color={Colors.gray_718096} style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search country or code"
-              placeholderTextColor="#A0AEC0"
+              placeholderTextColor={Colors.gray_A0AEC0}
               value={search}
               onChangeText={setSearch}
               autoCorrect={false}
             />
             {search.length > 0 && (
               <TouchableOpacity onPress={() => setSearch('')}>
-                <MaterialIcons name="cancel" size={fs(18)} color="#A0AEC0" />
+                <MaterialIcons name="cancel" size={fs(18)} color={Colors.gray_A0AEC0} />
               </TouchableOpacity>
             )}
           </View>
@@ -201,13 +201,13 @@ const styles = StyleSheet.create({
     paddingTop: hs(18),
     paddingBottom: hs(14),
     borderBottomWidth: 1,
-    borderBottomColor: '#EDF2F7',
+    borderBottomColor: Colors.gray_EDF2F7,
   },
   headerTitle: {
     flex: 1,
     ...TYPOGRAPHY.bold,
     fontSize: fs(18),
-    color: '#1A202C',
+    color: Colors.gray_1A202C,
   },
   closeBtn: {
     padding: ws(4),
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F7FAFC',
+    backgroundColor: Colors.gray_F7FAFC,
     borderRadius: fs(10),
     borderWidth: 1,
     borderColor: Colors.border,
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     flex: 1,
     ...TYPOGRAPHY.regular,
     fontSize: fs(14),
-    color: '#1A202C',
+    color: Colors.gray_1A202C,
     paddingVertical: 0,
   },
   listContent: {
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(12),
     borderRadius: fs(8),
     borderBottomWidth: 1,
-    borderBottomColor: '#F7FAFC',
+    borderBottomColor: Colors.gray_F7FAFC,
   },
   itemRowSelected: {
     backgroundColor: Colors.aquaSoft,
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     flex: 1,
     ...TYPOGRAPHY.medium,
     fontSize: fs(15),
-    color: '#2D3748',
+    color: Colors.gray_2D3748,
   },
   selectedText: {
     color: Colors.primaryColor,
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   dialCodeText: {
     ...TYPOGRAPHY.medium,
     fontSize: fs(14),
-    color: '#718096',
+    color: Colors.gray_718096,
     marginLeft: ws(8),
   },
   selectedDialCode: {

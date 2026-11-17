@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React, { memo } from 'react';
+import { memo } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -12,14 +12,13 @@ import { GradientFill } from '../../../components/common/ThemeBackdrop';
 import { Colors } from '../../../constants';
 import type { FamilyMemberModel } from '../../../types';
 import {
-  DateTimeUtils,
   downloadAndSaveFile,
   formatDoctorName,
   fs,
   getImageUrl,
   hs,
   TYPOGRAPHY,
-  ws,
+  ws
 } from '../../../utils';
 import { VitalChartCard } from './VitalChartCard';
 
@@ -125,26 +124,40 @@ export const HomePatientDashboard = memo(({
             activeOpacity={0.85}
             onPress={onToggleMemberDropdown}
           >
-            <MaterialIcons
-              name="person"
-              size={fs(18)}
-              color={Colors.navy}
-              style={styles.memberDropdownIcon}
-            />
-            <Text style={styles.memberDropdownFieldText} numberOfLines={1}>
-              {selectedMemberDisplayName}
-            </Text>
-            <MaterialIcons
-              name={showMemberDropdown ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
-              size={fs(20)}
-              color={Colors.primaryColor}
-            />
+            <View style={styles.memberDropdownLeft}>
+              <View style={styles.memberAvatarCircle}>
+                <Text style={styles.memberAvatarText}>
+                  {(selectedMemberDisplayName || 'U').charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.memberDropdownInfo}>
+                <Text style={styles.memberDropdownFieldText} numberOfLines={1}>
+                  {selectedMemberDisplayName}
+                </Text>
+                <Text style={styles.memberDropdownSubText} numberOfLines={1}>
+                  {selectedMemberId === 'SELF'
+                    ? 'Self • Account Holder'
+                    : `${activePatientInfo.relation || 'Family Member'} • Patient`}
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.memberDropdownChevron, showMemberDropdown && styles.memberDropdownChevronOpen]}>
+              <MaterialIcons
+                name={showMemberDropdown ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                size={fs(20)}
+                color={Colors.primaryColor}
+              />
+            </View>
           </TouchableOpacity>
 
           {/* Dropdown Items Below Field */}
           {showMemberDropdown && (
             <View style={styles.memberDropdownMenuCard}>
-              {/* Self Option - Name Only */}
+              <View style={styles.memberDropdownMenuHeader}>
+                <Text style={styles.memberDropdownMenuHeaderText}>SWITCH PATIENT PROFILE</Text>
+              </View>
+
+              {/* Self Option */}
               <TouchableOpacity
                 style={[
                   styles.memberDropdownMenuItem,
@@ -153,22 +166,44 @@ export const HomePatientDashboard = memo(({
                 activeOpacity={0.7}
                 onPress={() => onSelectMember('SELF')}
               >
-                <Text
-                  style={[
-                    styles.memberDropdownMenuItemText,
-                    selectedMemberId === 'SELF' && styles.memberDropdownMenuItemTextActive,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {selfFullName}
-                </Text>
+                <View style={[styles.menuItemAvatarCircle, { backgroundColor: Colors.blue_DBEAFE }]}>
+                  <Text style={[styles.menuItemAvatarText, { color: Colors.blue_1E40AF }]}>
+                    {(selfFullName || 'S').charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.menuItemInfo}>
+                  <Text
+                    style={[
+                      styles.memberDropdownMenuItemText,
+                      selectedMemberId === 'SELF' && styles.memberDropdownMenuItemTextActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {selfFullName}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.memberDropdownMenuItemSub,
+                      selectedMemberId === 'SELF' && styles.memberDropdownMenuItemSubActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    Self • Account Holder
+                  </Text>
+                </View>
+                {selectedMemberId === 'SELF' && (
+                  <MaterialIcons name="check-circle" size={fs(18)} color={Colors.primaryColor} />
+                )}
               </TouchableOpacity>
 
-              {/* Family Member Options - Names Only */}
+              {/* Family Member Options */}
               {filteredFamilyMembersList.map((m) => {
                 const memberId = String(m.id);
                 const isSelected = selectedMemberId === memberId;
                 const memberFullName = `${m.f_name || ''} ${m.l_name || ''}`.trim() || 'Family Member';
+                const initial = (memberFullName || 'M').charAt(0).toUpperCase();
+                const relationLabel = m.relationship || (m as any).relation || 'Family Member';
+
                 return (
                   <TouchableOpacity
                     key={`inline-member-${memberId}`}
@@ -179,41 +214,117 @@ export const HomePatientDashboard = memo(({
                     activeOpacity={0.7}
                     onPress={() => onSelectMember(memberId)}
                   >
-                    <Text
-                      style={[
-                        styles.memberDropdownMenuItemText,
-                        isSelected && styles.memberDropdownMenuItemTextActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {memberFullName}
-                    </Text>
+                    <View style={[styles.menuItemAvatarCircle, { backgroundColor: Colors.sky_E0F2FE }]}>
+                      <Text style={[styles.menuItemAvatarText, { color: Colors.sky_0369A1 }]}>
+                        {initial}
+                      </Text>
+                    </View>
+                    <View style={styles.menuItemInfo}>
+                      <Text
+                        style={[
+                          styles.memberDropdownMenuItemText,
+                          isSelected && styles.memberDropdownMenuItemTextActive,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {memberFullName}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.memberDropdownMenuItemSub,
+                          isSelected && styles.memberDropdownMenuItemSubActive,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {relationLabel} • Family Member
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <MaterialIcons name="check-circle" size={fs(18)} color={Colors.primaryColor} />
+                    )}
                   </TouchableOpacity>
                 );
               })}
+
+              {/* Manage Members Link / Footer */}
+              <TouchableOpacity
+                style={styles.memberDropdownFooterAction}
+                activeOpacity={0.7}
+                onPress={() => {
+                  onToggleMemberDropdown();
+                  onManageMembers();
+                }}
+              >
+                <View style={styles.memberDropdownFooterIconWrap}>
+                  <MaterialIcons name="groups" size={fs(16)} color={Colors.primaryColor} />
+                </View>
+                <Text style={styles.memberDropdownFooterActionText}>Manage / Add Members</Text>
+                <MaterialIcons name="chevron-right" size={fs(18)} color={Colors.primaryColor} />
+              </TouchableOpacity>
             </View>
           )}
         </View>
 
         {/* Patient profile tiles (2 x 2) */}
+
         <View style={styles.patientTileGrid}>
           {[
-            { key: 'name', label: 'Patient', value: activePatientInfo.name, icon: 'person' as const, fg: Colors.teal, bg: '#CDE7F2' },
-            { key: 'gender', label: 'Gender', value: activePatientInfo.gender, icon: genderIconName, fg: '#1B4F9C', bg: '#D4E2F6' },
-            { key: 'age', label: 'Patient Age', value: activePatientInfo.age, icon: 'event-note' as const, fg: '#4B3FA0', bg: '#DDDBF4' },
-            { key: 'blood', label: 'Blood Group', value: activePatientInfo.bloodGroup, icon: 'opacity' as const, fg: '#D03C40', bg: '#F8DADD' },
+            {
+              key: 'name',
+              label: 'Patient Name',
+              value: activePatientInfo.name,
+              icon: 'person' as const,
+              fg: Colors.teal,
+              bg: Colors.teal_CDE7F2,
+            },
+            {
+              key: 'gender',
+              label: 'Gender',
+              value: activePatientInfo.gender,
+              icon: genderIconName,
+              fg: Colors.navy_1B4F9C,
+              bg: Colors.blue_D4E2F6,
+            },
+            {
+              key: 'age',
+              label: 'Patient Age',
+              value: activePatientInfo.age,
+              icon: 'event-note' as const,
+              fg: Colors.indigo_4B3FA0,
+              bg: Colors.indigo_DDDBF4,
+            },
+            {
+              key: 'blood',
+              label: 'Blood Group',
+              value: activePatientInfo.bloodGroup || 'N/A',
+              icon: 'opacity' as const,
+              fg: Colors.red_D03C40,
+              bg: Colors.red_F8DADD,
+            },
           ].map((tile) => (
             <View key={`patient-tile-${tile.key}`} style={styles.patientTile}>
               <View style={[styles.patientTileIcon, { backgroundColor: tile.bg }]}>
-                <MaterialIcons name={tile.icon} size={fs(22)} color={tile.fg} />
+                <MaterialIcons name={tile.icon} size={fs(19)} color={tile.fg} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.patientTileValue} numberOfLines={1}>{tile.value}</Text>
-                <Text style={styles.patientTileLabel} numberOfLines={1}>{tile.label}</Text>
+
+              <View style={styles.patientTileContent}>
+                <Text
+                  style={styles.patientTileValue}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.72}
+                >
+                  {tile.value}
+                </Text>
+
+                <Text style={styles.patientTileLabel} numberOfLines={1}>
+                  {tile.label}
+                </Text>
               </View>
             </View>
           ))}
         </View>
+
       </View>
 
       {/* Appointment banner */}
@@ -264,8 +375,8 @@ export const HomePatientDashboard = memo(({
             subtitle="Recent visits"
             unit="mmHg"
             iconName="favorite"
-            iconColor="#EF4444"
-            pillBgColor="#FEE2E2"
+            iconColor={Colors.redColor}
+            pillBgColor={Colors.red_FEE2E2}
             headers={['SYSTOLIC', 'DIASTOLIC', 'DATE', 'TIME', 'ACTION']}
             records={rawBpVitals}
             latestVal={getLatestVitalValue(rawBpVitals, 'Blood Pressure')}
@@ -281,8 +392,8 @@ export const HomePatientDashboard = memo(({
             subtitle="Recent 5 visits"
             unit="mg/dL"
             iconName="opacity"
-            iconColor="#8B5CF6"
-            pillBgColor="#EDE9FE"
+            iconColor={Colors.purple_8B5CF6}
+            pillBgColor={Colors.purple_EDE9FE}
             headers={['FASTING', 'RANDOM', 'DATE', 'TIME', 'ACTION']}
             records={rawSugarVitals}
             latestVal={getLatestVitalValue(rawSugarVitals, 'Sugar')}
@@ -298,8 +409,8 @@ export const HomePatientDashboard = memo(({
             subtitle="Recent 5 visits"
             unit="kg"
             iconName="fitness-center"
-            iconColor="#10B981"
-            pillBgColor="#D1FAE5"
+            iconColor={Colors.green_10B981}
+            pillBgColor={Colors.green_D1FAE5}
             headers={['WEIGHT', 'DATE', 'TIME', 'ACTION']}
             records={rawWeightVitals}
             latestVal={getLatestVitalValue(rawWeightVitals, 'Weight')}
@@ -315,8 +426,8 @@ export const HomePatientDashboard = memo(({
             subtitle="Recent 5 visits"
             unit="°F"
             iconName="thermostat"
-            iconColor="#F59E0B"
-            pillBgColor="#FEF3C7"
+            iconColor={Colors.amber_F59E0B}
+            pillBgColor={Colors.amber_FEF3C7}
             headers={['TEMP (°F)', 'DATE', 'TIME', 'ACTION']}
             records={rawTempVitals}
             latestVal={getLatestVitalValue(rawTempVitals, 'Temperature')}
@@ -332,8 +443,8 @@ export const HomePatientDashboard = memo(({
             subtitle="Recent 5 visits"
             unit="%"
             iconName="air"
-            iconColor="#0284C7"
-            pillBgColor="#E0F2FE"
+            iconColor={Colors.sky_0284C7}
+            pillBgColor={Colors.sky_E0F2FE}
             headers={['SPO2 (%)', 'DATE', 'TIME', 'ACTION']}
             records={rawSpo2Vitals}
             latestVal={getLatestVitalValue(rawSpo2Vitals, 'SpO2')}
@@ -341,7 +452,6 @@ export const HomePatientDashboard = memo(({
             onDeleteRecord={onDeleteVitalRecord}
             onEditRecord={(item) => onEditVitalRecord(item, 'SpO2')}
             fullWidth
-            yLabels={['100', '90', '80']}
           />
         </View>
       </View>
@@ -425,7 +535,7 @@ export const HomePatientDashboard = memo(({
                     onPress={onViewAllFiles}
                   >
                     <View style={[styles.fileIconBadge, { backgroundColor: Colors.aquaSoft }]}>
-                      <MaterialIcons name="folder" size={20} color="#2563EB" />
+                      <MaterialIcons name="folder" size={20} color={Colors.blue_2563EB} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.mobileCardTitle} numberOfLines={1}>{fileName}</Text>
@@ -495,7 +605,7 @@ const styles = StyleSheet.create({
     padding: ws(14),
     marginBottom: hs(14),
     borderWidth: 1,
-    borderColor: '#E3EDF7',
+    borderColor: Colors.border_E3EDF7,
     shadowColor: Colors.navy,
     shadowOffset: { width: 0, height: hs(3) },
     shadowOpacity: 0.07,
@@ -548,61 +658,169 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.slate_F8FAFC,
     borderRadius: fs(14),
     borderWidth: 1,
-    borderColor: Colors.aquaBorder,
-    paddingHorizontal: ws(14),
-    paddingVertical: hs(11),
+    borderColor: Colors.slate_E2E8F0,
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(9),
   },
   memberDropdownFieldOpen: {
     borderColor: Colors.primaryColor,
+    backgroundColor: Colors.white,
+    shadowColor: Colors.primaryColor,
+    shadowOffset: { width: 0, height: hs(2) },
+    shadowOpacity: 0.08,
+    shadowRadius: fs(6),
+    elevation: 3,
+  },
+  memberDropdownLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: ws(8),
+  },
+  memberAvatarCircle: {
+    width: ws(34),
+    height: ws(34),
+    borderRadius: 999,
+    backgroundColor: Colors.blue_E6EFFD,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: ws(10),
+  },
+  memberAvatarText: {
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
+    color: Colors.primaryColor,
+  },
+  memberDropdownInfo: {
+    flex: 1,
   },
   memberDropdownFieldText: {
     fontSize: fs(14),
     ...TYPOGRAPHY.semiBold,
     color: Colors.ink,
-    flex: 1,
-    marginRight: ws(8),
   },
-  memberDropdownIcon: {
-    marginRight: ws(10),
+  memberDropdownSubText: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.regular,
+    color: Colors.inkSoft,
+    marginTop: hs(1),
+  },
+  memberDropdownChevron: {
+    width: ws(28),
+    height: ws(28),
+    borderRadius: 999,
+    backgroundColor: Colors.slate_F1F5F9,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  memberDropdownChevronOpen: {
+    backgroundColor: Colors.blue_E6EFFD,
   },
   memberDropdownMenuCard: {
     position: 'absolute',
     top: '100%',
     left: 0,
     right: 0,
-    marginTop: hs(4),
+    marginTop: hs(6),
     backgroundColor: Colors.white,
-    borderRadius: fs(12),
+    borderRadius: fs(16),
     borderWidth: 1,
-    borderColor: Colors.borderColor,
-    padding: ws(6),
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: hs(4) },
-    shadowOpacity: 0.15,
-    shadowRadius: fs(10),
-    elevation: 10,
+    borderColor: Colors.slate_E2E8F0,
+    padding: ws(8),
+    shadowColor: Colors.navy,
+    shadowOffset: { width: 0, height: hs(6) },
+    shadowOpacity: 0.12,
+    shadowRadius: fs(14),
+    elevation: 12,
     zIndex: 1000,
   },
+  memberDropdownMenuHeader: {
+    paddingHorizontal: ws(8),
+    paddingTop: hs(6),
+    paddingBottom: hs(6),
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.slate_F1F5F9,
+    marginBottom: hs(4),
+  },
+  memberDropdownMenuHeaderText: {
+    fontSize: fs(10),
+    ...TYPOGRAPHY.bold,
+    color: Colors.slate_94A3B8,
+    letterSpacing: 0.6,
+  },
   memberDropdownMenuItem: {
-    paddingVertical: hs(10),
-    paddingHorizontal: ws(12),
-    borderRadius: fs(8),
-    marginBottom: hs(2),
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: hs(8),
+    paddingHorizontal: ws(8),
+    borderRadius: fs(10),
+    marginBottom: hs(3),
   },
   memberDropdownMenuItemActive: {
-    backgroundColor: Colors.primaryColor,
+    backgroundColor: Colors.blue_F0F7FF,
+    borderWidth: 1,
+    borderColor: Colors.blue_BFDBFE,
+  },
+  menuItemAvatarCircle: {
+    width: ws(30),
+    height: ws(30),
+    borderRadius: 999,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: ws(10),
+  },
+  menuItemAvatarText: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
+  },
+  menuItemInfo: {
+    flex: 1,
+    marginRight: ws(8),
   },
   memberDropdownMenuItemText: {
     fontSize: fs(13),
-    ...TYPOGRAPHY.medium,
+    ...TYPOGRAPHY.semiBold,
     color: Colors.slate_1E293B,
   },
   memberDropdownMenuItemTextActive: {
+    color: Colors.primaryColor,
     ...TYPOGRAPHY.bold,
-    color: Colors.white,
+  },
+  memberDropdownMenuItemSub: {
+    fontSize: fs(10.5),
+    ...TYPOGRAPHY.regular,
+    color: Colors.secondaryFontColor,
+    marginTop: hs(1),
+  },
+  memberDropdownMenuItemSubActive: {
+    color: Colors.primaryColor,
+  },
+  memberDropdownFooterAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: hs(8),
+    paddingHorizontal: ws(8),
+    borderTopWidth: 1,
+    borderTopColor: Colors.slate_F1F5F9,
+    marginTop: hs(4),
+  },
+  memberDropdownFooterIconWrap: {
+    width: ws(26),
+    height: ws(26),
+    borderRadius: 999,
+    backgroundColor: Colors.blue_E6EFFD,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: ws(8),
+  },
+  memberDropdownFooterActionText: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.semiBold,
+    color: Colors.primaryColor,
+    flex: 1,
   },
   patientTileGrid: {
     flexDirection: 'row',
@@ -614,26 +832,31 @@ const styles = StyleSheet.create({
     width: '48.5%',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(10),
-    backgroundColor: '#E6EFFA',
-    borderRadius: fs(16),
+    gap: ws(8),
+    backgroundColor: Colors.containerBgColor,
+    borderRadius: fs(14),
     borderWidth: 1,
-    borderColor: '#D8E7F6',
-    paddingVertical: hs(12),
-    paddingHorizontal: ws(10),
+    borderColor: Colors.border_E2EAF4,
+    paddingVertical: hs(10),
+    paddingHorizontal: ws(8),
   },
   patientTileIcon: {
-    width: ws(42),
-    height: ws(42),
+    width: ws(36),
+    height: ws(36),
     aspectRatio: 1,
     borderRadius: 999,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  patientTileContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
   patientTileValue: {
-    fontSize: fs(15),
+    fontSize: fs(14.5),
     ...TYPOGRAPHY.bold,
     color: Colors.ink,
+    flexShrink: 1,
   },
   patientTileLabel: {
     fontSize: fs(10.5),
@@ -689,7 +912,7 @@ const styles = StyleSheet.create({
     padding: ws(14),
     marginBottom: hs(14),
     borderWidth: 1,
-    borderColor: '#E3EDF7',
+    borderColor: Colors.border_E3EDF7,
     shadowColor: Colors.navy,
     shadowOffset: { width: 0, height: hs(3) },
     shadowOpacity: 0.07,
@@ -742,7 +965,7 @@ const styles = StyleSheet.create({
   mobileCardItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     borderRadius: fs(12),
     padding: ws(12),
     borderWidth: 1,
@@ -771,23 +994,23 @@ const styles = StyleSheet.create({
     marginTop: hs(2),
   },
   statusPill: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: Colors.green_ECFDF5,
     paddingHorizontal: ws(8),
     paddingVertical: hs(3),
     borderRadius: fs(6),
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: Colors.green_A7F3D0,
   },
   statusPillText: {
     fontSize: fs(10),
     ...TYPOGRAPHY.bold,
-    color: '#059669',
+    color: Colors.green_059669,
   },
   fileIconBadge: {
     width: ws(36),
     height: hs(36),
     borderRadius: fs(8),
-    backgroundColor: '#FEE2E2',
+    backgroundColor: Colors.red_FEE2E2,
     justifyContent: 'center',
     alignItems: 'center',
   },

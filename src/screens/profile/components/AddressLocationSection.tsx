@@ -73,7 +73,7 @@ export const AddressLocationSection: React.FC<Props> = ({
               value={state}
               onChangeText={onChangeState}
               placeholder="State"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={Colors.slate_94A3B8}
               maxLength={STATE_MAX}
             />
           )}
@@ -106,7 +106,7 @@ export const AddressLocationSection: React.FC<Props> = ({
               value={city}
               onChangeText={onChangeCity}
               placeholder="City"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={Colors.slate_94A3B8}
               maxLength={CITY_MAX}
             />
           )}
@@ -144,7 +144,7 @@ export const AddressLocationSection: React.FC<Props> = ({
             value={postalCode}
             onChangeText={onChangePostalCode}
             placeholder="e.g. 226010"
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={Colors.slate_94A3B8}
             keyboardType="numeric"
             maxLength={6}
           />
@@ -160,7 +160,7 @@ export const AddressLocationSection: React.FC<Props> = ({
           value={address}
           onChangeText={onChangeAddress}
           placeholder="House no., street, area"
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={Colors.slate_94A3B8}
           maxLength={STREET_ADDRESS_MAX}
           multiline
           numberOfLines={2}
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   },
   inputField: {
     height: hs(44),
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     borderRadius: ws(12),
     borderWidth: 1,
     borderColor: Colors.border,
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   },
   selectorField: {
     height: hs(44),
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     borderRadius: ws(12),
     borderWidth: 1,
     borderColor: Colors.border,
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   disabledField: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
   },
   selectorText: {
     flex: 1,
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     color: Colors.primaryFontColor,
   },
   placeholderText: {
-    color: '#94A3B8',
+    color: Colors.slate_94A3B8,
     ...TYPOGRAPHY.regular,
   },
   multilineInput: {
@@ -251,12 +251,12 @@ const styles = StyleSheet.create({
   },
   inputError: {
     borderColor: Colors.redColor,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: Colors.red_FFF0F0,
   },
   fieldErrorText: {
     fontSize: fs(11),
     ...TYPOGRAPHY.medium,
-    color: '#EF4444',
+    color: Colors.redColor,
     marginTop: hs(4),
   },
 });

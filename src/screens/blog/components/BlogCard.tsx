@@ -32,7 +32,7 @@ export const BlogCard: React.FC<Props> = ({ blog, categoryName, onPress }) => {
         <Image source={{ uri: imageUrl }} style={styles.thumbnail} />
       ) : (
         <View style={styles.placeholderThumbnail}>
-          <MaterialIcons name="article" size={ws(36)} color="#94A3B8" />
+          <MaterialIcons name="article" size={ws(36)} color={Colors.slate_94A3B8} />
         </View>
       )}
 
@@ -55,7 +55,7 @@ export const BlogCard: React.FC<Props> = ({ blog, categoryName, onPress }) => {
 
         <View style={styles.footerRow}>
           <View style={styles.authorRow}>
-            <MaterialIcons name="person-outline" size={ws(14)} color="#64748B" />
+            <MaterialIcons name="person-outline" size={ws(14)} color={Colors.slate_64748B} />
             <Text style={styles.authorText}>
               {blog.author_name || blog.author || 'Elderly Care Team'}
             </Text>
@@ -85,12 +85,12 @@ const styles = StyleSheet.create({
   thumbnail: {
     width: '100%',
     height: hs(160),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
   },
   placeholderThumbnail: {
     width: '100%',
     height: hs(160),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: hs(8),
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: Colors.slate_F1F5F9,
   },
   authorRow: {
     flexDirection: 'row',

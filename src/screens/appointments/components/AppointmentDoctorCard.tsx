@@ -28,7 +28,7 @@ export const AppointmentDoctorCard: React.FC<Props> = ({ appointment }) => {
           <Image source={{ uri: getImageUrl(doctImg) }} style={styles.avatar} />
         ) : (
           <View style={styles.placeholderAvatar}>
-            <MaterialIcons name="person" size={ws(36)} color="#94A3B8" />
+            <MaterialIcons name="person" size={ws(36)} color={Colors.slate_94A3B8} />
           </View>
         )}
 
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
   },
   placeholderAvatar: {
     width: ws(60),
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     marginTop: hs(12),
     paddingTop: hs(10),
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: Colors.slate_F1F5F9,
   },
   addressText: {
     fontSize: fs(11),

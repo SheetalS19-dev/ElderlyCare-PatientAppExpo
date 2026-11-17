@@ -16,7 +16,7 @@ export const AppTextField: React.FC<AppTextFieldProps> = ({ label, error, contai
       {label && <Text style={styles.label}>{label}</Text>}
       <TextInput
         style={[styles.input, error ? styles.inputError : null, style]}
-        placeholderTextColor={Colors.secondaryFontColor || '#787878'}
+        placeholderTextColor={Colors.secondaryFontColor || Colors.gray_787878}
         {...props}
       />
       {error && <Text style={styles.errorText}>{error}</Text>}
@@ -32,28 +32,28 @@ const styles = StyleSheet.create({
   label: {
     ...TYPOGRAPHY.medium,
     fontSize: fs(12),
-    color: Colors.primaryFontColor || '#000000',
+    color: Colors.primaryFontColor || Colors.black,
     marginBottom: hs(6),
   },
   input: {
-    backgroundColor: Colors.inputTextBgColor || '#F7F8FA',
+    backgroundColor: Colors.inputTextBgColor || Colors.bg_F7F8FA,
     borderRadius: fs(8),
     borderWidth: 1,
-    borderColor: Colors.border || '#E0E0E0',
+    borderColor: Colors.border || Colors.gray_E0E0E0,
     paddingHorizontal: ws(14),
     paddingVertical: hs(10),
     ...TYPOGRAPHY.regular,
     fontSize: fs(14),
-    color: Colors.primaryFontColor || '#000000',
+    color: Colors.primaryFontColor || Colors.black,
     marginHorizontal: 1,
   },
   inputError: {
-    borderColor: Colors.redColor || '#EE404C',
+    borderColor: Colors.redColor || Colors.red_EE404C,
   },
   errorText: {
     ...TYPOGRAPHY.regular,
     fontSize: fs(10),
-    color: Colors.redColor || '#EE404C',
+    color: Colors.redColor || Colors.red_EE404C,
     marginTop: hs(4),
   },
 });

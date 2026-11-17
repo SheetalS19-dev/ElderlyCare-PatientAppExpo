@@ -33,144 +33,112 @@ export const CouponSectionCard: React.FC<Props> = ({
   onRemove,
 }) => {
   return (
-    <View style={styles.card}>
-      <Text style={styles.sectionTitle}>Apply Coupon Code</Text>
-
-      {appliedCoupon ? (
-        <View style={styles.appliedBanner}>
-          <View style={styles.appliedLeft}>
-            <MaterialIcons name="local-offer" size={ws(20)} color="#10B981" />
-            <View>
-              <Text style={styles.appliedCode}>{appliedCoupon.code}</Text>
-              <Text style={styles.appliedSuccess}>
-                Coupon Applied! Save {appliedCoupon.discount}
-                {appliedCoupon.type === 'percentage' ? '%' : ' ₹'}
-              </Text>
-            </View>
-          </View>
-          <TouchableOpacity activeOpacity={0.8} onPress={onRemove}>
-            <Text style={styles.removeText}>Remove</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={styles.inputRow}>
-          <TextInput
-            style={[styles.input, !!couponError && styles.inputError]}
-            value={couponCode}
-            onChangeText={onChangeCouponCode}
-            placeholder="Enter promo / coupon code"
-            placeholderTextColor="#94A3B8"
-            autoCapitalize="characters"
-          />
-          <TouchableOpacity
-            style={[styles.applyBtn, !couponCode.trim() && styles.applyBtnDisabled]}
-            activeOpacity={0.8}
-            onPress={onApply}
-            disabled={!couponCode.trim() || isValidating}
-          >
-            {isValidating ? (
-              <ActivityIndicator size="small" color={Colors.white} />
-            ) : (
-              <Text style={styles.applyBtnText}>Apply</Text>
-            )}
-          </TouchableOpacity>
+    <View style={styles.couponContainer}>
+      <View style={styles.couponInputWrapper}>
+        <MaterialIcons
+          name="confirmation-number"
+          size={ws(18)}
+          color={Colors.primaryColor}
+          style={{ marginLeft: ws(12) }}
+        />
+        <TextInput
+          style={styles.couponInput}
+          placeholder="Enter coupon code"
+          placeholderTextColor={Colors.slate_94A3B8}
+          value={couponCode}
+          onChangeText={onChangeCouponCode}
+          autoCapitalize="characters"
+          editable={!appliedCoupon}
+        />
+        <TouchableOpacity
+          style={[
+            styles.couponApplyBtn,
+            appliedCoupon && styles.couponRemoveBtn,
+            isValidating && { opacity: 0.7 },
+          ]}
+          onPress={appliedCoupon ? onRemove : onApply}
+          disabled={isValidating}
+          activeOpacity={0.85}
+        >
+          {isValidating ? (
+            <ActivityIndicator size="small" color={Colors.white} />
+          ) : (
+            <Text style={styles.couponApplyBtnText}>
+              {appliedCoupon ? 'Remove' : 'Apply'}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
+      {couponError ? <Text style={styles.couponErrorText}>{couponError}</Text> : null}
+      {appliedCoupon && (
+        <View style={styles.couponSuccessBadge}>
+          <MaterialIcons name="check-circle" size={ws(14)} color={Colors.green_16A34A} />
+          <Text style={styles.couponSuccessText}>
+            Coupon "{appliedCoupon.code || couponCode}" applied
+          </Text>
         </View>
       )}
-
-      {!!couponError && <Text style={styles.errorText}>{couponError}</Text>}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: Colors.white,
-    borderRadius: ws(16),
-    padding: ws(16),
+  couponContainer: {
     marginBottom: hs(14),
-    borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: hs(2) },
-    shadowOpacity: 0.03,
-    shadowRadius: ws(4),
-    elevation: 1,
   },
-  sectionTitle: {
-    fontSize: fs(14),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
-    marginBottom: hs(12),
-  },
-  inputRow: {
+  couponInputWrapper: {
     flexDirection: 'row',
-    gap: ws(10),
-  },
-  input: {
-    flex: 1,
-    height: hs(44),
-    backgroundColor: '#F8FAFC',
-    borderRadius: ws(12),
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: ws(14),
     borderWidth: 1,
     borderColor: Colors.border,
-    paddingHorizontal: ws(12),
+    overflow: 'hidden',
+  },
+  couponInput: {
+    flex: 1,
+    paddingHorizontal: ws(10),
+    paddingVertical: hs(10),
+    ...TYPOGRAPHY.semiBold,
     fontSize: fs(13),
-    ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
-  inputError: {
-    borderColor: Colors.redColor,
-  },
-  applyBtn: {
-    paddingHorizontal: ws(18),
-    height: hs(44),
-    borderRadius: ws(12),
+  couponApplyBtn: {
     backgroundColor: Colors.primaryColor,
+    paddingHorizontal: ws(16),
+    paddingVertical: hs(12),
     justifyContent: 'center',
     alignItems: 'center',
   },
-  applyBtnDisabled: {
-    opacity: 0.5,
+  couponRemoveBtn: {
+    backgroundColor: Colors.redColor,
   },
-  applyBtnText: {
-    fontSize: fs(13),
+  couponApplyBtnText: {
     ...TYPOGRAPHY.bold,
+    fontSize: fs(12),
     color: Colors.white,
   },
-  appliedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    borderRadius: ws(12),
-    padding: ws(12),
-  },
-  appliedLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ws(10),
-  },
-  appliedCode: {
-    fontSize: fs(13),
-    ...TYPOGRAPHY.bold,
-    color: '#047857',
-  },
-  appliedSuccess: {
-    fontSize: fs(11),
-    ...TYPOGRAPHY.medium,
-    color: '#059669',
-  },
-  removeText: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.bold,
-    color: Colors.redColor,
-  },
-  errorText: {
-    fontSize: fs(11),
+  couponErrorText: {
     ...TYPOGRAPHY.regular,
+    fontSize: fs(11),
     color: Colors.redColor,
+    marginTop: hs(4),
+    marginLeft: ws(4),
+  },
+  couponSuccessBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ws(4),
     marginTop: hs(6),
+    backgroundColor: Colors.badgeSuccessBg,
+    paddingHorizontal: ws(8),
+    paddingVertical: hs(4),
+    borderRadius: ws(6),
+    alignSelf: 'flex-start',
+  },
+  couponSuccessText: {
+    ...TYPOGRAPHY.semiBold,
+    fontSize: fs(11),
+    color: Colors.green_16A34A,
   },
 });

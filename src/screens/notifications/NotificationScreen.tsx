@@ -1,129 +1,36 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import {
   FlatList,
   Image,
-  Linking,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AppHeader,
   EmptyState,
   ErrorState,
   LoadingIndicator,
 } from '../../components';
-import { ApiEndpoints, AppConstants, Colors, Typography } from '../../constants';
-import { useAuth } from '../../context/AuthContext';
-import type { RootStackParamList } from '../../navigation/types';
-import { useGetNotificationsByDateQuery } from '../../redux/apis/notificationApi';
-import {
-  useGetUserProfileQuery,
-  useUpdateNotificationSeenMutation,
-} from '../../redux/apis/userApi';
-import { storageService } from '../../services/storageService';
-import type { NotificationModel } from '../../types';
-import {
-  DateTimeUtils,
-  extractNotificationsList,
-  fs,
-  hs,
-  markNotificationsLocallySeen,
-  TYPOGRAPHY,
-  ws,
-} from '../../utils';
+import { ApiEndpoints, Colors } from '../../constants';
+import { DateTimeUtils, fs, hs, TYPOGRAPHY, ws } from '../../utils';
+import { useNotification } from './useNotification';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Notification'>;
-
-export const NotificationScreen = ({ navigation }: Props) => {
-  const insets = useSafeAreaInsets();
-  const { user: authUser, updateUser: updateAuthUser } = useAuth();
-  const [storedUid, setStoredUid] = useState<string>('');
-
-  useEffect(() => {
-    storageService.getItem<string>(AppConstants.storageKeys.uid).then((uid) => {
-      if (uid) setStoredUid(String(uid));
-    });
-  }, []);
-
-  const userId = String(authUser?.id ?? (authUser as any)?.user_id ?? storedUid ?? '');
-
-  const { data: userProfile } = useGetUserProfileQuery(userId, { skip: !userId });
-  const [updateNotificationSeen] = useUpdateNotificationSeenMutation();
-
-  const userCreatedAt = useMemo(() => {
-    const profileUser = userProfile?.data ?? userProfile;
-    return String(profileUser?.created_at ?? authUser?.created_at ?? '');
-  }, [userProfile, authUser?.created_at]);
-
+export const NotificationScreen: React.FC = () => {
   const {
-    data: notificationsData,
+    navigation,
+    insets,
+    notifications,
     isLoading,
     isFetching,
     isError,
     refetch,
-  } = useGetNotificationsByDateQuery(
-    { uid: userId, date: userCreatedAt },
-    { skip: !userId || !userCreatedAt, refetchOnMountOrArgChange: true }
-  );
-
-  const notifications: NotificationModel[] = useMemo(
-    () => extractNotificationsList(notificationsData),
-    [notificationsData]
-  );
-
-  useEffect(() => {
-    if (!userId || isLoading) return;
-    let isMounted = true;
-    const syncSeen = async () => {
-      const seenIso = await markNotificationsLocallySeen(userId, notifications);
-      if (isMounted && authUser) {
-        updateAuthUser({ ...authUser, notification_seen_at: seenIso });
-      }
-      updateNotificationSeen(userId);
-    };
-    syncSeen();
-    return () => {
-      isMounted = false;
-    };
-  }, [userId, isLoading, notifications.length]);
-
-  const handleNotificationPress = async (item: NotificationModel) => {
-    if (item.file_id) {
-      navigation.navigate('PatientFile');
-    } else if (item.prescription_id) {
-      navigation.navigate('PrescriptionList');
-      const url = `${ApiEndpoints.prescriptionUrl}/${item.prescription_id}`;
-      Linking.openURL(url).catch(() => { });
-    } else if (item.txn_id) {
-      navigation.navigate('Wallet');
-    } else if (item.appointment_id) {
-      navigation.navigate('AppointmentDetails', { appId: String(item.appointment_id) });
-    } else if (item.image || item.id) {
-      navigation.navigate('NotificationDetails', { notificationId: String(item.id) });
-    }
-  };
-
-  const getNotificationIconInfo = (item: NotificationModel) => {
-    if (item.appointment_id) {
-      return { icon: 'event', color: Colors.primaryColor, bg: Colors.aquaSoft };
-    }
-    if (item.prescription_id) {
-      return { icon: 'description', color: '#0284C7', bg: '#E0F2FE' };
-    }
-    if (item.txn_id) {
-      return { icon: 'account-balance-wallet', color: '#059669', bg: '#ECFDF5' };
-    }
-    if (item.file_id) {
-      return { icon: 'folder', color: '#8B5CF6', bg: '#EDE9FE' };
-    }
-    return { icon: 'notifications', color: Colors.primaryColor, bg: Colors.aquaSoft };
-  };
+    handleNotificationPress,
+    getNotificationIconInfo,
+  } = useNotification();
 
   return (
     <View style={styles.container}>
@@ -137,7 +44,10 @@ export const NotificationScreen = ({ navigation }: Props) => {
         <FlatList
           data={notifications}
           keyExtractor={(item, index) => `notify-${item.id ?? index}`}
-          contentContainerStyle={[styles.listContainer, { paddingBottom: Math.max(insets.bottom + hs(20), hs(30)) }]}
+          contentContainerStyle={[
+            styles.listContainer,
+            { paddingBottom: Math.max(insets.bottom + hs(20), hs(30)) },
+          ]}
           showsVerticalScrollIndicator={false}
           refreshing={isFetching}
           onRefresh={refetch}
@@ -163,7 +73,7 @@ export const NotificationScreen = ({ navigation }: Props) => {
 
                 <View style={styles.contentWrapper}>
                   <Text style={styles.title}>{item.title}</Text>
-                  <Text style={styles.body} numberOfLines={2}>
+                  <Text style={styles.body} numberOfLines={3}>
                     {item.body}
                   </Text>
                   {!!item.created_at && (
@@ -186,45 +96,51 @@ export const NotificationScreen = ({ navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgColor },
-  listContainer: { flexGrow: 1, padding: ws(16) },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.bgColor,
+  },
+  listContainer: {
+    padding: ws(16),
+  },
   notificationCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: fs(16),
-    padding: ws(14),
+    borderRadius: fs(14),
+    padding: ws(12),
     marginBottom: hs(12),
     borderWidth: 1,
     borderColor: Colors.border,
     shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: hs(2) },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
-    shadowRadius: fs(6),
+    shadowRadius: 4,
     elevation: 2,
   },
-  notificationImage: {
-    width: ws(48),
-    height: hs(48),
-    borderRadius: fs(12),
-    backgroundColor: '#F1F5F9',
-  },
   iconPlaceholder: {
-    width: ws(48),
-    height: ws(48),
-    aspectRatio: 1,
+    width: ws(44),
+    height: ws(44),
     borderRadius: 999,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: ws(12),
+  },
+  notificationImage: {
+    width: ws(44),
+    height: ws(44),
+    borderRadius: 999,
+    overflow: 'hidden',
+    marginRight: ws(12),
+    backgroundColor: Colors.slate_F1F5F9,
   },
   contentWrapper: {
     flex: 1,
-    marginLeft: ws(12),
     marginRight: ws(8),
   },
   title: {
-    fontSize: fs(Typography.fontSize.sm),
+    fontSize: fs(14),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
     marginBottom: hs(2),
@@ -233,18 +149,17 @@ const styles = StyleSheet.create({
     fontSize: fs(12),
     ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    lineHeight: hs(17),
+    lineHeight: fs(16),
+    marginBottom: hs(4),
   },
   date: {
     fontSize: fs(10),
-    ...TYPOGRAPHY.medium,
-    color: '#94A3B8',
-    marginTop: hs(4),
+    ...TYPOGRAPHY.regular,
+    color: Colors.slate_94A3B8,
   },
   chevronCircle: {
     width: ws(28),
     height: ws(28),
-    aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
     backgroundColor: Colors.aquaSoft,

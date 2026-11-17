@@ -1,8 +1,14 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AppHeader,
@@ -13,203 +19,33 @@ import {
   SearchBox,
 } from '../../components';
 import { Colors } from '../../constants';
-import { useAuth } from '../../context/AuthContext';
-import type { RootStackParamList } from '../../navigation/types';
-import { useGetAppointmentsQuery } from '../../redux/apis/appointmentApi';
 import type { AppointmentModel } from '../../types';
-import { fs, hs, loadRescheduledAppointmentIds, TYPOGRAPHY, ws } from '../../utils';
+import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
+import { useMyBookings } from './useMyBookings';
 
-type RootNavigation = NativeStackNavigationProp<RootStackParamList>;
-type TabKey = 'upcoming' | 'closed';
-
-const PAGE_SIZE = 10;
-
-export const MyBookingsScreen = () => {
+export const MyBookingsScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation<RootNavigation>();
-  const route = useRoute<RouteProp<RootStackParamList, 'MyBookings'>>();
-  const { isAuthenticated, user } = useAuth();
-  const [tab, setTab] = useState<TabKey>(route.params?.initialTab || 'upcoming');
-  const [subFilter, setSubFilter] = useState<string>(route.params?.initialSubFilter || 'all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [rescheduledIds, setRescheduledIds] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (route.params?.initialTab) {
-      setTab(route.params.initialTab);
-    }
-    if (route.params?.initialSubFilter) {
-      setSubFilter(route.params.initialSubFilter);
-    }
-  }, [route.params]);
-
-  useEffect(() => {
-    loadRescheduledAppointmentIds().then((ids) => {
-      setRescheduledIds(new Set(ids));
-    });
-  }, []);
-
-  const [displayedLimit, setDisplayedLimit] = useState(PAGE_SIZE);
-  const [loadingMore, setLoadingMore] = useState(false);
-
-  const userId = String(user?.id ?? (user as any)?.user_id ?? '');
-
   const {
-    data: rawData,
+    navigation,
+    isAuthenticated,
+    tab,
+    subFilter,
+    setSubFilter,
+    searchQuery,
+    subFilterOptions,
+    paginatedList,
+    upcomingAppointments,
+    closedAppointments,
     isLoading,
     isFetching,
     isError,
     refetch,
-  } = useGetAppointmentsQuery(userId, {
-    skip: !isAuthenticated || !userId,
-  });
-
-  const allAppointments: AppointmentModel[] = useMemo(() => {
-    let list: AppointmentModel[] = [];
-    if (Array.isArray(rawData)) {
-      list = rawData;
-    } else if (Array.isArray((rawData as any)?.data)) {
-      list = (rawData as any).data;
-    } else if (Array.isArray((rawData as any)?.response)) {
-      list = (rawData as any).response;
-    }
-
-    return list.map((item) => {
-      const idStr = String(item.id ?? '').trim();
-      const isLocalRescheduled = rescheduledIds.has(idStr);
-      const serverStatus = (item.status || '').trim().toLowerCase();
-      if (isLocalRescheduled && serverStatus !== 'rescheduled') {
-        return {
-          ...item,
-          status: 'Rescheduled',
-        };
-      }
-      return item;
-    });
-  }, [rawData, rescheduledIds]);
-
-  const upcomingAppointments = useMemo(() => {
-    return allAppointments.filter((a) => {
-      const s = (a.status || '').trim().toLowerCase();
-      return (
-        ['pending', 'confirmed', 'rescheduled', 'scheduled', 'booked', 'active', 'approved', 'paid', 'in-process'].includes(s) ||
-        !['completed', 'visited', 'rejected', 'cancelled', 'canceled'].includes(s)
-      );
-    });
-  }, [allAppointments]);
-
-  const closedAppointments = useMemo(() => {
-    return allAppointments.filter((a) => {
-      const s = (a.status || '').trim().toLowerCase();
-      return ['completed', 'visited', 'rejected', 'cancelled', 'canceled'].includes(s);
-    });
-  }, [allAppointments]);
-
-  // Sub-filter counts
-  const subFilterOptions = useMemo(() => {
-    if (tab === 'closed') {
-      const completedCount = closedAppointments.filter((a) =>
-        ['completed', 'visited'].includes((a.status || '').trim().toLowerCase())
-      ).length;
-      const cancelledCount = closedAppointments.filter((a) =>
-        ['rejected', 'cancelled', 'canceled'].includes((a.status || '').trim().toLowerCase())
-      ).length;
-      const missedCount = closedAppointments.filter((a) =>
-        ['missed', 'no-show'].includes((a.status || '').trim().toLowerCase())
-      ).length;
-
-      return [
-        { key: 'all', label: `All (${closedAppointments.length})` },
-        { key: 'completed', label: `Completed (${completedCount})` },
-        { key: 'cancelled', label: `Cancelled (${cancelledCount})` },
-        { key: 'missed', label: `Missed (${missedCount})` },
-      ];
-    } else {
-      const confirmedCount = upcomingAppointments.filter((a) =>
-        ['confirmed', 'booked', 'active', 'approved', 'scheduled'].includes((a.status || '').trim().toLowerCase())
-      ).length;
-      const pendingCount = upcomingAppointments.filter((a) =>
-        ['pending', 'in-process', 'paid'].includes((a.status || '').trim().toLowerCase())
-      ).length;
-      const rescheduledCount = upcomingAppointments.filter((a) =>
-        ['rescheduled'].includes((a.status || '').trim().toLowerCase())
-      ).length;
-
-      return [
-        { key: 'all', label: `All (${upcomingAppointments.length})` },
-        { key: 'confirmed', label: `Confirmed (${confirmedCount})` },
-        { key: 'pending', label: `Pending (${pendingCount})` },
-        { key: 'rescheduled', label: `Rescheduled (${rescheduledCount})` },
-      ];
-    }
-  }, [tab, closedAppointments, upcomingAppointments]);
-
-  const currentList = useMemo(() => {
-    const base = tab === 'upcoming' ? upcomingAppointments : closedAppointments;
-    if (subFilter === 'all') return base;
-
-    return base.filter((a) => {
-      const s = (a.status || '').trim().toLowerCase();
-      if (subFilter === 'completed') return ['completed', 'visited'].includes(s);
-      if (subFilter === 'cancelled') return ['rejected', 'cancelled', 'canceled'].includes(s);
-      if (subFilter === 'missed') return ['missed', 'no-show'].includes(s);
-      if (subFilter === 'confirmed') return ['confirmed', 'booked', 'active', 'approved', 'scheduled'].includes(s);
-      if (subFilter === 'pending') return ['pending', 'in-process', 'paid'].includes(s);
-      if (subFilter === 'rescheduled') return ['rescheduled'].includes(s);
-      return true;
-    });
-  }, [tab, subFilter, upcomingAppointments, closedAppointments]);
-
-  const filteredList = useMemo(() => {
-    if (!searchQuery.trim()) return currentList;
-    const query = searchQuery.trim().toLowerCase();
-
-    return currentList.filter((item: any) => {
-      const patientName = `${item.patient_f_name ?? item.f_name ?? ''} ${item.patient_l_name ?? item.l_name ?? ''}`.trim() || String(item.patient_name || item.name || '');
-      const docName = `${item.doct_f_name ?? item.doctor?.f_name ?? ''} ${item.doct_l_name ?? item.doctor?.l_name ?? ''}`.trim() || String(item.doctor_name || '');
-      const phone = String(item.phone || item.mobile || item.patient_phone || '');
-      const dept = String(item.dept_title || item.department_name || item.department || '');
-      const apptId = String(item.id ?? '');
-      const status = String(item.status ?? '');
-      const date = String(item.date ?? '');
-      const time = String(item.time_slots ?? '');
-
-      return (
-        patientName.toLowerCase().includes(query) ||
-        docName.toLowerCase().includes(query) ||
-        phone.includes(query) ||
-        dept.toLowerCase().includes(query) ||
-        apptId.includes(query) ||
-        status.toLowerCase().includes(query) ||
-        date.includes(query) ||
-        time.toLowerCase().includes(query)
-      );
-    });
-  }, [currentList, searchQuery]);
-
-  const paginatedList = useMemo(() => {
-    return filteredList.slice(0, displayedLimit);
-  }, [filteredList, displayedLimit]);
-
-  const handleLoadMore = () => {
-    if (loadingMore || isFetching || displayedLimit >= filteredList.length) return;
-    setLoadingMore(true);
-    setTimeout(() => {
-      setDisplayedLimit((prev) => prev + PAGE_SIZE);
-      setLoadingMore(false);
-    }, 500);
-  };
-
-  const handleTabChange = (newTab: TabKey) => {
-    setTab(newTab);
-    setSubFilter('all');
-    setDisplayedLimit(PAGE_SIZE);
-  };
-
-  const handleSearchChange = (text: string) => {
-    setSearchQuery(text);
-    setDisplayedLimit(PAGE_SIZE);
-  };
+    loadingMore,
+    setDisplayedLimit,
+    handleLoadMore,
+    handleTabChange,
+    handleSearchChange,
+  } = useMyBookings();
 
   if (!isAuthenticated) {
     return (
@@ -263,12 +99,14 @@ export const MyBookingsScreen = () => {
       </View>
 
       {/* Search Input Bar */}
-      <SearchBox
-        value={searchQuery}
-        onChangeText={handleSearchChange}
-        placeholder="Search patient, doctor, or department"
-        containerStyle={styles.searchBarWrapper}
-      />
+      <View style={styles.searchWrapper}>
+        <SearchBox
+          value={searchQuery}
+          onChangeText={handleSearchChange}
+          placeholder="Search patient, doctor, or department"
+          containerStyle={styles.searchBarOverride}
+        />
+      </View>
 
       {/* Sub-status Filter Chips */}
       <View style={styles.subFilterContainer}>
@@ -285,7 +123,7 @@ export const MyBookingsScreen = () => {
                 style={[styles.subFilterChip, isSel && styles.subFilterChipActive]}
                 onPress={() => {
                   setSubFilter(opt.key);
-                  setDisplayedLimit(PAGE_SIZE);
+                  setDisplayedLimit(15);
                 }}
                 activeOpacity={0.8}
               >
@@ -317,12 +155,8 @@ export const MyBookingsScreen = () => {
           ]}
           refreshing={isFetching}
           onRefresh={async () => {
-            setDisplayedLimit(PAGE_SIZE);
-            try {
-              const ids = await loadRescheduledAppointmentIds();
-              setRescheduledIds(new Set(ids));
-              await refetch();
-            } catch {}
+            setDisplayedLimit(15);
+            await refetch();
           }}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.4}
@@ -410,7 +244,7 @@ const styles = StyleSheet.create({
   },
   segmentedControl: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     borderRadius: fs(14),
     padding: ws(4),
   },
@@ -440,17 +274,15 @@ const styles = StyleSheet.create({
     color: Colors.white,
     ...TYPOGRAPHY.bold,
   },
-  searchBarWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.white,
+  searchWrapper: {
+    paddingHorizontal: ws(16),
+    paddingTop: hs(12),
+    paddingBottom: hs(4),
+  },
+  searchBarOverride: {
     borderRadius: fs(12),
     borderWidth: 1,
     borderColor: Colors.border,
-    marginHorizontal: ws(16),
-    marginTop: hs(12),
-    marginBottom: hs(4),
-    paddingHorizontal: ws(12),
     minHeight: hs(48),
     height: hs(48),
     shadowColor: Colors.shadow,
@@ -458,17 +290,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.02,
     shadowRadius: fs(3),
     elevation: 1,
-  },
-  searchIcon: {
-    marginRight: ws(8),
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: fs(13),
-    ...TYPOGRAPHY.medium,
-    color: Colors.primaryFontColor,
-    paddingVertical: Platform.OS === 'ios' ? hs(10) : hs(6),
-    textAlignVertical: 'center',
   },
   listContent: {
     flexGrow: 1,
@@ -538,7 +359,7 @@ const styles = StyleSheet.create({
   subFilterText: {
     fontSize: fs(12),
     ...TYPOGRAPHY.medium,
-    color: '#64748B',
+    color: Colors.secondaryFontColor,
   },
   subFilterTextActive: {
     color: Colors.white,

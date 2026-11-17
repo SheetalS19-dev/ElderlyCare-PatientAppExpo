@@ -70,11 +70,18 @@ export interface DoctorReviewModel {
   doctor_id?: number | string;
   user_id?: number | string;
   user_name?: string;
+  f_name?: string;
+  l_name?: string;
+  doct_f_name?: string;
+  doct_l_name?: string;
+  appointment_id?: number | string;
+  clinic_id?: number | string;
   rating?: number;
   points?: number;
   comment?: string;
   description?: string;
   created_at?: string;
+  updated_at?: string;
 }
 
 export type Doctor = DoctorModel;

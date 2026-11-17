@@ -101,14 +101,14 @@ export const AppointmentActionsCard = memo(({
       {/* Reschedule Consultation Action Card */}
       {canReschedule && !!onReschedule && (
         <TouchableOpacity style={styles.actionCard} activeOpacity={0.85} onPress={onReschedule}>
-          <View style={[styles.actionIconCircle, { backgroundColor: '#FFEDD5' }]}>
-            <MaterialIcons name="sync" size={22} color="#EA580C" />
+          <View style={[styles.actionIconCircle, { backgroundColor: Colors.orange_FFEDD5 }]}>
+            <MaterialIcons name="sync" size={22} color={Colors.orange_EA580C} />
           </View>
           <View style={styles.actionMeta}>
             <Text style={styles.actionTitle}>Reschedule Consultation</Text>
             <Text style={styles.actionSubtitle}>Change consultation date, time slot, or mode</Text>
           </View>
-          <MaterialIcons name="chevron-right" size={22} color="#EA580C" />
+          <MaterialIcons name="chevron-right" size={22} color={Colors.orange_EA580C} />
         </TouchableOpacity>
       )}
 

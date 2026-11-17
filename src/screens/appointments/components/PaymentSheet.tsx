@@ -94,7 +94,7 @@ export const PaymentSheet: React.FC<PaymentSheetProps> = ({
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Confirm & Pay</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <MaterialIcons name="close" size={24} color="#4A5568" />
+              <MaterialIcons name="close" size={24} color={Colors.gray_4A5568} />
             </TouchableOpacity>
           </View>
 
@@ -147,10 +147,10 @@ export const PaymentSheet: React.FC<PaymentSheetProps> = ({
 
               {couponDiscount > 0 && (
                 <View style={styles.summaryRow}>
-                  <Text style={[styles.summaryLabel, { color: '#16A34A' }]}>
+                  <Text style={[styles.summaryLabel, { color: Colors.green_16A34A }]}>
                     Coupon {couponTitle ? `(${couponTitle})` : ''} OFF:
                   </Text>
-                  <Text style={[styles.summaryValue, { color: '#16A34A' }]}>
+                  <Text style={[styles.summaryValue, { color: Colors.green_16A34A }]}>
                     -{AppConstants.appCurrency}{couponDiscount.toFixed(2)}
                   </Text>
                 </View>
@@ -218,7 +218,7 @@ export const PaymentSheet: React.FC<PaymentSheetProps> = ({
                   <Text style={styles.radioTitle}>Pay At Hospital</Text>
                   <Text style={styles.radioSubtitle}>Pay cash during clinic visit</Text>
                 </View>
-                <MaterialIcons name="local-hospital" size={22} color="#4CAF50" />
+                <MaterialIcons name="local-hospital" size={22} color={Colors.green_4CAF50} />
               </TouchableOpacity>
             )}
 
@@ -246,12 +246,12 @@ export const PaymentSheet: React.FC<PaymentSheetProps> = ({
                 {isWalletSufficient ? (
                   <Text style={styles.radioSubtitle}>Instant payment from your in-app wallet</Text>
                 ) : (
-                  <Text style={[styles.radioSubtitle, { color: '#E53E3E' }]}>
+                  <Text style={[styles.radioSubtitle, { color: Colors.red_E53E3E }]}>
                     Insufficient wallet balance
                   </Text>
                 )}
               </View>
-              <MaterialIcons name="account-balance-wallet" size={22} color="#3B82F6" />
+              <MaterialIcons name="account-balance-wallet" size={22} color={Colors.blue_3B82F6} />
             </TouchableOpacity>
 
             {/* Bottom Submit Button */}
@@ -262,7 +262,7 @@ export const PaymentSheet: React.FC<PaymentSheetProps> = ({
               activeOpacity={0.85}
             >
               {submitting ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color={Colors.white} size="small" />
               ) : (
                 <Text style={styles.paySubmitBtnText}>
                   {selectedPayOption === 1
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.white,
     borderTopLeftRadius: fs(20),
     borderTopRightRadius: fs(20),
     maxHeight: '90%',
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: fs(16),
     ...TYPOGRAPHY.bold,
-    color: '#1A202C',
+    color: Colors.gray_1A202C,
   },
   scrollArea: {
     paddingHorizontal: ws(20),
@@ -326,13 +326,13 @@ const styles = StyleSheet.create({
   illustrationTitle: {
     fontSize: fs(15),
     ...TYPOGRAPHY.bold,
-    color: '#1A202C',
+    color: Colors.gray_1A202C,
     textAlign: 'center',
   },
   illustrationSubtitle: {
     fontSize: fs(13),
     ...TYPOGRAPHY.regular,
-    color: '#718096',
+    color: Colors.gray_718096,
     textAlign: 'center',
     marginTop: hs(2),
   },
@@ -352,12 +352,12 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: fs(13),
     ...TYPOGRAPHY.regular,
-    color: '#4A5568',
+    color: Colors.gray_4A5568,
   },
   summaryValue: {
     fontSize: fs(13),
     ...TYPOGRAPHY.bold,
-    color: '#1A202C',
+    color: Colors.gray_1A202C,
   },
   totalRow: {
     flexDirection: 'row',
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   totalLabel: {
     fontSize: fs(15),
     ...TYPOGRAPHY.bold,
-    color: '#1A202C',
+    color: Colors.gray_1A202C,
   },
   totalValue: {
     fontSize: fs(17),
@@ -377,13 +377,13 @@ const styles = StyleSheet.create({
   paymentOptionsTitle: {
     fontSize: fs(14),
     ...TYPOGRAPHY.bold,
-    color: '#1A202C',
+    color: Colors.gray_1A202C,
     marginBottom: hs(10),
   },
   radioOptionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     borderRadius: fs(10),
     borderWidth: 1.5,
     borderColor: Colors.border,
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
   },
   radioOptionCardActive: {
     borderColor: Colors.primaryColor,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: Colors.green_F0FDF4,
   },
   radioOptionDisabled: {
     opacity: 0.6,
@@ -419,12 +419,12 @@ const styles = StyleSheet.create({
   radioTitle: {
     fontSize: fs(13),
     ...TYPOGRAPHY.bold,
-    color: '#1A202C',
+    color: Colors.gray_1A202C,
   },
   radioSubtitle: {
     fontSize: fs(11),
     ...TYPOGRAPHY.regular,
-    color: '#718096',
+    color: Colors.gray_718096,
     marginTop: hs(2),
   },
   paySubmitBtn: {
@@ -446,6 +446,6 @@ const styles = StyleSheet.create({
   paySubmitBtnText: {
     fontSize: fs(15),
     ...TYPOGRAPHY.bold,
-    color: '#FFFFFF',
+    color: Colors.white,
   },
 });

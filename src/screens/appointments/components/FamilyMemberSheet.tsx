@@ -63,7 +63,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [dob, setDob] = useState('');
-  const [gender, setGender] = useState<'Male' | 'Female' | 'Other'>('Male');
+  const [gender, setGender] = useState<'Male' | 'Female' | 'Other' | ''>('');
   const [error, setError] = useState<string | undefined>();
 
   const familyList: FamilyMemberModel[] = useMemo(() => {
@@ -132,7 +132,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
     setLastName('');
     setPhone('');
     setDob('');
-    setGender('Male');
+    setGender('');
     setError(undefined);
     setShowAddForm(false);
   };
@@ -148,9 +148,21 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
       setError(lnRes.error || 'Enter a valid last name');
       return;
     }
+    if (!phone.trim()) {
+      setError('Mobile number is required');
+      return;
+    }
     const phoneRes = validatePhone(phone, true);
     if (!phoneRes.isValid) {
-      setError(phoneRes.error || 'Enter a valid 10-digit phone number');
+      setError(phoneRes.error || 'Enter a valid 10-digit mobile number');
+      return;
+    }
+    if (!dob.trim()) {
+      setError('Date of birth is required');
+      return;
+    }
+    if (!gender) {
+      setError('Please select a gender');
       return;
     }
     if (!uid) {
@@ -261,7 +273,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
               <TextInput
                 style={styles.textInput}
                 placeholder="Enter first name"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={Colors.slate_94A3B8}
                 value={firstName}
                 onChangeText={setFirstName}
                 autoCapitalize="words"
@@ -271,18 +283,18 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
               <TextInput
                 style={styles.textInput}
                 placeholder="Enter last name"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={Colors.slate_94A3B8}
                 value={lastName}
                 onChangeText={setLastName}
                 autoCapitalize="words"
               />
 
-              <Text style={styles.inputLabel}>Mobile Number</Text>
+              <Text style={styles.inputLabel}>Mobile Number *</Text>
               <View style={styles.phoneInputRow}>
                 <TextInput
                   style={styles.phoneInput}
                   placeholder="Enter 10-digit mobile number"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={Colors.slate_94A3B8}
                   keyboardType="phone-pad"
                   maxLength={10}
                   value={phone}
@@ -291,7 +303,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
               </View>
 
               {/* Date of Birth Selection */}
-              <Text style={styles.inputLabel}>Date of Birth</Text>
+              <Text style={styles.inputLabel}>Date of Birth *</Text>
               <TouchableOpacity
                 style={styles.dateSelectorTile}
                 onPress={() => setShowDatePicker(true)}
@@ -303,7 +315,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                 <MaterialIcons name="calendar-today" size={18} color={Colors.primaryColor} />
               </TouchableOpacity>
 
-              <Text style={styles.inputLabel}>Gender</Text>
+              <Text style={styles.inputLabel}>Gender *</Text>
               <View style={styles.genderRow}>
                 {(['Male', 'Female', 'Other'] as const).map((g) => (
                   <TouchableOpacity
@@ -337,7 +349,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                   activeOpacity={0.85}
                 >
                   {isAdding ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
+                    <ActivityIndicator color={Colors.white} size="small" />
                   ) : (
                     <Text style={styles.submitBtnText}>Save Patient</Text>
                   )}
@@ -353,7 +365,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                 </View>
               ) : familyList.length === 0 ? (
                 <View style={styles.emptyBox}>
-                  <MaterialIcons name="people-outline" size={48} color="#CBD5E1" />
+                  <MaterialIcons name="people-outline" size={48} color={Colors.gray_CBD5E1} />
                   <Text style={styles.emptyTitle}>No Patients Found</Text>
                   <Text style={styles.emptySubtitle}>Add a patient or family member to continue</Text>
                 </View>
@@ -386,7 +398,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                           <MaterialIcons
                             name="person"
                             size={24}
-                            color={isSelected ? '#FFFFFF' : Colors.primaryColor}
+                            color={isSelected ? Colors.white : Colors.primaryColor}
                           />
                         </View>
                         <View style={styles.memberInfo}>
@@ -411,9 +423,9 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                             {isSelf && (
                               <View
                                 style={{
-                                  backgroundColor: '#ECFDF5',
+                                  backgroundColor: Colors.green_ECFDF5,
                                   borderWidth: 1,
-                                  borderColor: '#A7F3D0',
+                                  borderColor: Colors.green_A7F3D0,
                                   paddingHorizontal: ws(6),
                                   paddingVertical: hs(1),
                                   borderRadius: fs(4),
@@ -423,7 +435,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                                   style={{
                                     fontSize: fs(10),
                                     ...TYPOGRAPHY.bold,
-                                    color: '#059669',
+                                    color: Colors.green_059669,
                                   }}
                                 >
                                   Self
@@ -438,7 +450,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                         {isSelected ? (
                           <MaterialIcons name="check-circle" size={22} color={Colors.primaryColor} />
                         ) : (
-                          <MaterialIcons name="chevron-right" size={22} color="#CBD5E1" />
+                          <MaterialIcons name="chevron-right" size={22} color={Colors.gray_CBD5E1} />
                         )}
                       </TouchableOpacity>
                     );
@@ -452,7 +464,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                 onPress={() => setShowAddForm(true)}
                 activeOpacity={0.85}
               >
-                <MaterialIcons name="add" size={20} color="#FFFFFF" />
+                <MaterialIcons name="add" size={20} color={Colors.white} />
                 <Text style={styles.addPatientBtnText}>Add Patient</Text>
               </TouchableOpacity>
             </View>
@@ -483,7 +495,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: '#F7F8FA',
+    backgroundColor: Colors.bg_F7F8FA,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '90%',
@@ -497,14 +509,14 @@ const styles = StyleSheet.create({
     paddingBottom: hs(12),
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.white,
     borderTopLeftRadius: fs(20),
     borderTopRightRadius: fs(20),
   },
   headerTitle: {
     fontSize: fs(16),
     ...TYPOGRAPHY.bold,
-    color: '#1A202C',
+    color: Colors.gray_1A202C,
   },
   modalTitleRow: {
     flexDirection: 'row',
@@ -534,7 +546,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: fs(13),
     ...TYPOGRAPHY.regular,
-    color: '#718096',
+    color: Colors.gray_718096,
   },
   emptyBox: {
     paddingVertical: hs(30),
@@ -544,17 +556,17 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: fs(15),
     ...TYPOGRAPHY.bold,
-    color: '#2D3748',
+    color: Colors.gray_2D3748,
     marginTop: hs(8),
   },
   emptySubtitle: {
     fontSize: fs(13),
     ...TYPOGRAPHY.regular,
-    color: '#718096',
+    color: Colors.gray_718096,
     marginTop: hs(4),
   },
   memberCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.white,
     borderRadius: fs(8),
     padding: ws(12),
     marginBottom: hs(8),
@@ -582,12 +594,12 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: fs(15),
     ...TYPOGRAPHY.bold,
-    color: '#1A202C',
+    color: Colors.gray_1A202C,
   },
   memberPhone: {
     fontSize: fs(13),
     ...TYPOGRAPHY.regular,
-    color: '#718096',
+    color: Colors.gray_718096,
     marginTop: hs(2),
   },
   addPatientBtn: {
@@ -603,7 +615,7 @@ const styles = StyleSheet.create({
   addPatientBtnText: {
     fontSize: fs(14),
     ...TYPOGRAPHY.bold,
-    color: '#FFFFFF',
+    color: Colors.white,
   },
   formScroll: {
     maxHeight: hs(540),
@@ -615,7 +627,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: fs(13),
     ...TYPOGRAPHY.medium,
-    color: '#2D3748',
+    color: Colors.gray_2D3748,
     marginTop: hs(14),
     marginBottom: hs(6),
   },
@@ -623,7 +635,7 @@ const styles = StyleSheet.create({
     marginTop: hs(2),
   },
   textInput: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: fs(8),
@@ -631,13 +643,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(12),
     fontSize: fs(14),
     ...TYPOGRAPHY.regular,
-    color: '#1A202C',
+    color: Colors.gray_1A202C,
   },
   phoneInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     height: hs(45),
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.white,
     borderRadius: fs(8),
     borderWidth: 1,
     borderColor: Colors.border,
@@ -657,20 +669,20 @@ const styles = StyleSheet.create({
   dialCodeText: {
     fontSize: fs(13),
     ...TYPOGRAPHY.semiBold,
-    color: '#1E293B',
+    color: Colors.primaryFontColor,
   },
   phoneInput: {
     flex: 1,
     paddingHorizontal: ws(12),
     fontSize: fs(14),
-    color: '#1E293B',
+    color: Colors.primaryFontColor,
   },
   dateSelectorTile: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     height: hs(45),
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.white,
     borderRadius: fs(8),
     borderWidth: 1,
     borderColor: Colors.border,
@@ -678,10 +690,10 @@ const styles = StyleSheet.create({
   },
   dateSelectorText: {
     fontSize: fs(14),
-    color: '#1E293B',
+    color: Colors.primaryFontColor,
   },
   dateSelectorPlaceholder: {
-    color: '#94A3B8',
+    color: Colors.slate_94A3B8,
   },
   genderRow: {
     flexDirection: 'row',
@@ -694,7 +706,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(8),
     borderWidth: 1,
     borderColor: Colors.border,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.white,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -705,16 +717,16 @@ const styles = StyleSheet.create({
   genderChipText: {
     fontSize: fs(13),
     ...TYPOGRAPHY.medium,
-    color: '#4A5568',
+    color: Colors.gray_4A5568,
   },
   genderChipTextActive: {
-    color: '#FFFFFF',
+    color: Colors.white,
     ...TYPOGRAPHY.bold,
   },
   errorText: {
     fontSize: fs(12),
     ...TYPOGRAPHY.regular,
-    color: '#E53E3E',
+    color: Colors.red_E53E3E,
     marginTop: hs(8),
   },
   modalActions: {
@@ -739,7 +751,7 @@ const styles = StyleSheet.create({
   submitBtnText: {
     fontSize: fs(14),
     ...TYPOGRAPHY.bold,
-    color: '#FFFFFF',
+    color: Colors.white,
   },
   cancelBtn: {
     flex: 1,
@@ -747,7 +759,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     height: hs(48),
     borderRadius: fs(12),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     alignItems: 'center',
     justifyContent: 'center',
   },

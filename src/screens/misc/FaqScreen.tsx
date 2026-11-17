@@ -1,17 +1,14 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useMemo, useState } from 'react';
+import React from 'react';
 import {
-  LayoutAnimation,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   UIManager,
-  View
+  View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AppCard,
   AppHeader,
@@ -20,74 +17,25 @@ import {
   LoadingIndicator,
   SearchBox,
 } from '../../components';
-import { Colors, Typography } from '../../constants';
-import type { RootStackParamList } from '../../navigation/types';
-import { useGetFaqQuery } from '../../redux/apis/blogApi';
+import { Colors } from '../../constants';
 import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
+import { useFaq } from './useFaq';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-interface FaqItem {
-  id: string;
-  question: string;
-  answer: string;
-}
-
-type Props = NativeStackScreenProps<RootStackParamList, 'Faq'>;
-
-export const FaqScreen = ({ navigation }: Props) => {
-  const insets = useSafeAreaInsets();
-  const { data: faqData, isLoading, refetch } = useGetFaqQuery();
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Parse HTML body from API into Q&A items
-  const parsedFaqs: FaqItem[] = useMemo(() => {
-    const rawBody: string =
-      faqData?.data?.body || faqData?.body || '';
-
-    if (!rawBody) return [];
-
-    const items: FaqItem[] = [];
-    const h3Matches = rawBody.matchAll(/<h3>(.*?)<\/h3>[\s\S]*?<p>([\s\S]*?)<\/p>/gi);
-
-    let idx = 1;
-    for (const match of h3Matches) {
-      const q = match[1].replace(/<[^>]*>?/gm, '').trim();
-      const a = match[2]
-        .replace(/<[^>]*>?/gm, '')
-        .replace(/&nbsp;/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-      if (q && a) {
-        items.push({
-          id: `api-faq-${idx++}`,
-          question: q,
-          answer: a,
-        });
-      }
-    }
-
-    return items;
-  }, [faqData]);
-
-  // Filter by search query
-  const filteredFaqs = useMemo(() => {
-    if (!searchQuery.trim()) return parsedFaqs;
-    const query = searchQuery.toLowerCase().trim();
-    return parsedFaqs.filter(
-      (item) =>
-        item.question.toLowerCase().includes(query) ||
-        item.answer.toLowerCase().includes(query)
-    );
-  }, [parsedFaqs, searchQuery]);
-
-  const toggleAccordion = (id: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpandedId((prev) => (prev === id ? null : id));
-  };
+export const FaqScreen: React.FC = () => {
+  const {
+    navigation,
+    insets,
+    isLoading,
+    searchQuery,
+    setSearchQuery,
+    filteredFaqs,
+    expandedId,
+    toggleAccordion,
+  } = useFaq();
 
   return (
     <View style={styles.container}>
@@ -100,80 +48,104 @@ export const FaqScreen = ({ navigation }: Props) => {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header Hero Banner */}
+        {/* Hero Support Banner (matching navy -> teal theme gradient) */}
         <View style={styles.heroCard}>
           <GradientFill id="faqHeroGrad" colors={Colors.headerGradient} />
-          <View style={styles.heroIconCircle}>
-            <MaterialIcons name="help-outline" size={32} color={Colors.white} />
+          <View style={styles.heroRow}>
+            <View style={styles.heroTextCol}>
+              <Text style={styles.heroTitle}>How Can We Help?</Text>
+              <Text style={styles.heroSubtitle}>
+                Find quick answers to common questions about appointments, consultations, and vitals tracking.
+              </Text>
+            </View>
+            <View style={styles.heroIconCircle}>
+              <MaterialIcons name="help-outline" size={fs(32)} color={Colors.white} />
+            </View>
           </View>
-          <Text style={styles.heroTitle}>How can we help you?</Text>
-          <Text style={styles.heroSubtitle}>
-            Find quick answers to common questions about elderly care, appointments, vitals, and billing.
-          </Text>
+        </View>
 
-          {/* Search Box */}
+        {/* Search Bar */}
+        <View style={styles.searchWrapper}>
           <SearchBox
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Search questions or keywords..."
-            containerStyle={styles.searchBar}
+            placeholder="Search questions or topics..."
           />
         </View>
 
-        {/* Section title */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>
-            {searchQuery ? `Search Results (${filteredFaqs.length})` : 'Popular Questions'}
-          </Text>
-        </View>
-
+        {/* FAQ List */}
         {isLoading ? (
           <LoadingIndicator />
         ) : filteredFaqs.length === 0 ? (
-          <EmptyState message={`No questions found matching "${searchQuery}"`} />
+          <EmptyState
+            message={
+              searchQuery
+                ? `No FAQs found matching "${searchQuery}"`
+                : 'No FAQs available right now.'
+            }
+          />
         ) : (
-          <View style={styles.faqList}>
-            {filteredFaqs.map((faq) => {
-              const isExpanded = expandedId === faq.id;
-              return (
-                <AppCard key={faq.id} style={[styles.faqCard, isExpanded && styles.faqCardExpanded]}>
-                  <TouchableOpacity
-                    style={styles.faqHeader}
-                    activeOpacity={0.8}
-                    onPress={() => toggleAccordion(faq.id)}
-                  >
-                    <View style={styles.questionIconCircle}>
+          filteredFaqs.map((faq) => {
+            const isExpanded = expandedId === faq.id;
+            return (
+              <AppCard key={faq.id} style={styles.card}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => toggleAccordion(faq.id)}
+                  style={styles.cardTouchable}
+                >
+                  <View style={styles.questionRow}>
+                    <View style={styles.qIconCircle}>
+                      <MaterialIcons name="question-answer" size={fs(14)} color={Colors.primaryColor} />
+                    </View>
+                    <Text style={styles.questionText}>{faq.question}</Text>
+                    <View
+                      style={[
+                        styles.chevronCircle,
+                        isExpanded && { backgroundColor: Colors.aquaSoft },
+                      ]}
+                    >
                       <MaterialIcons
-                        name="help"
-                        size={16}
+                        name={isExpanded ? 'expand-less' : 'expand-more'}
+                        size={fs(20)}
                         color={isExpanded ? Colors.primaryColor : Colors.secondaryFontColor}
                       />
                     </View>
-                    <Text
-                      style={[
-                        styles.questionText,
-                        isExpanded && styles.questionTextExpanded,
-                      ]}
-                    >
-                      {faq.question}
-                    </Text>
-                    <MaterialIcons
-                      name={isExpanded ? 'expand-less' : 'expand-more'}
-                      size={24}
-                      color={isExpanded ? Colors.primaryColor : Colors.secondaryFontColor}
-                    />
-                  </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
 
-                  {isExpanded && (
-                    <View style={styles.answerContainer}>
-                      <Text style={styles.answerText}>{faq.answer}</Text>
-                    </View>
-                  )}
-                </AppCard>
-              );
-            })}
-          </View>
+                {isExpanded && (
+                  <View style={styles.answerContainer}>
+                    <Text style={styles.answerText}>{faq.answer}</Text>
+                  </View>
+                )}
+              </AppCard>
+            );
+          })
         )}
+
+        {/* Still Have Questions Box */}
+        <View style={styles.contactCard}>
+          <View style={styles.contactRow}>
+            <View style={styles.contactIconCircle}>
+              <MaterialIcons name="support-agent" size={fs(24)} color={Colors.primaryColor} />
+            </View>
+            <View style={styles.contactTextCol}>
+              <Text style={styles.contactTitle}>Still have questions?</Text>
+              <Text style={styles.contactDesc}>
+                Can't find the answer you're looking for? Reach out to our 24/7 care team.
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.contactBtn}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('ContactUs')}
+          >
+            <Text style={styles.contactBtnText}>Contact Support</Text>
+            <MaterialIcons name="arrow-forward" size={fs(14)} color={Colors.white} />
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
@@ -188,181 +160,160 @@ const styles = StyleSheet.create({
     padding: ws(16),
   },
   heroCard: {
-    backgroundColor: Colors.navy,
+    borderRadius: fs(18),
     overflow: 'hidden',
-    borderRadius: fs(20),
-    padding: ws(20),
-    alignItems: 'center',
-    marginBottom: hs(20),
-    shadowColor: Colors.navy,
-    shadowOffset: { width: 0, height: hs(6) },
-    shadowOpacity: 0.25,
-    shadowRadius: fs(10),
-    elevation: 6,
+    padding: ws(18),
+    marginBottom: hs(14),
+    position: 'relative',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  heroIconCircle: {
-    width: ws(56),
-    height: ws(56),
-    aspectRatio: 1,
-    borderRadius: 999,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
+  heroRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: hs(10),
+    justifyContent: 'space-between',
+  },
+  heroTextCol: {
+    flex: 1,
+    paddingRight: ws(12),
   },
   heroTitle: {
     fontSize: fs(18),
     ...TYPOGRAPHY.bold,
     color: Colors.white,
-    textAlign: 'center',
+    marginBottom: hs(4),
   },
   heroSubtitle: {
     fontSize: fs(12),
     ...TYPOGRAPHY.regular,
-    color: 'rgba(255, 255, 255, 0.85)',
-    textAlign: 'center',
-    marginTop: hs(4),
-    marginBottom: hs(14),
-    lineHeight: hs(18),
+    color: Colors.blue_D6E8F6,
+    lineHeight: fs(17),
   },
-  searchBar: {
-    flexDirection: 'row',
+  heroIconCircle: {
+    width: ws(52),
+    height: ws(52),
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.white,
+  },
+  searchWrapper: {
+    marginBottom: hs(14),
+  },
+  card: {
+    marginBottom: hs(10),
     borderRadius: fs(14),
-    paddingHorizontal: ws(12),
-    minHeight: hs(48),
-    height: hs(48),
-    width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: hs(2) },
-    shadowOpacity: 0.08,
-    shadowRadius: fs(4),
-    elevation: 2,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: ws(8),
-    fontSize: fs(Typography.fontSize.sm),
-    ...TYPOGRAPHY.medium,
-    color: Colors.primaryFontColor,
-    paddingVertical: Platform.OS === 'ios' ? hs(10) : hs(6),
-    textAlignVertical: 'center',
-  },
-  sectionHeaderRow: {
-    marginBottom: hs(12),
-  },
-  sectionTitle: {
-    fontSize: fs(Typography.fontSize.md),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
-  },
-  faqList: {
-    gap: hs(10),
-    marginBottom: hs(20),
-  },
-  faqCard: {
-    padding: ws(14),
-    borderRadius: fs(16),
+    padding: 0,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.white,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  faqCardExpanded: {
-    borderColor: Colors.primaryColor,
-    backgroundColor: '#FFFDFB',
+  cardTouchable: {
+    padding: ws(14),
   },
-  faqHeader: {
+  questionRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: ws(10),
   },
-  questionIconCircle: {
+  qIconCircle: {
     width: ws(28),
     height: ws(28),
-    aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
     backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: ws(10),
   },
   questionText: {
     flex: 1,
     fontSize: fs(13),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    lineHeight: hs(18),
-    marginRight: ws(6),
+    lineHeight: fs(18),
   },
-  questionTextExpanded: {
-    color: Colors.primaryColor,
+  chevronCircle: {
+    width: ws(28),
+    height: ws(28),
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: Colors.slate_F1F5F9,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   answerContainer: {
-    marginTop: hs(12),
-    paddingTop: hs(12),
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: Colors.border,
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(12),
+    backgroundColor: Colors.bgColor,
   },
   answerText: {
     fontSize: fs(12),
     ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    lineHeight: hs(20),
+    lineHeight: fs(18),
   },
-  supportCard: {
-    backgroundColor: Colors.white,
-    borderRadius: fs(18),
+  contactCard: {
+    backgroundColor: Colors.aquaSoft,
+    borderRadius: fs(16),
     padding: ws(16),
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: 'center',
     marginTop: hs(8),
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: hs(2) },
-    shadowOpacity: 0.04,
-    shadowRadius: fs(6),
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.aqua,
   },
-  supportIconCircle: {
-    width: ws(52),
-    height: ws(52),
-    aspectRatio: 1,
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: hs(12),
+  },
+  contactIconCircle: {
+    width: ws(40),
+    height: ws(40),
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: Colors.aquaSoft,
+    backgroundColor: Colors.white,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: hs(10),
+    marginRight: ws(12),
   },
-  supportMeta: {
-    alignItems: 'center',
-    marginBottom: hs(14),
+  contactTextCol: {
+    flex: 1,
   },
-  supportTitle: {
-    fontSize: fs(Typography.fontSize.sm),
+  contactTitle: {
+    fontSize: fs(13),
     ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
+    color: Colors.primaryColor,
+    marginBottom: hs(2),
   },
-  supportSubtitle: {
+  contactDesc: {
     fontSize: fs(11),
     ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    textAlign: 'center',
-    marginTop: hs(4),
-    lineHeight: hs(16),
-    paddingHorizontal: ws(10),
+    lineHeight: fs(16),
   },
-  supportBtn: {
+  contactBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: Colors.primaryColor,
-    paddingHorizontal: ws(24),
     paddingVertical: hs(10),
-    borderRadius: fs(12),
+    borderRadius: fs(10),
+    gap: ws(6),
   },
-  supportBtnText: {
+  contactBtnText: {
+    color: Colors.white,
     fontSize: fs(12),
     ...TYPOGRAPHY.bold,
-    color: Colors.white,
   },
 });

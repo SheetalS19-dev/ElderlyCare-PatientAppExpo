@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(12),
     borderWidth: 1.5,
     borderColor: Colors.aquaBorder,
-    backgroundColor: '#F3F8FD',
+    backgroundColor: Colors.blue_F3F8FD,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -141,11 +141,11 @@ const styles = StyleSheet.create({
   },
   otpBoxFilled: {
     borderColor: Colors.primaryColor,
-    backgroundColor: '#EDF8FB',
+    backgroundColor: Colors.teal_EDF8FB,
   },
   otpBoxError: {
     borderColor: Colors.redColor,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: Colors.red_FFF5F5,
   },
   otpDigitText: {
     fontSize: fs(20),

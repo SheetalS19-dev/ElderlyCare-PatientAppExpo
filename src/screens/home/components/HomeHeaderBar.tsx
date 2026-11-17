@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   locationPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     paddingHorizontal: ws(8),
     paddingVertical: hs(5),
     borderRadius: fs(14),
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     width: ws(38),
     height: ws(38),
     borderRadius: 999,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -148,6 +148,6 @@ const styles = StyleSheet.create({
     width: ws(8),
     height: ws(8),
     borderRadius: 999,
-    backgroundColor: '#EF4444',
+    backgroundColor: Colors.red_EF4444,
   },
 });

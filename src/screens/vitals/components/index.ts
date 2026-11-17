@@ -5,3 +5,4 @@ export * from './VitalHistoryRow';
 export * from './VitalLatestSummaryCard';
 export * from './VitalMemberSelector';
 export * from './VitalTrendChart';
+export * from './VitalDateFilterModal';

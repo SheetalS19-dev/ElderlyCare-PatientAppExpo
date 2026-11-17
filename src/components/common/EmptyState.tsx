@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   message: {
     ...TYPOGRAPHY.bold,
     fontSize: fs(15),
-    color: Colors.primaryFontColor || '#000000',
+    color: Colors.primaryFontColor || Colors.black,
     textAlign: 'center',
     lineHeight: fs(18),
   },
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     marginTop: hs(6),
     ...TYPOGRAPHY.regular,
     fontSize: fs(12),
-    color: Colors.secondaryFontColor || '#787878',
+    color: Colors.secondaryFontColor || Colors.gray_787878,
     textAlign: 'center',
     maxWidth: ws(280),
     lineHeight: fs(18),

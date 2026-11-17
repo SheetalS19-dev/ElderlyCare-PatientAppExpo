@@ -1,9 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useMemo } from 'react';
+import React from 'react';
 import { FlatList, Image, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AppCard,
   AppHeader,
@@ -13,32 +11,19 @@ import {
   StarRating,
 } from '../../components';
 import { ApiEndpoints, Colors } from '../../constants';
-import type { RootStackParamList } from '../../navigation/types';
-import { useGetTestimonialsQuery } from '../../redux/apis/testimonialApi';
-import type { TestimonialModel } from '../../types';
 import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
+import { useTestimonial } from './useTestimonial';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Testimonial'>;
-
-export const TestimonialScreen = ({ navigation }: Props) => {
-  const insets = useSafeAreaInsets();
-  const { data, isLoading, isError, refetch } = useGetTestimonialsQuery();
-
-  const testimonials: TestimonialModel[] = useMemo(() => {
-    if (Array.isArray(data)) return data;
-    if (Array.isArray(data?.data)) return data.data;
-    return [];
-  }, [data]);
-
-  const avgRating = useMemo(() => {
-    if (testimonials.length === 0) return 0;
-    const validRatings = testimonials
-      .map((t) => Number((t as any).ratting ?? (t as any).rating ?? 0))
-      .filter((r) => !isNaN(r) && r > 0);
-    if (validRatings.length === 0) return 0;
-    const sum = validRatings.reduce((acc, r) => acc + r, 0);
-    return sum / validRatings.length;
-  }, [testimonials]);
+export const TestimonialScreen: React.FC = () => {
+  const {
+    navigation,
+    insets,
+    testimonials,
+    avgRating,
+    isLoading,
+    isError,
+    refetch,
+  } = useTestimonial();
 
   return (
     <View style={styles.container}>
@@ -98,28 +83,15 @@ export const TestimonialScreen = ({ navigation }: Props) => {
                 )}
 
                 <View style={styles.userMeta}>
-                  <View style={styles.userNameRow}>
-                    <Text style={styles.title}>{item.title}</Text>
-                    <View style={styles.verifiedTag}>
-                      <MaterialIcons name="verified" size={14} color={Colors.primaryColor} />
-                    </View>
-                  </View>
-
-                  {!!item.sub_title && <Text style={styles.subtitle}>{item.sub_title}</Text>}
-
-                  <View style={styles.ratingRow}>
-                    {Number(item.ratting) > 0 && (
-                      <StarRating rating={Number(item.ratting)} starSize={fs(13)} />
-                    )}
-                    {!!item.created_at && <Text style={styles.date}>{item.created_at}</Text>}
-                  </View>
+                  <Text style={styles.userName}>{item.title || (item as any).name || 'Patient Review'}</Text>
+                  <StarRating
+                    rating={Number((item as any).ratting ?? (item as any).rating ?? 5)}
+                    starSize={fs(13)}
+                  />
                 </View>
               </View>
 
-              {/* Quote Bubble */}
-              <View style={styles.quoteBubble}>
-                <Text style={styles.desc}>"{item.desc}"</Text>
-              </View>
+              <Text style={styles.description}>{item.desc || (item as any).description || ''}</Text>
             </AppCard>
           )}
         />
@@ -129,15 +101,25 @@ export const TestimonialScreen = ({ navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgColor },
-  listContainer: { padding: ws(16) },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.bgColor,
+  },
+  listContainer: {
+    padding: ws(16),
+  },
   heroCard: {
-    padding: ws(18),
-    borderRadius: fs(18),
     marginBottom: hs(16),
+    padding: ws(16),
     backgroundColor: Colors.white,
+    borderRadius: fs(16),
     borderWidth: 1,
     borderColor: Colors.border,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   heroRow: {
     flexDirection: 'row',
@@ -145,57 +127,60 @@ const styles = StyleSheet.create({
   },
   heroRatingBox: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingRight: ws(16),
   },
   heroRatingScore: {
     fontSize: fs(32),
     ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
-    lineHeight: fs(36),
+    color: Colors.primaryColor,
+    marginBottom: hs(2),
   },
   heroRatingSub: {
-    marginTop: hs(4),
     fontSize: fs(10),
     ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
+    marginTop: hs(4),
   },
   heroDivider: {
-    width: ws(1),
-    height: hs(60),
-    backgroundColor: '#F1F5F9',
+    width: 1,
+    height: '80%',
+    backgroundColor: Colors.border,
     marginRight: ws(16),
   },
   heroTextCol: {
     flex: 1,
+    justifyContent: 'center',
   },
   quoteBadge: {
-    width: ws(32),
-    height: hs(32),
-    borderRadius: fs(16),
+    width: ws(28),
+    height: ws(28),
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: hs(4),
   },
   heroTitle: {
-    fontSize: fs(16),
+    fontSize: fs(13),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
+    marginBottom: hs(2),
   },
   heroDesc: {
-    marginTop: hs(2),
-    fontSize: fs(12),
+    fontSize: fs(11),
     ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    lineHeight: fs(16),
+    lineHeight: fs(15),
   },
   card: {
-    backgroundColor: Colors.white,
-    borderRadius: fs(16),
-    padding: ws(16),
     marginBottom: hs(12),
+    padding: ws(16),
+    borderRadius: fs(16),
     borderWidth: 1,
     borderColor: Colors.border,
+    backgroundColor: Colors.white,
   },
   headerRow: {
     flexDirection: 'row',
@@ -203,71 +188,36 @@ const styles = StyleSheet.create({
     marginBottom: hs(12),
   },
   avatar: {
-    width: ws(50),
-    height: ws(50),
-    aspectRatio: 1,
+    width: ws(44),
+    height: ws(44),
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#F1F5F9',
+    marginRight: ws(12),
+    backgroundColor: Colors.slate_F1F5F9,
   },
   avatarPlaceholder: {
-    width: ws(50),
-    height: ws(50),
-    aspectRatio: 1,
+    width: ws(44),
+    height: ws(44),
     borderRadius: 999,
     overflow: 'hidden',
     backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.aqua,
+    marginRight: ws(12),
   },
   userMeta: {
     flex: 1,
-    marginLeft: ws(12),
   },
-  userNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ws(4),
-  },
-  title: {
+  userName: {
     fontSize: fs(14),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
+    marginBottom: hs(4),
   },
-  verifiedTag: {
-    marginTop: hs(1),
-  },
-  subtitle: {
-    fontSize: fs(11),
-    ...TYPOGRAPHY.medium,
-    color: Colors.primaryColor,
-    marginTop: hs(1),
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: hs(4),
-    gap: ws(8),
-  },
-  date: {
-    fontSize: fs(10),
+  description: {
+    fontSize: fs(13),
     ...TYPOGRAPHY.regular,
-    color: '#94A3B8',
-  },
-  quoteBubble: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: fs(12),
-    padding: ws(12),
-    borderLeftWidth: ws(3),
-    borderLeftColor: Colors.primaryColor,
-  },
-  desc: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.regular,
-    color: Colors.primaryFontColor,
-    lineHeight: fs(20),
-    fontStyle: 'italic',
+    color: Colors.secondaryFontColor,
+    lineHeight: fs(19),
   },
 });

@@ -18,20 +18,20 @@ export const AppointmentStatusCard: React.FC<Props> = ({ appointment }) => {
   const isCompleted = statusStr === 'completed' || statusStr === '3';
 
   const statusColor = isCompleted
-    ? '#10B981'
+    ? Colors.green_10B981
     : isApproved
-    ? '#3B82F6'
+    ? Colors.blue_3B82F6
     : isCancelled
-    ? '#EF4444'
-    : '#F59E0B';
+    ? Colors.red_EF4444
+    : Colors.amber_F59E0B;
 
   const statusBg = isCompleted
-    ? '#ECFDF5'
+    ? Colors.green_ECFDF5
     : isApproved
     ? Colors.aquaSoft
     : isCancelled
-    ? '#FEF2F2'
-    : '#FFFBEB';
+    ? Colors.red_FEF2F2
+    : Colors.yellow_FFFBEB;
 
   const statusLabel = isCompleted
     ? 'Completed'
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     marginVertical: hs(12),
   },
   dateTimeRow: {

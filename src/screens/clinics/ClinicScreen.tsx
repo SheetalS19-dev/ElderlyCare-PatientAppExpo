@@ -1,11 +1,9 @@
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useMemo, useState } from 'react';
+import React from 'react';
 import {
   Image,
-  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,108 +13,26 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppHeader, ErrorState, SkeletonDetail } from '../../components';
 import { Colors } from '../../constants';
-import type { RootStackParamList } from '../../navigation/types';
-import { useGetClinicByIdQuery } from '../../redux/apis/clinicApi';
-import { useGetDoctorsByClinicIdQuery } from '../../redux/apis/doctorApi';
-import type { ClinicModel, DoctorModel } from '../../types';
 import { formatDoctorName, fs, getImageUrl, hs, TYPOGRAPHY, ws } from '../../utils';
+import { useClinic } from './useClinic';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Clinic'>;
-
-export const ClinicScreen = ({ navigation, route }: Props) => {
-  const { clinicId } = route.params ?? {};
+export const ClinicScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const [descReadMore, setDescReadMore] = useState(false);
-  const [hoursExpanded, setHoursExpanded] = useState(true);
-
   const {
-    data: clinicData,
-    isLoading: isClinicLoading,
-    isError: isClinicError,
-    refetch: refetchClinic,
-  } = useGetClinicByIdQuery(clinicId, { skip: !clinicId });
-
-  const clinic: ClinicModel | null = useMemo(() => {
-    if (!clinicData) return null;
-    if (Array.isArray(clinicData)) return clinicData[0] ?? null;
-    if (typeof clinicData === 'object' && !('data' in clinicData)) return clinicData;
-    const inner = clinicData?.data;
-    if (Array.isArray(inner)) return inner[0] ?? null;
-    return inner ?? null;
-  }, [clinicData]);
-
-  const numericClinicId = useMemo(() => {
-    if (clinic?.id != null) return String(clinic.id);
-    return clinicId && /^\d+$/.test(String(clinicId).trim()) ? String(clinicId).trim() : '';
-  }, [clinic?.id, clinicId]);
-
-  const { data: doctorsData } = useGetDoctorsByClinicIdQuery(numericClinicId, {
-    skip: !numericClinicId,
-  });
-
-  const doctors: DoctorModel[] = useMemo(() => {
-    if (Array.isArray(doctorsData)) return doctorsData;
-    if (Array.isArray(doctorsData?.data)) return doctorsData.data;
-    return [];
-  }, [doctorsData]);
-
-  const openingHours = useMemo(() => {
-    if (!clinic?.opening_hours) return [];
-    try {
-      const parsed =
-        typeof clinic.opening_hours === 'string'
-          ? JSON.parse(clinic.opening_hours)
-          : clinic.opening_hours;
-
-      if (!parsed || typeof parsed !== 'object') return [];
-
-      return Object.entries(parsed).map(([rawDay, rawTime]) => {
-        // Remove accidental extra spaces (leading, trailing, multiple, non-breaking, or around hyphens)
-        const cleanedTime = String(rawTime ?? '')
-          .replace(/[\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF\t\r\n]/g, ' ')
-          .trim()
-          .replace(/\s+/g, ' ')
-          .replace(/\s*[-–—]\s*/g, ' - ')
-          .replace(/\s+to\s+/gi, ' - ')
-          .replace(/(\d+)\s+(am|pm)/gi, '$1$2')
-          .trim();
-
-        const cleanedDay = String(rawDay ?? '')
-          .replace(/[\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF\t\r\n]/g, ' ')
-          .trim();
-
-        const isClosed = !cleanedTime || /close|off|na|none/i.test(cleanedTime);
-
-        return {
-          day: cleanedDay ? cleanedDay.charAt(0).toUpperCase() + cleanedDay.slice(1) : '',
-          time: isClosed ? 'Closed' : cleanedTime,
-          isClosed,
-        };
-      });
-    } catch {
-      return [];
-    }
-  }, [clinic?.opening_hours]);
-
-  const handleOpenUrl = async (url: string) => {
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-      }
-    } catch (e) {
-      console.warn('Cannot open URL:', url, e);
-    }
-  };
-
-  const handleOpenDirections = () => {
-    if (clinic?.latitude && clinic?.longitude) {
-      handleOpenUrl(`http://maps.google.com/maps?daddr=${clinic.latitude},${clinic.longitude}`);
-    } else if (clinic?.address) {
-      const query = encodeURIComponent(`${clinic.title || ''}, ${clinic.address}`);
-      handleOpenUrl(`https://www.google.com/maps/search/?api=1&query=${query}`);
-    }
-  };
+    navigation,
+    clinic,
+    doctors,
+    openingHours,
+    isClinicLoading,
+    isClinicError,
+    refetchClinic,
+    descReadMore,
+    setDescReadMore,
+    hoursExpanded,
+    setHoursExpanded,
+    handleOpenUrl,
+    handleOpenDirections,
+  } = useClinic();
 
   if (isClinicLoading) {
     return (
@@ -231,8 +147,8 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
                   }
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.iconCircle, { backgroundColor: '#ECFDF5' }]}>
-                    <Ionicons name="logo-whatsapp" size={fs(18)} color="#10B981" />
+                  <View style={[styles.iconCircle, { backgroundColor: Colors.green_ECFDF5 }]}>
+                    <Ionicons name="logo-whatsapp" size={fs(18)} color={Colors.green_10B981} />
                   </View>
                   <Text style={styles.actionLabel}>WhatsApp</Text>
                   <Text style={styles.actionSubtext} numberOfLines={1}>
@@ -271,8 +187,8 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
                   onPress={handleOpenDirections}
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.iconCircle, { backgroundColor: '#F3E8FF' }]}>
-                    <Ionicons name="navigate" size={fs(18)} color="#9333EA" />
+                  <View style={[styles.iconCircle, { backgroundColor: Colors.purple_F3E8FF }]}>
+                    <Ionicons name="navigate" size={fs(18)} color={Colors.purple_9333EA} />
                   </View>
                   <Text style={styles.actionLabel}>Directions</Text>
                   <Text style={styles.actionSubtext} numberOfLines={1}>
@@ -341,7 +257,7 @@ export const ClinicScreen = ({ navigation, route }: Props) => {
                     <Text style={styles.dayText}>{item.day}</Text>
                     {item.isClosed ? (
                       <View style={styles.closedTag}>
-                        <MaterialIcons name="block" size={fs(12)} color="#DC2626" />
+                        <MaterialIcons name="block" size={fs(12)} color={Colors.redColor} />
                         <Text style={styles.closedText}>Closed</Text>
                       </View>
                     ) : (
@@ -448,30 +364,31 @@ const styles = StyleSheet.create({
   },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start' },
   clinicAvatar: {
-    width: ws(68),
-    height: ws(68),
-    borderRadius: fs(12),
-    backgroundColor: '#F1F5F9',
+    width: ws(64),
+    height: ws(64),
+    borderRadius: fs(14),
+    marginRight: ws(12),
   },
   avatarPlaceholder: {
-    width: ws(68),
-    height: ws(68),
-    borderRadius: fs(12),
+    width: ws(64),
+    height: ws(64),
+    borderRadius: fs(14),
     backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: ws(12),
   },
-  headerInfo: { flex: 1, marginLeft: ws(12) },
+  headerInfo: { flex: 1 },
   cityPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(4),
     backgroundColor: Colors.aquaSoft,
     paddingHorizontal: ws(8),
     paddingVertical: hs(2),
     borderRadius: fs(6),
     alignSelf: 'flex-start',
     marginBottom: hs(4),
+    gap: ws(4),
   },
   cityPillText: {
     fontSize: fs(11),
@@ -479,108 +396,97 @@ const styles = StyleSheet.create({
     color: Colors.primaryColor,
   },
   clinicTitle: {
-    fontSize: fs(15),
+    fontSize: fs(16),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
     marginBottom: hs(4),
   },
-  addressRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  addressRow: { flexDirection: 'row', alignItems: 'flex-start', gap: ws(4) },
   clinicAddress: {
-    flex: 1,
-    fontSize: fs(11.5),
+    fontSize: fs(12),
     ...TYPOGRAPHY.regular,
-    color: '#64748B',
-    lineHeight: fs(16),
-    marginLeft: ws(3),
+    color: Colors.secondaryFontColor,
+    flex: 1,
+    lineHeight: fs(17),
   },
-
   sectionHeaderTitle: {
-    fontSize: fs(13),
+    fontSize: fs(14),
     ...TYPOGRAPHY.bold,
-    color: '#1E293B',
-    marginBottom: hs(10),
+    color: Colors.primaryFontColor,
+    marginBottom: hs(12),
+  },
+  sectionHeaderTitleNoMargin: {
+    fontSize: fs(14),
+    ...TYPOGRAPHY.bold,
+    color: Colors.primaryFontColor,
   },
   actionGridRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'flex-start',
-    gap: ws(8),
+    flexWrap: 'wrap',
+    gap: ws(10),
   },
   actionGridItem: {
     flex: 1,
+    minWidth: ws(130),
+    backgroundColor: Colors.slate_F8FAFC,
+    borderRadius: fs(12),
+    padding: ws(12),
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: fs(10),
-    paddingVertical: hs(8),
-    paddingHorizontal: ws(2),
     borderWidth: 1,
     borderColor: Colors.border,
   },
   iconCircle: {
-    width: ws(36),
-    height: ws(36),
-    borderRadius: 999,
+    width: ws(40),
+    height: ws(40),
+    borderRadius: ws(20),
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: hs(4),
+    marginBottom: hs(6),
   },
   actionLabel: {
-    fontSize: fs(11),
+    fontSize: fs(12),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
   },
   actionSubtext: {
-    fontSize: fs(9),
+    fontSize: fs(11),
     ...TYPOGRAPHY.regular,
-    color: '#64748B',
+    color: Colors.secondaryFontColor,
     marginTop: hs(2),
-    textAlign: 'center',
   },
-
-  // About Center
   aboutHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: hs(6),
-  },
-  accordionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ws(6),
-  },
-  sectionHeaderTitleNoMargin: {
-    fontSize: fs(13),
-    ...TYPOGRAPHY.bold,
-    color: '#1E293B',
+    marginBottom: hs(8),
   },
   descriptionText: {
-    fontSize: fs(12),
+    fontSize: fs(13),
     ...TYPOGRAPHY.regular,
-    color: '#475569',
-    lineHeight: fs(18),
+    color: Colors.secondaryFontColor,
+    lineHeight: fs(19),
   },
   readMoreBtn: {
-    marginTop: hs(6),
     alignSelf: 'flex-start',
+    marginTop: hs(6),
   },
   readMoreText: {
     fontSize: fs(12),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
-
-  // Operating Hours
   accordionHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  accordionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ws(8),
   },
   hoursContainer: {
-    marginTop: hs(10),
+    marginTop: hs(12),
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: hs(8),
+    borderTopColor: Colors.border,
+    paddingTop: hs(10),
   },
   hourRow: {
     flexDirection: 'row',
@@ -591,59 +497,73 @@ const styles = StyleSheet.create({
   dayText: {
     fontSize: fs(13),
     ...TYPOGRAPHY.medium,
-    color: '#475569',
-    flex: 1,
-    textAlign: 'left',
+    color: Colors.primaryFontColor,
   },
   timeText: {
     fontSize: fs(13),
     ...TYPOGRAPHY.regular,
-    color: '#1E293B',
-    flex: 1,
-    textAlign: 'right',
+    color: Colors.secondaryFontColor,
   },
   closedTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(3),
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: ws(6),
-    paddingVertical: hs(2),
-    borderRadius: fs(6),
+    gap: ws(4),
   },
   closedText: {
-    fontSize: fs(10.5),
+    fontSize: fs(12),
     ...TYPOGRAPHY.bold,
-    color: '#DC2626',
+    color: Colors.redColor,
   },
-
-  // Specialist Doctors
   sectionHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: hs(10),
+    alignItems: 'center',
+    marginBottom: hs(12),
   },
   specialistTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(6),
+    gap: ws(8),
   },
   countBadge: {
     backgroundColor: Colors.aquaSoft,
     paddingHorizontal: ws(8),
     paddingVertical: hs(2),
-    borderRadius: fs(10),
+    borderRadius: fs(6),
   },
   countBadgeText: {
     fontSize: fs(11),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
+  emptyDoctorsBox: {
+    alignItems: 'center',
+    paddingVertical: hs(20),
+  },
+  emptyDoctorsTitle: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.medium,
+    color: Colors.secondaryFontColor,
+    marginBottom: hs(10),
+  },
+  browseDoctorsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primaryColor,
+    paddingHorizontal: ws(16),
+    paddingVertical: hs(8),
+    borderRadius: fs(8),
+    gap: ws(4),
+  },
+  browseDoctorsBtnText: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.bold,
+    color: Colors.white,
+  },
   doctorCardItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     borderRadius: fs(12),
     padding: ws(10),
     marginBottom: hs(8),
@@ -651,88 +571,52 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   doctorAvatar: {
-    width: ws(48),
-    height: ws(48),
-    borderRadius: 999,
-    backgroundColor: Colors.border,
-    overflow: 'hidden',
+    width: ws(44),
+    height: ws(44),
+    borderRadius: ws(22),
+    marginRight: ws(10),
   },
   docAvatarPlaceholder: {
-    width: ws(48),
-    height: ws(48),
-    borderRadius: 999,
+    width: ws(44),
+    height: ws(44),
+    borderRadius: ws(22),
     backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
-    overflow: 'hidden',
+    marginRight: ws(10),
   },
   doctorInfo: {
     flex: 1,
-    marginLeft: ws(10),
-    marginRight: ws(8),
   },
   doctorName: {
-    fontSize: fs(13),
+    fontSize: fs(13.5),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
+    marginBottom: hs(2),
   },
   doctorSpec: {
     fontSize: fs(11.5),
-    ...TYPOGRAPHY.medium,
-    color: Colors.primaryColor,
-    marginTop: hs(1),
-    lineHeight: fs(15.5),
+    ...TYPOGRAPHY.regular,
+    color: Colors.secondaryFontColor,
+    marginBottom: hs(2),
   },
   doctorExp: {
-    fontSize: fs(10.5),
-    ...TYPOGRAPHY.regular,
-    color: '#64748B',
-    marginTop: hs(2),
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
+    color: Colors.primaryColor,
   },
   bookDocBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(4),
     backgroundColor: Colors.primaryColor,
     paddingHorizontal: ws(10),
     paddingVertical: hs(6),
     borderRadius: fs(8),
+    gap: ws(4),
+    marginLeft: ws(8),
   },
   bookDocBtnText: {
-    fontSize: fs(11),
-    ...TYPOGRAPHY.bold,
-    color: Colors.white,
-  },
-
-  // Empty Doctors State
-  emptyDoctorsBox: {
-    paddingVertical: hs(18),
-    paddingHorizontal: ws(12),
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: fs(12),
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  emptyDoctorsTitle: {
-    fontSize: fs(12.5),
-    ...TYPOGRAPHY.medium,
-    color: '#64748B',
-    textAlign: 'center',
-    marginBottom: hs(10),
-  },
-  browseDoctorsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ws(4),
-    backgroundColor: Colors.primaryColor,
-    paddingHorizontal: ws(14),
-    paddingVertical: hs(8),
-    borderRadius: fs(8),
-  },
-  browseDoctorsBtnText: {
-    fontSize: fs(12),
+    fontSize: fs(11.5),
     ...TYPOGRAPHY.bold,
     color: Colors.white,
   },

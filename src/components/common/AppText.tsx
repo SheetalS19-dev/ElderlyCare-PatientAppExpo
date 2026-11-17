@@ -28,7 +28,7 @@ export interface AppTextProps extends RNTextProps {
 export const AppText: React.FC<AppTextProps> = ({
   variant = 'body',
   weight,
-  color = Colors.primaryFontColor || '#1E293B',
+  color = Colors.primaryFontColor || Colors.slate_1E293B,
   align = 'left',
   style,
   children,

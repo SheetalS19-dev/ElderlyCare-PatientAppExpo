@@ -232,13 +232,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(14),
     paddingVertical: hs(10),
     marginVertical: hs(5),
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 6,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: Colors.slate_F1F5F9,
   },
   topRow: {
     flexDirection: 'row',
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#10B981',
+    backgroundColor: Colors.green_10B981,
     borderWidth: 2,
     borderColor: Colors.white,
   },
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   name: {
     ...TYPOGRAPHY.bold,
     fontSize: fs(15),
-    color: Colors.mainFontColor || '#1E293B',
+    color: Colors.primaryFontColor,
   },
   specialty: {
     ...TYPOGRAPHY.medium,
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   ratingText: {
     ...TYPOGRAPHY.regular,
     fontSize: fs(11),
-    color: Colors.secondaryFontColor || '#64748B',
+    color: Colors.slate_64748B,
     marginLeft: ws(6),
   },
   metaRow: {
@@ -316,12 +316,12 @@ const styles = StyleSheet.create({
   metaText: {
     ...TYPOGRAPHY.regular,
     fontSize: fs(11),
-    color: Colors.secondaryFontColor || '#64748B',
+    color: Colors.slate_64748B,
   },
   stopBookingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: Colors.red_FFF0F0,
     paddingHorizontal: ws(8),
     paddingVertical: hs(5),
     borderRadius: fs(6),
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     marginVertical: hs(6),
   },
   clinicRow: {
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     marginTop: hs(6),
     paddingTop: hs(6),
     borderTopWidth: 1,
-    borderTopColor: '#F8FAFC',
+    borderTopColor: Colors.slate_F8FAFC,
   },
   doneRow: {
     flexDirection: 'row',
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bookButtonDisabled: {
-    backgroundColor: Colors.disabled || '#CBD5E1',
+    backgroundColor: Colors.disabled,
   },
   bookButtonText: {
     ...TYPOGRAPHY.bold,
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
     padding: ws(10),
     marginVertical: hs(4),
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: Colors.slate_F1F5F9,
   },
   simpleAvatar: {
     width: ws(48),

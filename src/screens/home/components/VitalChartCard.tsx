@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop, Text as SvgText } from 'react-native-svg';
 import { Colors } from '../../../constants';
-import { DateTimeUtils, fs, hs, isWithinLast7Days, TYPOGRAPHY, ws } from '../../../utils';
+import { DateTimeUtils, fs, hs, isWithinLast7Days, sortVitalsDescending, TYPOGRAPHY, ws } from '../../../utils';
 
 /** Catmull-Rom -> cubic bezier so vital trends render as smooth curves. */
 const buildSmoothPath = (pts: { x: number; y: number }[]): string => {
@@ -72,24 +72,7 @@ export const VitalChartCard = ({
     else if (Array.isArray(records?.response)) list = records.response;
 
     const filtered = list.filter((item) => isWithinLast7Days(item.date || item.created_at));
-    return [...filtered].sort((a, b) => {
-      const dateA = a.date ? a.date.split('T')[0] : '';
-      const timeA = a.time ? a.time.slice(0, 5) : '00:00';
-      const dtA = dateA
-        ? new Date(`${dateA}T${timeA.length === 5 ? timeA + ':00' : timeA}`).getTime()
-        : (new Date(a.created_at || 0).getTime() || 0);
-
-      const dateB = b.date ? b.date.split('T')[0] : '';
-      const timeB = b.time ? b.time.slice(0, 5) : '00:00';
-      const dtB = dateB
-        ? new Date(`${dateB}T${timeB.length === 5 ? timeB + ':00' : timeB}`).getTime()
-        : (new Date(b.created_at || 0).getTime() || 0);
-
-      if (dtB !== dtA && !isNaN(dtB) && !isNaN(dtA)) {
-        return dtB - dtA;
-      }
-      return (Number(b.id) || 0) - (Number(a.id) || 0);
-    });
+    return sortVitalsDescending(filtered);
   }, [records]);
 
   const hasData = last7DaysRecords.length > 0;
@@ -200,7 +183,36 @@ export const VitalChartCard = ({
     }
 
     if (vitalType === 'SpO2') {
-      return { computedYLabels: ['100', '90', '80'], minY: 80, maxY: 100 };
+      let maxV = 0;
+      let minV = 999;
+      last7DaysRecords.forEach((r) => {
+        const v = Number(r.spo2 || r.value || 0);
+        if (v > maxV) maxV = v;
+        if (v > 0 && v < minV) minV = v;
+      });
+      if (maxV === 0) maxV = 100;
+      if (minV === 999) minV = 90;
+
+      let top = 100;
+      if (maxV < 85) {
+        top = Math.min(100, Math.ceil(maxV / 5) * 5 + 5);
+      } else if (maxV < 95) {
+        top = Math.min(100, Math.ceil(maxV / 5) * 5 + 5);
+      }
+
+      let bottom = Math.max(0, Math.floor(minV / 5) * 5 - 5);
+      if (minV >= 85 && bottom < 80) {
+        bottom = 80;
+      }
+
+      if (top <= bottom) top = Math.min(100, bottom + 10);
+      const step = (top - bottom) / 2;
+      const labels = [
+        String(Math.round(top)),
+        String(Math.round(top - step)),
+        String(Math.round(bottom)),
+      ];
+      return { computedYLabels: labels, minY: bottom, maxY: top };
     }
 
     return { computedYLabels: yLabels, minY: 0, maxY: 100 };
@@ -253,13 +265,13 @@ export const VitalChartCard = ({
     let defs: { color: string; get: (r: any) => number }[] = [];
     if (vitalType === 'Blood Pressure') {
       defs = [
-        { color: '#EF4444', get: (r) => Number(r.bp_systolic || 0) },
+        { color: Colors.redColor, get: (r) => Number(r.bp_systolic || 0) },
         { color: Colors.primaryColor, get: (r) => Number(r.bp_diastolic || 0) },
       ];
     } else if (vitalType === 'Sugar') {
       defs = [
-        { color: '#0284C7', get: (r) => Number(r.sugar_fasting || 0) },
-        { color: '#F97316', get: (r) => Number(r.sugar_random || 0) },
+        { color: Colors.sky_0284C7, get: (r) => Number(r.sugar_fasting || 0) },
+        { color: Colors.orange_F96335, get: (r) => Number(r.sugar_random || 0) },
       ];
     } else {
       defs = [
@@ -282,13 +294,13 @@ export const VitalChartCard = ({
   const legendItems =
     hasData && vitalType === 'Blood Pressure'
       ? [
-        { color: '#EF4444', label: 'Systolic' },
+        { color: Colors.redColor, label: 'Systolic' },
         { color: Colors.primaryColor, label: 'Diastolic' },
       ]
       : hasData && vitalType === 'Sugar'
         ? [
-          { color: '#0284C7', label: 'Fasting' },
-          { color: '#F97316', label: 'Random' },
+          { color: Colors.sky_0284C7, label: 'Fasting' },
+          { color: Colors.orange_F96335, label: 'Random' },
         ]
         : [];
 
@@ -309,7 +321,7 @@ export const VitalChartCard = ({
           <Text style={styles.vitalsCardTitle} numberOfLines={1}>{title}</Text>
         </View>
         <View style={styles.vitalsNotePill}>
-          <MaterialIcons name="info-outline" size={fs(12)} color="#E5484D" />
+          <MaterialIcons name="info-outline" size={fs(12)} color={Colors.redColor} />
           <Text style={styles.vitalsSevenDaysNote} numberOfLines={1}>
             Note: Data beyond 7 days is not shown
           </Text>
@@ -369,7 +381,7 @@ export const VitalChartCard = ({
                       y1={lineY}
                       x2={chartW - CHART_PAD_R}
                       y2={lineY}
-                      stroke={isBase ? Colors.aquaBorder : '#E6EEF7'}
+                      stroke={isBase ? Colors.aquaBorder : Colors.blue_EDF5FF}
                       strokeWidth={isBase ? 1.5 : 1}
                       strokeDasharray={isBase ? undefined : '3 4'}
                     />
@@ -418,7 +430,7 @@ export const VitalChartCard = ({
                         cy={p.y}
                         r={4.2}
                         fill={sr.color}
-                        stroke="#FFFFFF"
+                        stroke={Colors.white}
                         strokeWidth={1.5}
                       />
                     ))}
@@ -439,70 +451,124 @@ export const VitalChartCard = ({
         </View>
       </View>
 
-      {/* Responsive Full Width Scrollable Table */}
+      {/* Responsive Full Width Table */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ flexGrow: 1 }}
+        contentContainerStyle={{ flexGrow: 1, width: '100%' }}
         style={{ width: '100%' }}
       >
-        <View style={{ minWidth: headers.length === 5 ? 420 : 340, width: '100%' }}>
+        <View style={{ width: '100%' }}>
           {/* Table Header Bar */}
           <View style={styles.vitalsTableHeaderBar}>
             {headers.map((h, i) => {
               const is5Col = headers.length === 5;
-              const cellFlex = is5Col ? (i === 2 ? 1.4 : i === 3 || i === 4 ? 1.1 : 1) : (i === 1 ? 1.4 : i === 2 || i === 3 ? 1.1 : 1);
-              const cellMinW = is5Col ? (i === 2 ? 95 : i === 3 || i === 4 ? 75 : 65) : (i === 1 ? 95 : i === 2 || i === 3 ? 75 : 75);
+              let cellFlex = 1;
+              let cellMinW = is5Col ? 44 : 52;
+
+              if (is5Col) {
+                if (i === 0 || i === 1) { cellFlex = 1; cellMinW = 44; } // FASTING / RANDOM or SYSTOLIC / DIASTOLIC
+                else if (i === 2) { cellFlex = 1.3; cellMinW = 66; } // DATE
+                else if (i === 3) { cellFlex = 1.1; cellMinW = 56; } // TIME
+                else if (i === 4) { cellFlex = 1.0; cellMinW = 48; } // ACTION
+              } else {
+                if (i === 0) { cellFlex = 1.1; cellMinW = 52; } // WEIGHT / TEMP / SPO2
+                else if (i === 1) { cellFlex = 1.35; cellMinW = 72; } // DATE
+                else if (i === 2) { cellFlex = 1.15; cellMinW = 62; } // TIME
+                else if (i === 3) { cellFlex = 1.0; cellMinW = 48; } // ACTION
+              }
+
               return (
-                <Text key={`head-${i}`} style={[styles.vitalsTableHeadCell, { flex: cellFlex, minWidth: cellMinW }]} numberOfLines={1}>
+                <Text
+                  key={`head-${i}`}
+                  style={[
+                    styles.vitalsTableHeadCell,
+                    {
+                      flex: cellFlex,
+                      minWidth: cellMinW,
+                      fontSize: is5Col ? fs(9) : fs(9.8),
+                      paddingHorizontal: ws(2),
+                    },
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                >
                   {h}
                 </Text>
               );
             })}
           </View>
 
-          {/* Records List (Vertical Scrollable) */}
+          {/* Records List (Full Height, No Vertical Clipping) */}
           {hasData ? (
-            <ScrollView
-              style={{ maxHeight: 130, width: '100%' }}
-              nestedScrollEnabled={true}
-              showsVerticalScrollIndicator={true}
-            >
+            <View style={styles.vitalsTableRecordsContainer}>
               {last7DaysRecords.map((item, idx) => {
                 const is5Col = headers.length === 5;
-                const col0Flex = 1;
-                const col0MinW = is5Col ? 65 : 75;
-                const dateFlex = 1.4;
-                const dateMinW = 95;
-                const timeFlex = 1.1;
-                const timeMinW = 75;
-                const actionFlex = 1.1;
-                const actionMinW = 75;
+                const col0Flex = is5Col ? 1 : 1.1;
+                const col0MinW = is5Col ? 44 : 52;
+                const dateFlex = is5Col ? 1.3 : 1.35;
+                const dateMinW = is5Col ? 66 : 72;
+                const timeFlex = is5Col ? 1.1 : 1.15;
+                const timeMinW = is5Col ? 56 : 62;
+                const actionFlex = 1.0;
+                const actionMinW = 48;
+                const isLastRow = idx === last7DaysRecords.length - 1;
 
                 const dateStr = item.date ? item.date.split('T')[0] : (item.created_at ? item.created_at.split('T')[0] : '--');
                 const timeStr = item.time ? DateTimeUtils.formatTimeToAmPm(item.time) || item.time : '--';
 
                 return (
-                  <View key={`row-${item.id ?? idx}`} style={styles.vitalsTableRow}>
+                  <View
+                    key={`row-${item.id ?? idx}`}
+                    style={[
+                      styles.vitalsTableRow,
+                      isLastRow && styles.vitalsTableRowLast,
+                    ]}
+                  >
                     {vitalType === 'Blood Pressure' ? (
                       <>
-                        <Text style={[styles.vitalsTableCellText, { flex: col0Flex, minWidth: col0MinW }]} numberOfLines={1}>{item.bp_systolic ?? '--'}</Text>
-                        <Text style={[styles.vitalsTableCellText, { flex: col0Flex, minWidth: col0MinW }]} numberOfLines={1}>{item.bp_diastolic ?? '--'}</Text>
+                        <Text style={[styles.vitalsTableCellText, { flex: col0Flex, minWidth: col0MinW, fontSize: fs(10) }]} numberOfLines={1}>{item.bp_systolic ?? '--'}</Text>
+                        <Text style={[styles.vitalsTableCellText, { flex: col0Flex, minWidth: col0MinW, fontSize: fs(10) }]} numberOfLines={1}>{item.bp_diastolic ?? '--'}</Text>
                       </>
                     ) : vitalType === 'Sugar' ? (
                       <>
-                        <Text style={[styles.vitalsTableCellText, { flex: col0Flex, minWidth: col0MinW }]} numberOfLines={1}>{item.sugar_fasting ?? '--'}</Text>
-                        <Text style={[styles.vitalsTableCellText, { flex: col0Flex, minWidth: col0MinW }]} numberOfLines={1}>{item.sugar_random ?? '--'}</Text>
+                        <Text style={[styles.vitalsTableCellText, { flex: col0Flex, minWidth: col0MinW, fontSize: fs(10) }]} numberOfLines={1}>{item.sugar_fasting ?? '--'}</Text>
+                        <Text style={[styles.vitalsTableCellText, { flex: col0Flex, minWidth: col0MinW, fontSize: fs(10) }]} numberOfLines={1}>{item.sugar_random ?? '--'}</Text>
                       </>
                     ) : (
-                      <Text style={[styles.vitalsTableCellText, { flex: col0Flex, minWidth: col0MinW }]} numberOfLines={1}>
+                      <Text style={[styles.vitalsTableCellText, { flex: col0Flex, minWidth: col0MinW, fontSize: fs(10.5) }]} numberOfLines={1}>
                         {item.weight || item.temperature || item.spo2 || item.value || '--'}
                       </Text>
                     )}
-                    <Text style={[styles.vitalsTableCellText, { flex: dateFlex, minWidth: dateMinW }]} numberOfLines={1}>
+                    <Text
+                      style={[
+                        styles.vitalsTableCellText,
+                        {
+                          flex: dateFlex,
+                          minWidth: dateMinW,
+                          fontSize: is5Col ? fs(9.5) : fs(10.5),
+                        },
+                      ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.85}
+                    >
                       {dateStr}
                     </Text>
-                    <Text style={[styles.vitalsTableCellText, { flex: timeFlex, minWidth: timeMinW }]} numberOfLines={1}>
+                    <Text
+                      style={[
+                        styles.vitalsTableCellText,
+                        {
+                          flex: timeFlex,
+                          minWidth: timeMinW,
+                          fontSize: is5Col ? fs(9.5) : fs(10.5),
+                        },
+                      ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.85}
+                    >
                       {timeStr}
                     </Text>
 
@@ -514,7 +580,7 @@ export const VitalChartCard = ({
                           onPress={() => onEditRecord(item)}
                           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                         >
-                          <MaterialIcons name="edit" size={17} color="#10B981" />
+                          <MaterialIcons name="edit" size={14} color={Colors.green_10B981} />
                         </TouchableOpacity>
                       )}
                       <TouchableOpacity
@@ -522,13 +588,13 @@ export const VitalChartCard = ({
                         onPress={() => onDeleteRecord && item.id && onDeleteRecord(item.id)}
                         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                       >
-                        <MaterialIcons name="delete-outline" size={19} color="#EF4444" />
+                        <MaterialIcons name="delete-outline" size={15} color={Colors.redColor} />
                       </TouchableOpacity>
                     </View>
                   </View>
                 );
               })}
-            </ScrollView>
+            </View>
           ) : (
             <View style={styles.vitalsTableBody}>
               <Text style={styles.vitalsNoRecordsText}>No Records Found</Text>
@@ -543,11 +609,11 @@ export const VitalChartCard = ({
 const styles = StyleSheet.create({
   vitalsGridCard: {
     width: '100%',
-    backgroundColor: '#FBFDFF',
+    backgroundColor: Colors.white,
     borderRadius: fs(16),
     padding: ws(12),
     borderWidth: 1,
-    borderColor: '#E3EDF7',
+    borderColor: Colors.border_E3EDF7,
   },
   vitalsGridCardFull: {
     width: '100%',
@@ -573,7 +639,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: ws(4),
     borderRadius: fs(14),
-    backgroundColor: '#FFE3E5',
+    backgroundColor: Colors.red_FFE8E8,
     paddingVertical: hs(6),
     paddingHorizontal: ws(9),
   },
@@ -608,7 +674,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: fs(9),
     ...TYPOGRAPHY.medium,
-    color: '#E5484D',
+    color: Colors.redColor,
   },
   vitalsMiniChartArea: {
     flexDirection: 'row',
@@ -654,16 +720,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: Colors.aquaSoft,
     borderRadius: fs(10),
-    paddingVertical: hs(8),
-    paddingHorizontal: ws(6),
-    marginBottom: hs(6),
+    paddingVertical: hs(7),
+    paddingHorizontal: ws(4),
+    marginBottom: hs(4),
     borderWidth: 1,
     borderColor: Colors.aquaBorder,
     width: '100%',
   },
   vitalsTableHeadCell: {
     flex: 1,
-    fontSize: fs(10.5),
+    fontSize: fs(10),
     ...TYPOGRAPHY.bold,
     color: Colors.navy,
     textAlign: 'center',
@@ -674,19 +740,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: hs(24),
   },
+  vitalsTableRecordsContainer: {
+    width: '100%',
+  },
   vitalsTableRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: hs(9),
-    paddingHorizontal: ws(6),
+    paddingVertical: hs(8),
+    paddingHorizontal: ws(4),
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: Colors.slate_F1F5F9,
     width: '100%',
+  },
+  vitalsTableRowLast: {
+    borderBottomWidth: 0,
   },
   vitalsTableCellText: {
     flex: 1,
-    fontSize: fs(11),
+    fontSize: fs(10.5),
     ...TYPOGRAPHY.medium,
     color: Colors.primaryFontColor,
     textAlign: 'center',
@@ -696,27 +768,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: ws(8),
+    gap: ws(4),
   },
   actionIconBtnEdit: {
-    width: ws(30),
-    height: hs(30),
-    borderRadius: fs(8),
-    backgroundColor: '#ECFDF5',
+    width: ws(22),
+    height: hs(22),
+    borderRadius: fs(5),
+    backgroundColor: Colors.green_ECFDF5,
     justifyContent: 'center',
     alignItems: 'center',
   },
   actionIconBtnDelete: {
-    width: ws(30),
-    height: hs(30),
-    borderRadius: fs(8),
-    backgroundColor: '#FEF2F2',
+    width: ws(22),
+    height: hs(22),
+    borderRadius: fs(5),
+    backgroundColor: Colors.red_FFF0F0,
     justifyContent: 'center',
     alignItems: 'center',
   },
   vitalsNoRecordsText: {
     fontSize: fs(10),
     ...TYPOGRAPHY.medium,
-    color: '#94A3B8',
+    color: Colors.slate_94A3B8,
   },
 });

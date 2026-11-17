@@ -114,7 +114,7 @@ export const VitalLatestSummaryCard = memo(({
               onPress={() => onDelete(String(latestVital.id))}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <MaterialIcons name="delete-outline" size={15} color="#EF4444" />
+              <MaterialIcons name="delete-outline" size={15} color={Colors.redColor} />
             </TouchableOpacity>
           </View>
         )}
@@ -122,37 +122,51 @@ export const VitalLatestSummaryCard = memo(({
 
       {/* Value and Normal Range column layout */}
       <View style={styles.heroBottomContainer}>
-        {vitalName === 'Sugar' ? (
-          <View style={styles.heroSugarColsRow}>
-            <View style={styles.heroSugarCol}>
-              <Text style={styles.heroSugarColLabel}>Fasting</Text>
-              <Text style={styles.heroSugarColValue}>
-                {latestVital.sugar_fasting ? (
-                  <>
+        {vitalName === 'Sugar' ? (() => {
+          const hasFasting =
+            latestVital.sugar_fasting !== undefined &&
+            latestVital.sugar_fasting !== null &&
+            String(latestVital.sugar_fasting).trim() !== '';
+          const hasRandom =
+            latestVital.sugar_random !== undefined &&
+            latestVital.sugar_random !== null &&
+            String(latestVital.sugar_random).trim() !== '';
+
+          if (!hasFasting && !hasRandom) {
+            return (
+              <View style={styles.heroSugarColsRow}>
+                <View style={styles.heroSugarCol}>
+                  <Text style={styles.heroSugarColLabel}>Sugar</Text>
+                  <Text style={styles.heroSugarColValue}>--</Text>
+                </View>
+              </View>
+            );
+          }
+
+          return (
+            <View style={styles.heroSugarColsRow}>
+              {hasFasting && (
+                <View style={styles.heroSugarCol}>
+                  <Text style={styles.heroSugarColLabel}>Fasting</Text>
+                  <Text style={styles.heroSugarColValue}>
                     {latestVital.sugar_fasting}
                     <Text style={styles.heroSugarColUnit}> mg/dL</Text>
-                  </>
-                ) : (
-                  <Text style={[styles.heroSugarColUnit, { fontSize: fs(13) }]}>Not Recorded</Text>
-                )}
-              </Text>
-            </View>
-            <View style={styles.heroSugarDivider} />
-            <View style={styles.heroSugarCol}>
-              <Text style={styles.heroSugarColLabel}>Random</Text>
-              <Text style={styles.heroSugarColValue}>
-                {latestVital.sugar_random ? (
-                  <>
+                  </Text>
+                </View>
+              )}
+              {hasFasting && hasRandom && <View style={styles.heroSugarDivider} />}
+              {hasRandom && (
+                <View style={styles.heroSugarCol}>
+                  <Text style={styles.heroSugarColLabel}>Random</Text>
+                  <Text style={styles.heroSugarColValue}>
                     {latestVital.sugar_random}
                     <Text style={styles.heroSugarColUnit}> mg/dL</Text>
-                  </>
-                ) : (
-                  <Text style={[styles.heroSugarColUnit, { fontSize: fs(13) }]}>Not Recorded</Text>
-                )}
-              </Text>
+                  </Text>
+                </View>
+              )}
             </View>
-          </View>
-        ) : (
+          );
+        })() : (
           <View style={styles.heroValueAndBadgeRow}>
             <Text style={styles.heroValueText}>
               {renderVitalValue(latestVital)}
@@ -197,7 +211,7 @@ export const VitalLatestSummaryCard = memo(({
             <MaterialIcons
               name="info-outline"
               size={13}
-              color="#64748B"
+              color={Colors.slate_64748B}
               style={{ marginRight: ws(4) }}
             />
             <Text style={styles.heroRangeText}>{latestStatus.normalRangeText}</Text>
@@ -215,7 +229,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: fs(16),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.slate_E2E8F0,
   },
   heroHeaderRow: {
     flexDirection: 'row',
@@ -241,7 +255,7 @@ const styles = StyleSheet.create({
   heroTime: {
     fontSize: fs(11.5),
     ...TYPOGRAPHY.regular,
-    color: '#64748B',
+    color: Colors.slate_64748B,
     marginTop: hs(2),
   },
   statusBadge: {
@@ -262,13 +276,13 @@ const styles = StyleSheet.create({
     width: ws(30),
     height: ws(30),
     borderRadius: fs(8),
-    backgroundColor: '#FEE2E2',
+    backgroundColor: Colors.red_FEE2E2,
     justifyContent: 'center',
     alignItems: 'center',
   },
   heroBottomContainer: {
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: Colors.slate_F1F5F9,
     paddingTop: hs(12),
   },
   heroSugarColsRow: {
@@ -281,7 +295,7 @@ const styles = StyleSheet.create({
   heroSugarColLabel: {
     fontSize: fs(11),
     ...TYPOGRAPHY.medium,
-    color: '#64748B',
+    color: Colors.slate_64748B,
     marginBottom: hs(2),
   },
   heroSugarColValue: {
@@ -292,12 +306,12 @@ const styles = StyleSheet.create({
   heroSugarColUnit: {
     fontSize: fs(12),
     ...TYPOGRAPHY.medium,
-    color: '#64748B',
+    color: Colors.slate_64748B,
   },
   heroSugarDivider: {
     width: 1,
     height: hs(36),
-    backgroundColor: '#E2E8F0',
+    backgroundColor: Colors.slate_E2E8F0,
     marginHorizontal: ws(12),
   },
   heroValueAndBadgeRow: {
@@ -314,7 +328,7 @@ const styles = StyleSheet.create({
   heroRangeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     paddingHorizontal: ws(10),
     paddingVertical: hs(6),
     borderRadius: fs(8),
@@ -323,7 +337,7 @@ const styles = StyleSheet.create({
   heroRangeText: {
     fontSize: fs(11),
     ...TYPOGRAPHY.regular,
-    color: '#64748B',
+    color: Colors.slate_64748B,
     flex: 1,
   },
 });

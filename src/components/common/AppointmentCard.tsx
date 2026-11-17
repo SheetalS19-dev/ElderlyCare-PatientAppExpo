@@ -59,24 +59,24 @@ const parseAppointmentDate = (rawDate?: string) => {
 const getStatusBadge = (status?: string) => {
   const s = (status || '').toLowerCase().trim();
   if (s === 'approval pending' || s === 'approval_pending' || s === 'approvalpending') {
-    return { bg: '#FEF3C7', color: '#D97706', label: 'Approval Pending' };
+    return { bg: Colors.amber_FEF3C7, color: Colors.amber_D97706, label: 'Approval Pending' };
   }
   if (s === 'pending') {
-    return { bg: '#FEF3C7', color: '#D97706', label: 'Pending' };
+    return { bg: Colors.amber_FEF3C7, color: Colors.amber_D97706, label: 'Pending' };
   }
   if (s === 'rescheduled') {
-    return { bg: '#FFEDD5', color: '#EA580C', label: 'Rescheduled' };
+    return { bg: Colors.orange_FFE3D3, color: Colors.orange_F96335, label: 'Rescheduled' };
   }
   if (s === 'rejected' || s === 'cancelled' || s === 'canceled') {
-    return { bg: '#FEE2E2', color: '#DC2626', label: 'Cancelled' };
+    return { bg: Colors.red_FEE2E2, color: Colors.redColor, label: 'Cancelled' };
   }
   if (s === 'confirmed') {
-    return { bg: '#DCFCE7', color: '#15803D', label: 'Confirmed' };
+    return { bg: Colors.badgeSuccessBg, color: Colors.badgeSuccessText, label: 'Confirmed' };
   }
   if (s === 'completed' || s === 'visited') {
     return { bg: Colors.aquaSoft, color: Colors.primaryColor, label: 'Completed' };
   }
-  return { bg: '#F1F5F9', color: '#64748B', label: status || 'Scheduled' };
+  return { bg: Colors.slate_F1F5F9, color: Colors.slate_64748B, label: status || 'Scheduled' };
 };
 
 export const AppointmentCard: React.FC<AppointmentCardProps> = ({
@@ -183,14 +183,14 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
       {/* Patient & Time Details */}
       <View style={styles.detailsSection}>
         <View style={styles.metaRowItem}>
-          <MaterialIcons name="person-outline" size={fs(15)} color="#64748B" />
+          <MaterialIcons name="person-outline" size={fs(15)} color={Colors.slate_64748B} />
           <Text style={styles.metaLabelText} numberOfLines={1}>
             Patient: <Text style={styles.metaValueText}>{patientFullName}</Text>
           </Text>
         </View>
 
         <View style={styles.metaRowItem}>
-          <MaterialIcons name="access-time" size={fs(15)} color="#64748B" />
+          <MaterialIcons name="access-time" size={fs(15)} color={Colors.slate_64748B} />
           <Text style={styles.metaLabelText}>
             {formattedTimeSlot}  •
           </Text>
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     borderWidth: 1,
     borderColor: Colors.border,
   },
@@ -324,19 +324,19 @@ const styles = StyleSheet.create({
   doctorName: {
     ...TYPOGRAPHY.bold,
     fontSize: fs(13.5),
-    color: '#1E293B',
+    color: Colors.primaryFontColor,
   },
   deptText: {
     ...TYPOGRAPHY.regular,
     fontSize: fs(11),
-    color: '#64748B',
+    color: Colors.slate_64748B,
     marginTop: hs(1),
   },
   dateBadge: {
     width: ws(46),
     height: hs(48),
     borderRadius: fs(8),
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -345,25 +345,25 @@ const styles = StyleSheet.create({
   dateMonth: {
     ...TYPOGRAPHY.bold,
     fontSize: fs(8.5),
-    color: '#64748B',
+    color: Colors.slate_64748B,
     textTransform: 'uppercase',
   },
   dateDay: {
     ...TYPOGRAPHY.bold,
     fontSize: fs(17),
-    color: '#1E293B',
+    color: Colors.primaryFontColor,
     lineHeight: fs(19),
   },
   dateYear: {
     ...TYPOGRAPHY.medium,
     fontSize: fs(8.5),
-    color: '#94A3B8',
+    color: Colors.slate_94A3B8,
   },
   detailsSection: {
     marginTop: hs(8),
     paddingTop: hs(6),
     borderTopWidth: 1,
-    borderTopColor: '#F8FAFC',
+    borderTopColor: Colors.slate_F8FAFC,
     gap: hs(3),
   },
   metaRowItem: {
@@ -374,11 +374,11 @@ const styles = StyleSheet.create({
   metaLabelText: {
     ...TYPOGRAPHY.regular,
     fontSize: fs(11),
-    color: '#64748B',
+    color: Colors.slate_64748B,
   },
   metaValueText: {
     ...TYPOGRAPHY.bold,
-    color: '#1E293B',
+    color: Colors.primaryFontColor,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
     marginTop: hs(8),
     paddingTop: hs(6),
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: Colors.slate_F1F5F9,
   },
   rebookBtn: {
     flexDirection: 'row',

@@ -1,6 +1,5 @@
 import { FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-icons';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import {
   FlatList,
   Image,
@@ -9,7 +8,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AppHeader,
   CitySelectModal,
@@ -19,205 +17,48 @@ import {
   LoadingIndicator,
   SearchBox,
 } from '../../components';
-import { Colors, Typography } from '../../constants';
-import { useAuth } from '../../context/AuthContext';
-import { useDebounce } from '../../hooks';
-import type { RootStackParamList } from '../../navigation/types';
-import { useGetClinicsQuery } from '../../redux/apis/clinicApi';
+import { Colors } from '../../constants';
 import {
-  useGetCitiesQuery,
-  useGetDepartmentsQuery,
-  useGetDoctorsQuery,
-} from '../../redux/apis/doctorApi';
-import type { CityModel, ClinicModel, DepartmentModel, DoctorModel } from '../../types';
-import {
-  detectDeviceCityName,
-  doctorMatchesDepartment,
-  formatCityDisplayName,
   fs,
   getImageUrl,
   hs,
-  matchCityFromList,
-  showToast,
-  TYPOGRAPHY,
   ws,
 } from '../../utils';
+import { useSearch } from './useSearch';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Search'>;
-
-export const SearchScreen = ({ navigation, route }: Props) => {
-  const insets = useSafeAreaInsets();
-  const { isAuthenticated } = useAuth();
-  const initialSearch = route.params?.searchQuery ?? '';
-  const initialTab = route.params?.initialTab ?? 'doctors';
-  const initialDeptId = route.params?.selectedDeptId;
-  const initialDeptTitle = route.params?.selectedDeptTitle;
-
-  const [search, setSearch] = useState(initialSearch);
-  const [activeTab, setActiveTab] = useState<'doctors' | 'clinics'>(initialTab);
-  const [selectedDeptId, setSelectedDeptId] = useState<string | undefined>(
-    initialDeptId ? String(initialDeptId) : undefined
-  );
-  const [selectedDeptTitle, setSelectedDeptTitle] = useState<string | undefined>(
-    initialDeptTitle
-  );
-
-  const [selectedCity, setSelectedCity] = useState<{ id: string; title: string }>({
-    id: '',
-    title: '',
-  });
-  const [deviceLocationCity, setDeviceLocationCity] = useState<string | null>(null);
-  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
-  const [isUsingCurrentLocation, setIsUsingCurrentLocation] = useState(false);
-  const [citySearch, setCitySearch] = useState('');
-  const [isCityModalVisible, setIsCityModalVisible] = useState(false);
-  const [isDeptModalVisible, setIsDeptModalVisible] = useState(false);
-
-  const debouncedSearch = useDebounce(search, 300);
-
-  // Sync params when navigation triggers new route params
-  useEffect(() => {
-    if (route.params?.searchQuery !== undefined) {
-      setSearch(route.params.searchQuery);
-    }
-    if (route.params?.initialTab) {
-      setActiveTab(route.params.initialTab);
-    }
-    if (route.params?.selectedDeptId) {
-      setSelectedDeptId(String(route.params.selectedDeptId));
-    }
-    if (route.params?.selectedDeptTitle) {
-      setSelectedDeptTitle(route.params.selectedDeptTitle);
-    }
-  }, [
-    route.params?.searchQuery,
-    route.params?.initialTab,
-    route.params?.selectedDeptId,
-    route.params?.selectedDeptTitle,
-  ]);
-
-  // Doctors & Clinics Queries (Backend driven filtering & searching)
+export const SearchScreen: React.FC = () => {
   const {
-    data: rawDoctorsData,
-    isLoading: isDoctorsLoading,
-    refetch: refetchDoctors,
-  } = useGetDoctorsQuery({
-    cityId: selectedCity.id || undefined,
-    department: selectedDeptId || undefined,
-    search: debouncedSearch.trim() || undefined,
-  });
-
-  const {
-    data: rawClinicsData,
-    isLoading: isClinicsLoading,
-    refetch: refetchClinics,
-  } = useGetClinicsQuery(
-    {
-      cityId: selectedCity.id || undefined,
-      search: debouncedSearch.trim() || undefined,
-    },
-    { refetchOnMountOrArgChange: true }
-  );
-
-  const { data: rawDeptData } = useGetDepartmentsQuery();
-  const { data: citiesData } = useGetCitiesQuery(citySearch);
-
-  // Unwrapped departments
-  const departments: DepartmentModel[] = useMemo(() => {
-    if (Array.isArray(rawDeptData)) return rawDeptData;
-    if (Array.isArray((rawDeptData as any)?.data)) return (rawDeptData as any).data;
-    if (Array.isArray((rawDeptData as any)?.response)) return (rawDeptData as any).response;
-    return [];
-  }, [rawDeptData]);
-
-  // Unwrapped cities
-  const cities: CityModel[] = useMemo(() => {
-    if (Array.isArray(citiesData)) return citiesData;
-    if (Array.isArray(citiesData?.data)) return citiesData.data;
-    return [];
-  }, [citiesData]);
-
-  // Master doctors list directly returned from backend API
-  const filteredDoctors: DoctorModel[] = useMemo(() => {
-    let list: DoctorModel[] = [];
-    if (Array.isArray(rawDoctorsData)) list = rawDoctorsData;
-    else if (Array.isArray((rawDoctorsData as any)?.data)) list = (rawDoctorsData as any).data;
-    else if (Array.isArray((rawDoctorsData as any)?.response)) list = (rawDoctorsData as any).response;
-
-    // Strict department check on top of the backend filter so a doctor is only listed
-    // under the department that their card shows.
-    if (selectedDeptId || selectedDeptTitle) {
-      const resolvedTitle =
-        selectedDeptTitle ||
-        departments.find((d) => String(d.id) === String(selectedDeptId))?.title ||
-        undefined;
-      list = list.filter((doc: any) => doctorMatchesDepartment(doc, selectedDeptId, resolvedTitle));
-    }
-    return list;
-  }, [rawDoctorsData, selectedDeptId, selectedDeptTitle, departments]);
-
-  // Master clinics list directly returned from backend API
-  const filteredClinics: ClinicModel[] = useMemo(() => {
-    let list: ClinicModel[] = [];
-    if (Array.isArray(rawClinicsData)) list = rawClinicsData;
-    else if (Array.isArray((rawClinicsData as any)?.data)) list = (rawClinicsData as any).data;
-    else if (Array.isArray((rawClinicsData as any)?.response)) list = (rawClinicsData as any).response;
-    else if (Array.isArray((rawClinicsData as any)?.result)) list = (rawClinicsData as any).result;
-    return list;
-  }, [rawClinicsData]);
-
-  const handleSelectDepartment = (dept?: DepartmentModel) => {
-    if (!dept) {
-      setSelectedDeptId(undefined);
-      setSelectedDeptTitle(undefined);
-    } else {
-      setSelectedDeptId(String(dept.id));
-      setSelectedDeptTitle(dept.title || (dept as any).name || (dept as any).dept_name || '');
-    }
-  };
-
-  const handleSelectCity = async (city: CityModel | null | undefined) => {
-    setIsCityModalVisible(false);
-    if (city === undefined) {
-      setIsUsingCurrentLocation(true);
-      setIsDetectingLocation(true);
-      try {
-        const detected = await detectDeviceCityName();
-        if (detected) {
-          setDeviceLocationCity(detected);
-          const matched = matchCityFromList(detected, cities);
-          if (matched) {
-            setSelectedCity({ id: String(matched.id ?? ''), title: formatCityDisplayName(matched) });
-            showToast(`Location set to ${matched.title || detected}`);
-          } else {
-            setSelectedCity({ id: '', title: '' });
-            showToast(`Detected ${detected}; showing all cities`);
-          }
-        } else {
-          setIsUsingCurrentLocation(false);
-          showToast('Could not detect current location');
-        }
-      } finally {
-        setIsDetectingLocation(false);
-      }
-    } else if (!city) {
-      setIsUsingCurrentLocation(false);
-      setSelectedCity({ id: '', title: '' });
-    } else {
-      setIsUsingCurrentLocation(false);
-      setSelectedCity({ id: String(city.id ?? ''), title: formatCityDisplayName(city) });
-    }
-  };
-
-  const hasCityFilter = Boolean(selectedCity.id);
-  const hasDeptFilter = Boolean(selectedDeptId || selectedDeptTitle);
-  const hasActiveFilters = hasCityFilter || hasDeptFilter || Boolean(debouncedSearch.trim());
-
-  const handleResetFilters = () => {
-    setSearch('');
-    setSelectedCity({ id: '', title: '' });
-    handleSelectDepartment(undefined);
-  };
+    navigation,
+    insets,
+    search,
+    setSearch,
+    activeTab,
+    setActiveTab,
+    selectedDeptId,
+    selectedDeptTitle,
+    selectedCity,
+    setSelectedCity,
+    deviceLocationCity,
+    isDetectingLocation,
+    isUsingCurrentLocation,
+    isCityModalVisible,
+    setIsCityModalVisible,
+    isDeptModalVisible,
+    setIsDeptModalVisible,
+    departments,
+    cities,
+    filteredDoctors,
+    isDoctorsLoading,
+    filteredClinics,
+    isClinicsLoading,
+    handleSelectDepartment,
+    handleSelectCity,
+    hasCityFilter,
+    hasDeptFilter,
+    hasActiveFilters,
+    handleResetFilters,
+    handleDoctorBookPress,
+  } = useSearch();
 
   return (
     <View style={styles.container}>
@@ -298,7 +139,7 @@ export const SearchScreen = ({ navigation, route }: Props) => {
                 <Ionicons name="close-circle" size={fs(15)} color={Colors.primaryColor} />
               </TouchableOpacity>
             ) : (
-              <Ionicons name="chevron-down" size={fs(13)} color="#94A3B8" />
+              <Ionicons name="chevron-down" size={fs(13)} color={Colors.slate_94A3B8} />
             )}
           </TouchableOpacity>
 
@@ -328,7 +169,7 @@ export const SearchScreen = ({ navigation, route }: Props) => {
                   <Ionicons name="close-circle" size={fs(15)} color={Colors.primaryColor} />
                 </TouchableOpacity>
               ) : (
-                <Ionicons name="chevron-down" size={fs(13)} color="#94A3B8" />
+                <Ionicons name="chevron-down" size={fs(13)} color={Colors.slate_94A3B8} />
               )}
             </TouchableOpacity>
           )}
@@ -373,15 +214,7 @@ export const SearchScreen = ({ navigation, route }: Props) => {
                       doctId: String(item.user_id || item.id),
                     })
                   }
-                  onBookPress={() => {
-                    if (!isAuthenticated) {
-                      navigation.navigate('Login');
-                      return;
-                    }
-                    navigation.navigate('BookAppointment', {
-                      doctId: String(item.user_id || item.id),
-                    });
-                  }}
+                  onBookPress={() => handleDoctorBookPress(item)}
                 />
               )}
             />
@@ -502,126 +335,130 @@ const styles = StyleSheet.create({
   activeTab: {
     backgroundColor: Colors.white,
     shadowColor: Colors.navy,
-    shadowOffset: { width: 0, height: hs(1) },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
-    shadowRadius: fs(2),
+    shadowRadius: 3,
     elevation: 2,
   },
   tabText: {
-    fontSize: fs(Typography.fontSize.xs),
-    ...TYPOGRAPHY.medium,
+    fontSize: fs(12),
+    fontFamily: 'Inter-Medium',
     color: Colors.secondaryFontColor,
   },
   activeTabText: {
-    ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
+    fontFamily: 'Inter-SemiBold',
   },
   filterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: ws(8),
-    marginBottom: hs(8),
+    marginBottom: hs(10),
   },
   filterChip: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: fs(12),
     paddingHorizontal: ws(10),
-    height: hs(40),
+    paddingVertical: hs(7),
+    borderRadius: fs(10),
     borderWidth: 1,
     borderColor: Colors.border,
+    gap: ws(4),
   },
   filterChipActive: {
-    backgroundColor: Colors.aquaSoft,
     borderColor: Colors.primaryColor,
+    backgroundColor: Colors.aquaSoft,
   },
   filterChipText: {
     flex: 1,
-    fontSize: fs(Typography.fontSize.xs),
-    ...TYPOGRAPHY.medium,
-    color: Colors.ink,
-    marginHorizontal: ws(6),
+    fontSize: fs(11),
+    fontFamily: 'Inter-Medium',
+    color: Colors.primaryFontColor,
   },
   filterChipTextActive: {
     color: Colors.primaryColor,
-    ...TYPOGRAPHY.bold,
+    fontFamily: 'Inter-SemiBold',
   },
   resultsHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: ws(2),
     marginBottom: hs(8),
+    paddingHorizontal: ws(2),
   },
   resultsCountText: {
-    fontSize: fs(Typography.fontSize.xs),
-    ...TYPOGRAPHY.regular,
+    fontSize: fs(11),
+    fontFamily: 'Inter-Medium',
     color: Colors.secondaryFontColor,
   },
   resetFiltersText: {
-    fontSize: fs(Typography.fontSize.xs),
-    ...TYPOGRAPHY.semiBold,
+    fontSize: fs(11),
+    fontFamily: 'Inter-SemiBold',
     color: Colors.primaryColor,
   },
   listContent: {
-    paddingBottom: hs(32),
+    flexGrow: 1,
+    paddingBottom: hs(24),
   },
   clinicCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: fs(18),
+    borderRadius: fs(16),
     padding: ws(12),
     marginBottom: hs(10),
-    shadowColor: Colors.navy,
-    shadowOffset: { width: 0, height: hs(2) },
-    shadowOpacity: 0.05,
-    shadowRadius: fs(5),
-    elevation: 2,
     borderWidth: 1,
-    borderColor: Colors.aqua,
+    borderColor: Colors.border,
+    shadowColor: Colors.navy,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
   clinicImage: {
-    width: ws(64),
-    height: hs(64),
-    borderRadius: fs(10),
-    backgroundColor: Colors.aqua,
+    width: ws(56),
+    height: ws(56),
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: Colors.aquaSoft,
+    marginRight: ws(12),
   },
   placeholderImage: {
-    width: ws(64),
-    height: hs(64),
-    borderRadius: fs(10),
-    backgroundColor: Colors.aqua,
-    alignItems: 'center',
+    width: ws(56),
+    height: ws(56),
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: ws(12),
   },
   clinicDetails: {
     flex: 1,
-    marginLeft: ws(12),
     marginRight: ws(8),
   },
   clinicTitle: {
-    fontSize: fs(Typography.fontSize.sm),
-    ...TYPOGRAPHY.bold,
-    color: Colors.mainFontColor,
+    fontSize: fs(14),
+    fontFamily: 'Inter-SemiBold',
+    color: Colors.primaryFontColor,
+    marginBottom: hs(2),
   },
   clinicAddress: {
-    fontSize: fs(Typography.fontSize.xs),
-    ...TYPOGRAPHY.regular,
+    fontSize: fs(11),
+    fontFamily: 'Inter-Regular',
     color: Colors.secondaryFontColor,
-    marginTop: hs(2),
+    marginBottom: hs(4),
   },
   cityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: hs(4),
     gap: ws(3),
   },
   cityBadgeText: {
-    fontSize: fs(11),
+    fontSize: fs(10),
+    fontFamily: 'Inter-Medium',
     color: Colors.primaryColor,
-    ...TYPOGRAPHY.medium,
   },
 });

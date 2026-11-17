@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   greetingSubtitle: {
     fontSize: fs(12),
     ...TYPOGRAPHY.regular,
-    color: '#D6E8F6',
+    color: Colors.blue_D6E8F6,
   },
   greetingTitle: {
     fontSize: fs(20),
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     fontSize: fs(11),
     ...TYPOGRAPHY.regular,
     fontStyle: 'italic',
-    color: '#BFE0F2',
+    color: Colors.teal_BFE0F2,
     marginTop: hs(2),
   },
   greetingUnderline: {
@@ -219,10 +219,10 @@ const styles = StyleSheet.create({
     borderColor: Colors.navy,
   },
   locationDot: {
-    backgroundColor: '#38BDF8',
+    backgroundColor: Colors.sky_38BDF8,
   },
   notificationDot: {
-    backgroundColor: '#FF1F2D',
+    backgroundColor: Colors.red_FF1F2D,
   },
   searchWrapper: {
     flexDirection: 'row',
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: fs(26),
     borderWidth: 1,
-    borderColor: '#E3EDF7',
+    borderColor: Colors.border_E3EDF7,
     shadowColor: Colors.navy,
     shadowOffset: { width: 0, height: hs(4) },
     shadowOpacity: 0.12,

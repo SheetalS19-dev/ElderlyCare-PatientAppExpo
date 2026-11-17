@@ -98,21 +98,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   paidBadge: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#A7F3D0',
+    backgroundColor: Colors.green_ECFDF5,
+    borderColor: Colors.green_A7F3D0,
   },
   unpaidBadge: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FCA5A5',
+    backgroundColor: Colors.red_FEF2F2,
+    borderColor: Colors.red_FCA5A5,
   },
   statusBadgeText: {
     fontSize: fs(10),
     ...TYPOGRAPHY.bold,
   },
   paidText: {
-    color: '#059669',
+    color: Colors.green_059669,
   },
   unpaidText: {
-    color: '#EF4444',
+    color: Colors.red_EF4444,
   },
 });

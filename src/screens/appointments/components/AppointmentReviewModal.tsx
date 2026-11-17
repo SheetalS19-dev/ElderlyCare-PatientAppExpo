@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -11,6 +11,14 @@ import {
 import { AppTextField, StarRating } from '../../../components';
 import { Colors } from '../../../constants';
 import { fs, hs, TYPOGRAPHY, ws } from '../../../utils';
+
+const MAX_REVIEW_WORDS = 300;
+
+const countWords = (text: string): number => {
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+  return trimmed.split(/\s+/).filter(Boolean).length;
+};
 
 interface AppointmentReviewModalProps {
   visible: boolean;
@@ -35,6 +43,44 @@ export const AppointmentReviewModal = memo(({
   onSubmit,
   isSubmitting,
 }: AppointmentReviewModalProps) => {
+  const [errorMsg, setErrorMsg] = useState<string>('');
+
+  const wordCount = useMemo(() => countWords(reviewText), [reviewText]);
+  const isOverLimit = wordCount > MAX_REVIEW_WORDS;
+
+  useEffect(() => {
+    if (!visible) {
+      setErrorMsg('');
+    }
+  }, [visible]);
+
+  const handleRatingChange = (newRating: number) => {
+    setErrorMsg('');
+    onRatingChange(newRating);
+  };
+
+  const handleTextChange = (text: string) => {
+    setErrorMsg('');
+    onChangeReviewText(text);
+  };
+
+  const handleValidateAndSubmit = () => {
+    if (!rating || rating < 1) {
+      setErrorMsg('Please select a star rating (1–5 stars)');
+      return;
+    }
+    if (!reviewText.trim()) {
+      setErrorMsg('Please share your experience with the doctor');
+      return;
+    }
+    if (wordCount > MAX_REVIEW_WORDS) {
+      setErrorMsg(`Review exceeds limit (${wordCount}/${MAX_REVIEW_WORDS} words)`);
+      return;
+    }
+    setErrorMsg('');
+    onSubmit();
+  };
+
   return (
     <Modal
       visible={visible}
@@ -53,24 +99,45 @@ export const AppointmentReviewModal = memo(({
               rating={rating}
               starSize={28}
               readOnly={false}
-              onRatingChange={onRatingChange}
+              onRatingChange={handleRatingChange}
             />
           </View>
           <AppTextField
             placeholder="Share your experience..."
             value={reviewText}
-            onChangeText={onChangeReviewText}
+            onChangeText={handleTextChange}
             multiline
-            numberOfLines={3}
+            numberOfLines={4}
+            style={styles.reviewInput}
           />
+          <View style={styles.counterRow}>
+            {errorMsg ? (
+              <Text style={styles.errorText} numberOfLines={1}>
+                {errorMsg}
+              </Text>
+            ) : (
+              <View style={{ flex: 1 }} />
+            )}
+            <Text
+              style={[
+                styles.wordCounterText,
+                isOverLimit && styles.wordCounterExceeded,
+              ]}
+            >
+              {wordCount} / {MAX_REVIEW_WORDS} words
+            </Text>
+          </View>
           <View style={styles.dialogActions}>
             <TouchableOpacity style={styles.dialogBtnCancel} onPress={onClose}>
               <Text style={styles.dialogBtnTextMuted}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.dialogBtnConfirm}
-              onPress={onSubmit}
-              disabled={isSubmitting}
+              style={[
+                styles.dialogBtnConfirm,
+                (isOverLimit || isSubmitting) && styles.dialogBtnDisabled,
+              ]}
+              onPress={handleValidateAndSubmit}
+              disabled={isSubmitting || isOverLimit}
             >
               <Text style={styles.dialogBtnTextConfirm}>
                 {isSubmitting ? 'Submitting…' : 'Submit Review'}
@@ -113,6 +180,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: hs(14),
   },
+  reviewInput: {
+    minHeight: hs(90),
+    textAlignVertical: 'top',
+  },
+  counterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: hs(4),
+    paddingHorizontal: ws(2),
+  },
+  errorText: {
+    flex: 1,
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
+    color: Colors.btnColorRed || Colors.red_EF4444,
+    marginRight: ws(8),
+  },
+  wordCounterText: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
+    color: Colors.secondaryFontColor,
+  },
+  wordCounterExceeded: {
+    color: Colors.btnColorRed || Colors.red_EF4444,
+    ...TYPOGRAPHY.bold,
+  },
   dialogActions: {
     flexDirection: 'row',
     gap: ws(12),
@@ -126,12 +220,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: fs(12),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
   },
   dialogBtnTextMuted: {
     fontSize: fs(13),
     ...TYPOGRAPHY.bold,
-    color: '#64748B',
+    color: Colors.slate_64748B,
   },
   dialogBtnConfirm: {
     flex: 1,
@@ -142,6 +236,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: fs(12),
     backgroundColor: Colors.primaryColor,
+  },
+  dialogBtnDisabled: {
+    opacity: 0.6,
   },
   dialogBtnTextConfirm: {
     fontSize: fs(13),

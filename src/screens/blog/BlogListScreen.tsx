@@ -1,17 +1,14 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useMemo, useState } from 'react';
+import React from 'react';
 import {
   FlatList,
   Image,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AppCard,
   AppHeader,
@@ -21,147 +18,33 @@ import {
   SearchBox,
 } from '../../components';
 import { Colors } from '../../constants';
-import type { RootStackParamList } from '../../navigation/types';
-import {
-  useGetBlogCategoriesQuery,
-  useGetBlogsQuery,
-  useGetBlogTagsQuery,
-  type BlogCategoryModel,
-  type BlogModel,
-} from '../../redux/apis/blogApi';
+import type { BlogModel } from '../../redux/apis/blogApi';
 import { DateTimeUtils, fs, getImageUrl, hs, TYPOGRAPHY, ws } from '../../utils';
+import { useBlogList } from './useBlogList';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'BlogList'>;
-
-export const BlogListScreen = ({ navigation }: Props) => {
-  const insets = useSafeAreaInsets();
-  const [selectedCategory, setSelectedCategory] = useState<string | number | null>(null);
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-
+export const BlogListScreen: React.FC = () => {
   const {
-    data: blogsData,
-    isLoading: isBlogsLoading,
-    isFetching: isBlogsFetching,
-    isError: isBlogsError,
-    refetch: refetchBlogs,
-  } = useGetBlogsQuery();
-
-  const { data: categoriesData, refetch: refetchCategories } = useGetBlogCategoriesQuery();
-  const { data: tagsData, refetch: refetchTags } = useGetBlogTagsQuery();
-
-  // Dynamic Categories
-  const categories: BlogCategoryModel[] = useMemo(() => {
-    if (Array.isArray(categoriesData)) return categoriesData;
-    if (Array.isArray((categoriesData as any)?.data)) return (categoriesData as any).data;
-    return [];
-  }, [categoriesData]);
-
-  // Dynamic Tags from API
-  const dynamicTags: string[] = useMemo(() => {
-    const list: string[] = [];
-    if (Array.isArray(tagsData)) {
-      tagsData.forEach((t) => typeof t === 'string' && list.push(t));
-    } else if (Array.isArray((tagsData as any)?.data)) {
-      (tagsData as any).data.forEach((t: any) => typeof t === 'string' && list.push(t));
-    }
-
-    if (list.length > 0) return list;
-
-    // Fallback: extract from blogs
-    const set = new Set<string>();
-    const rawBlogs = Array.isArray(blogsData) ? blogsData : (blogsData as any)?.data ?? [];
-    if (Array.isArray(rawBlogs)) {
-      rawBlogs.forEach((blog: BlogModel) => {
-        if (blog.tags) {
-          blog.tags.split(',').forEach((t) => {
-            const clean = t.trim();
-            if (clean) set.add(clean);
-          });
-        }
-      });
-    }
-    return Array.from(set);
-  }, [tagsData, blogsData]);
-
-  // Raw blogs array
-  const rawBlogs: BlogModel[] = useMemo(() => {
-    if (Array.isArray(blogsData)) return blogsData;
-    if (Array.isArray((blogsData as any)?.data)) return (blogsData as any).data;
-    return [];
-  }, [blogsData]);
-
-  // Helper map of category id to category name
-  const categoryMap = useMemo(() => {
-    const map = new Map<string, string>();
-    categories.forEach((cat) => {
-      if (cat.id != null && cat.name) {
-        map.set(String(cat.id), cat.name);
-      }
-    });
-    return map;
-  }, [categories]);
-
-  const formatTagLabel = (rawTag: string) => {
-    const clean = String(rawTag || '').trim();
-    if (!clean) return '';
-    if (clean.toLowerCase() === 'surgey') return 'Surgery';
-    return clean.charAt(0).toUpperCase() + clean.slice(1);
-  };
-
-  // Filtered blogs list
-  const filteredBlogs = useMemo(() => {
-    return rawBlogs.filter((blog) => {
-      // Filter by category
-      if (selectedCategory !== null && String(blog.category) !== String(selectedCategory)) {
-        return false;
-      }
-
-      // Filter by tag
-      if (selectedTag !== null) {
-        if (!blog.tags) return false;
-        const tagList = blog.tags
-          .toLowerCase()
-          .split(',')
-          .map((t) => t.trim());
-        if (!tagList.includes(selectedTag.toLowerCase())) {
-          return false;
-        }
-      }
-
-      // Filter by search query
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase().trim();
-        const titleMatch = (blog.title || '').toLowerCase().includes(query);
-        const descMatch = (blog.description || '').toLowerCase().includes(query);
-        const authorMatch = (blog.author_name || '').toLowerCase().includes(query);
-        const tagMatch = (blog.tags || '').toLowerCase().includes(query);
-        if (!titleMatch && !descMatch && !authorMatch && !tagMatch) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [rawBlogs, selectedCategory, selectedTag, searchQuery]);
-
-  // Clean HTML from blog description
-  const stripHtml = (html?: string) => {
-    if (!html) return '';
-    return html.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
-  };
-
-  const handleRefresh = () => {
-    refetchBlogs();
-    refetchCategories();
-    refetchTags();
-  };
-
-  const clearFilters = () => {
-    setSelectedCategory(null);
-    setSelectedTag(null);
-    setSearchQuery('');
-  };
+    navigation,
+    insets,
+    selectedCategory,
+    setSelectedCategory,
+    selectedTag,
+    setSelectedTag,
+    searchQuery,
+    setSearchQuery,
+    categories,
+    dynamicTags,
+    filteredBlogs,
+    rawBlogs,
+    categoryMap,
+    isBlogsLoading,
+    isBlogsFetching,
+    isBlogsError,
+    handleRefresh,
+    clearFilters,
+    formatTagLabel,
+    stripHtml,
+  } = useBlogList();
 
   return (
     <View style={styles.container}>
@@ -175,7 +58,10 @@ export const BlogListScreen = ({ navigation }: Props) => {
         <FlatList
           data={filteredBlogs}
           keyExtractor={(item: BlogModel, index: number) => `blog-${item.id ?? index}`}
-          contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + hs(20), hs(32)) }]}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: Math.max(insets.bottom + hs(20), hs(32)) },
+          ]}
           onRefresh={handleRefresh}
           refreshing={isBlogsFetching}
           ListHeaderComponent={
@@ -398,17 +284,14 @@ export const BlogListScreen = ({ navigation }: Props) => {
                         </Text>
                       </View>
 
-                      <View style={styles.metaRight}>
-                        {item.comment_count != null && (
-                          <View style={styles.commentBadge}>
-                            <MaterialIcons name="chat-bubble-outline" size={fs(12)} color={Colors.secondaryFontColor} />
-                            <Text style={styles.commentText}>{item.comment_count}</Text>
-                          </View>
-                        )}
-                        <Text style={styles.dateText}>
-                          {DateTimeUtils.getDataFormat(item.created_at)}
-                        </Text>
-                      </View>
+                      {!!item.created_at && (
+                        <View style={styles.dateRow}>
+                          <MaterialIcons name="access-time" size={fs(12)} color={Colors.secondaryFontColor} />
+                          <Text style={styles.dateText}>
+                            {DateTimeUtils.getDataFormat(item.created_at)}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   </View>
                 </AppCard>
@@ -427,60 +310,40 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgColor,
   },
   listContent: {
-    flexGrow: 1,
-    padding: ws(16),
+    paddingHorizontal: ws(16),
+    paddingTop: hs(12),
   },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: fs(14),
-    paddingHorizontal: ws(14),
-    height: hs(46),
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: hs(16),
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  searchIcon: {
-    marginRight: ws(8),
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: fs(14),
-    ...TYPOGRAPHY.medium,
-    color: Colors.primaryFontColor,
-    paddingVertical: 0,
+    marginBottom: hs(12),
   },
   sectionHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: hs(10),
+    justifyContent: 'space-between',
+    marginTop: hs(4),
+    marginBottom: hs(8),
   },
   sectionTitle: {
-    fontSize: fs(14),
+    fontSize: fs(13),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   clearLink: {
-    fontSize: fs(11),
+    fontSize: fs(12),
     ...TYPOGRAPHY.medium,
     color: Colors.primaryColor,
   },
   chipsScrollContainer: {
     gap: ws(8),
-    paddingBottom: hs(14),
+    paddingBottom: hs(10),
   },
   categoryChip: {
-    paddingHorizontal: ws(14),
-    paddingVertical: hs(8),
-    borderRadius: fs(12),
     backgroundColor: Colors.white,
+    paddingHorizontal: ws(14),
+    paddingVertical: hs(7),
+    borderRadius: fs(14),
     borderWidth: 1,
     borderColor: Colors.border,
   },
@@ -491,7 +354,7 @@ const styles = StyleSheet.create({
   categoryChipText: {
     fontSize: fs(12),
     ...TYPOGRAPHY.medium,
-    color: Colors.primaryFontColor,
+    color: Colors.secondaryFontColor,
   },
   categoryChipTextActive: {
     color: Colors.white,
@@ -500,10 +363,10 @@ const styles = StyleSheet.create({
   tagChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: Colors.aquaSoft,
     paddingHorizontal: ws(12),
     paddingVertical: hs(6),
-    borderRadius: fs(16),
-    backgroundColor: Colors.aquaSoft,
+    borderRadius: fs(12),
     borderWidth: 1,
     borderColor: Colors.aqua,
   },
@@ -522,38 +385,49 @@ const styles = StyleSheet.create({
   },
   articlesHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: hs(6),
+    justifyContent: 'space-between',
+    marginTop: hs(10),
     marginBottom: hs(12),
+    paddingHorizontal: ws(2),
   },
   articlesHeaderTitle: {
-    fontSize: fs(16),
+    flex: 1,
+    fontSize: fs(14),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
+    marginRight: ws(8),
   },
   articlesCountBadge: {
     fontSize: fs(11),
     ...TYPOGRAPHY.medium,
     color: Colors.secondaryFontColor,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.white,
     paddingHorizontal: ws(8),
-    paddingVertical: hs(3),
-    borderRadius: fs(10),
-  },
-  blogCard: {
-    marginBottom: hs(16),
-    padding: 0,
-    overflow: 'hidden',
-    borderRadius: fs(18),
+    paddingVertical: hs(2),
+    borderRadius: fs(8),
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  blogCard: {
+    backgroundColor: Colors.white,
+    borderRadius: fs(16),
+    overflow: 'hidden',
+    marginBottom: hs(14),
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 0,
+    elevation: 2,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+  },
   imageContainer: {
     width: '100%',
-    height: hs(180),
+    height: hs(160),
     position: 'relative',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
   },
   featuredImage: {
     width: '100%',
@@ -561,7 +435,7 @@ const styles = StyleSheet.create({
   },
   categoryPill: {
     position: 'absolute',
-    top: hs(12),
+    bottom: hs(10),
     left: ws(12),
     backgroundColor: Colors.primaryColor,
     paddingHorizontal: ws(10),
@@ -570,30 +444,32 @@ const styles = StyleSheet.create({
   },
   categoryPillText: {
     color: Colors.white,
-    fontSize: fs(11),
+    fontSize: fs(10),
     ...TYPOGRAPHY.bold,
+    textTransform: 'uppercase',
+  },
+  cardBody: {
+    padding: ws(14),
   },
   inlineCategoryPill: {
     alignSelf: 'flex-start',
     backgroundColor: Colors.aquaSoft,
-    paddingHorizontal: ws(10),
-    paddingVertical: hs(4),
-    borderRadius: fs(8),
+    paddingHorizontal: ws(8),
+    paddingVertical: hs(3),
+    borderRadius: fs(6),
     marginBottom: hs(8),
   },
   inlineCategoryPillText: {
     color: Colors.primaryColor,
-    fontSize: fs(11),
+    fontSize: fs(10),
     ...TYPOGRAPHY.bold,
-  },
-  cardBody: {
-    padding: ws(16),
+    textTransform: 'uppercase',
   },
   blogTitle: {
-    fontSize: fs(16),
+    fontSize: fs(15),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
-    lineHeight: fs(22),
+    lineHeight: fs(21),
     marginBottom: hs(6),
   },
   blogExcerpt: {
@@ -605,13 +481,13 @@ const styles = StyleSheet.create({
   },
   cardTagsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     flexWrap: 'wrap',
     gap: ws(6),
-    marginBottom: hs(12),
+    marginBottom: hs(10),
+    alignItems: 'center',
   },
   cardTagPill: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.bgColor,
     paddingHorizontal: ws(8),
     paddingVertical: hs(2),
     borderRadius: fs(6),
@@ -625,16 +501,16 @@ const styles = StyleSheet.create({
   },
   moreTagsText: {
     fontSize: fs(10),
-    color: Colors.secondaryFontColor,
-    ...TYPOGRAPHY.regular,
+    ...TYPOGRAPHY.medium,
+    color: Colors.slate_94A3B8,
   },
   cardFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingTop: hs(10),
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: Colors.border,
   },
   authorRow: {
     flexDirection: 'row',
@@ -644,8 +520,9 @@ const styles = StyleSheet.create({
   },
   authorAvatar: {
     width: ws(24),
-    height: hs(24),
-    borderRadius: fs(12),
+    height: ws(24),
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
@@ -653,45 +530,33 @@ const styles = StyleSheet.create({
   },
   authorName: {
     fontSize: fs(11),
-    ...TYPOGRAPHY.medium,
+    ...TYPOGRAPHY.semiBold,
     color: Colors.primaryFontColor,
   },
-  metaRight: {
+  dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(8),
-  },
-  commentBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ws(3),
-  },
-  commentText: {
-    fontSize: fs(11),
-    ...TYPOGRAPHY.medium,
-    color: Colors.secondaryFontColor,
+    gap: ws(4),
   },
   dateText: {
-    fontSize: fs(11),
+    fontSize: fs(10),
     ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: hs(20),
+    paddingVertical: hs(40),
   },
   clearFiltersBtn: {
-    marginTop: hs(12),
-    paddingHorizontal: ws(16),
-    paddingVertical: hs(8),
+    marginTop: hs(14),
+    backgroundColor: Colors.primaryColor,
+    paddingHorizontal: ws(18),
+    paddingVertical: hs(10),
     borderRadius: fs(10),
-    backgroundColor: Colors.aquaSoft,
-    borderWidth: 1,
-    borderColor: Colors.primaryColor,
   },
   clearFiltersBtnText: {
+    color: Colors.white,
     fontSize: fs(12),
     ...TYPOGRAPHY.bold,
-    color: Colors.primaryColor,
   },
 });

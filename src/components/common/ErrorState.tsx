@@ -14,7 +14,7 @@ interface ErrorStateProps {
 export const ErrorState: React.FC<ErrorStateProps> = ({ message = 'Something went wrong', onRetry, style }) => {
   return (
     <View style={[styles.container, style]}>
-      <MaterialIcons name="error-outline" size={fs(48)} color={Colors.redColor || '#EE404C'} />
+      <MaterialIcons name="error-outline" size={fs(48)} color={Colors.redColor || Colors.red_EE404C} />
       <Text style={styles.message}>{message}</Text>
       {onRetry && (
         <TouchableOpacity style={styles.retryBtn} onPress={onRetry}>
@@ -35,7 +35,7 @@ const styles = StyleSheet.create({
     marginTop: hs(12),
     ...TYPOGRAPHY.regular,
     fontSize: fs(14),
-    color: Colors.primaryFontColor || '#000000',
+    color: Colors.primaryFontColor || Colors.black,
     textAlign: 'center',
   },
   retryBtn: {
@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(8),
   },
   retryText: {
-    color: Colors.white || '#FFFFFF',
+    color: Colors.white,
     ...TYPOGRAPHY.medium,
     fontSize: fs(12),
   },

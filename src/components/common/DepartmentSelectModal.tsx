@@ -112,14 +112,14 @@ export const DepartmentSelectModal: React.FC<DepartmentSelectModalProps> = ({
             <TextInput
               style={styles.searchInput}
               placeholder="Search department..."
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={Colors.slate_94A3B8}
               value={searchQuery}
               onChangeText={setSearchQuery}
               autoCorrect={false}
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <MaterialIcons name="cancel" size={fs(18)} color="#94A3B8" />
+                <MaterialIcons name="cancel" size={fs(18)} color={Colors.slate_94A3B8} />
               </TouchableOpacity>
             )}
           </View>
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     paddingTop: hs(12),
     paddingHorizontal: ws(20),
     maxHeight: '80%',
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     width: ws(40),
     height: hs(4),
     borderRadius: fs(2),
-    backgroundColor: '#CBD5E1',
+    backgroundColor: Colors.gray_CBD5E1,
     alignSelf: 'center',
     marginBottom: hs(12),
   },
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: hs(12),
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: Colors.slate_F1F5F9,
   },
   modalSheetTitle: {
     fontSize: fs(17),
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     borderRadius: fs(12),
     paddingHorizontal: ws(12),
     paddingVertical: hs(8),
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     width: ws(40),
     height: ws(40),
     borderRadius: fs(10),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: ws(12),
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
   deptNameText: {
     fontSize: fs(14),
     ...TYPOGRAPHY.semiBold,
-    color: '#1E293B',
+    color: Colors.primaryFontColor,
   },
   deptNameTextSelected: {
     ...TYPOGRAPHY.bold,
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   deptDescText: {
     fontSize: fs(11),
     ...TYPOGRAPHY.regular,
-    color: '#64748B',
+    color: Colors.slate_64748B,
     marginTop: hs(2),
   },
   emptyContainer: {

@@ -272,12 +272,12 @@ const styles = StyleSheet.create({
     marginBottom: hs(4),
   },
   requiredAsterisk: {
-    color: '#EF4444',
+    color: Colors.red_EF4444,
     ...TYPOGRAPHY.bold,
   },
   singleTextInput: {
     height: hs(44),
-    backgroundColor: '#F3F8FD',
+    backgroundColor: Colors.blue_F3F8FD,
     borderRadius: fs(12),
     paddingHorizontal: ws(14),
     fontSize: fs(13),
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F3F8FD',
+    backgroundColor: Colors.blue_F3F8FD,
     borderRadius: fs(12),
     paddingHorizontal: ws(14),
     borderWidth: 1,
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     height: hs(44),
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F8FD',
+    backgroundColor: Colors.blue_F3F8FD,
     borderRadius: fs(12),
     paddingHorizontal: ws(14),
     borderWidth: 1,
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
   },
   inputBorderError: {
     borderColor: Colors.redColor,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: Colors.red_FFF5F5,
   },
   fieldErrorText: {
     fontSize: fs(11),

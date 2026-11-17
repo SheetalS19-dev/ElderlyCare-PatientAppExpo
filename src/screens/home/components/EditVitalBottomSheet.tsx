@@ -73,7 +73,7 @@ export const EditVitalBottomSheet = memo(({
           <View style={styles.modalHeaderRow}>
             <Text style={styles.modalTitle}>Update {vitalType}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <MaterialIcons name="close" size={24} color="#64748B" />
+              <MaterialIcons name="close" size={24} color={Colors.slate_64748B} />
             </TouchableOpacity>
           </View>
 
@@ -92,7 +92,7 @@ export const EditVitalBottomSheet = memo(({
               <Text style={styles.pickerSelectorText}>
                 {DateTimeUtils.getDataFormat(selectedDate)}
               </Text>
-              <MaterialIcons name="calendar-today" size={18} color="#64748B" />
+              <MaterialIcons name="calendar-today" size={18} color={Colors.slate_64748B} />
             </TouchableOpacity>
 
             {/* Time Selection */}
@@ -104,7 +104,7 @@ export const EditVitalBottomSheet = memo(({
               <Text style={styles.pickerSelectorText}>
                 {DateTimeUtils.formatTimeToAmPm(selectedTime) || selectedTime}
               </Text>
-              <MaterialIcons name="access-time" size={18} color="#64748B" />
+              <MaterialIcons name="access-time" size={18} color={Colors.slate_64748B} />
             </TouchableOpacity>
 
             {/* Dynamic Vital Fields */}
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: fs(12),
     ...TYPOGRAPHY.bold,
-    color: '#475569',
+    color: Colors.slate_475569,
     marginBottom: hs(6),
     marginTop: hs(8),
   },
@@ -213,9 +213,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: Colors.gray_CBD5E1,
     borderRadius: fs(10),
     paddingHorizontal: ws(14),
     paddingVertical: hs(12),
@@ -238,14 +238,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
     height: hs(48),
     borderRadius: fs(12),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     justifyContent: 'center',
     alignItems: 'center',
   },
   cancelText: {
     fontSize: fs(14),
     ...TYPOGRAPHY.bold,
-    color: '#64748B',
+    color: Colors.slate_64748B,
   },
   saveBtn: {
     flex: 1,

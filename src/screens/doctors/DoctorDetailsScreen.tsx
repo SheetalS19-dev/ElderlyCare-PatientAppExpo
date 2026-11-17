@@ -1,8 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import {
-  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,118 +13,46 @@ import {
   ErrorState,
   LoadingIndicator,
 } from '../../components';
-import { AppConstants, Colors } from '../../constants';
-import { useAuth } from '../../context/AuthContext';
-import type { RootStackParamList } from '../../navigation/types';
-import { useGetDoctorByIdQuery, useGetDoctorReviewsQuery } from '../../redux/apis/doctorApi';
-import type { DoctorModel, DoctorReviewModel } from '../../types';
-import {
-  formatDoctorName,
-  fs,
-  getImageUrl,
-  hs,
-  showToast,
-  TYPOGRAPHY,
-  ws,
-} from '../../utils';
+import { Colors } from '../../constants';
+import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
 import {
   DoctorAboutCard,
   DoctorClinicContactCard,
   DoctorConsultationModes,
   DoctorHeaderProfileCard,
   DoctorReviewsSection,
-  type ConsultationModeItem,
 } from './components';
+import { useDoctorDetails, type ConsultationMode } from './useDoctorDetails';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'DoctorDetails'>;
-type ConsultationMode = 'clinic' | 'video' | 'emergency';
-
-export const DoctorDetailsScreen = ({ navigation, route }: Props) => {
-  const { doctId, isReschedule, rescheduledFromAppId } = route.params;
+export const DoctorDetailsScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const { isAuthenticated } = useAuth();
-
-  const [selectedMode, setSelectedMode] = useState<ConsultationMode>('clinic');
-
-  const { data: rawDoctor, isLoading, isError, refetch } = useGetDoctorByIdQuery(doctId);
-  const { data: rawReviews } = useGetDoctorReviewsQuery(doctId);
-
-  const doctor: DoctorModel | null = useMemo(() => {
-    if (!rawDoctor) return null;
-    let target = (rawDoctor as any)?.data ?? (rawDoctor as any)?.response ?? rawDoctor;
-    if (Array.isArray(target)) return target[0] ?? null;
-    return target ?? null;
-  }, [rawDoctor]);
-
-  const reviews: DoctorReviewModel[] = useMemo(() => {
-    if (!rawReviews) return [];
-    if (Array.isArray(rawReviews)) return rawReviews;
-    if (Array.isArray((rawReviews as any)?.data)) return (rawReviews as any).data;
-    if (Array.isArray((rawReviews as any)?.response)) return (rawReviews as any).response;
-    return [];
-  }, [rawReviews]);
-
-  // Dynamic Consultation Modes verified from database
-  const consultationModes: ConsultationModeItem[] = useMemo(() => {
-    if (!doctor) return [];
-    const items: (ConsultationModeItem | null)[] = [
-      Number(doctor.clinic_appointment) === 1 || Boolean(doctor.opd_fee)
-        ? {
-          id: 'clinic',
-          label: 'Clinic Visit',
-          fee: doctor.opd_fee != null ? `${AppConstants.appCurrency}${Number(doctor.opd_fee).toFixed(2)}` : '--',
-          subtext: '(In-person)',
-          icon: 'hospital-building',
-          isCommunity: true,
-        }
-        : null,
-      Number(doctor.video_appointment) === 1 || Boolean(doctor.video_fee)
-        ? {
-          id: 'video',
-          label: 'Video Consultation',
-          fee: doctor.video_fee != null ? `${AppConstants.appCurrency}${Number(doctor.video_fee).toFixed(2)}` : '--',
-          subtext: '(Online)',
-          icon: 'videocam',
-          isCommunity: false,
-        }
-        : null,
-      Number(doctor.emergency_appointment) === 1 || (doctor.emergency_appointment as any) === '1'
-        ? {
-          id: 'emergency',
-          label: 'Emergency',
-          fee: doctor.emg_fee != null ? `${AppConstants.appCurrency}${Number(doctor.emg_fee).toFixed(2)}` : '--',
-          subtext: '(In-person only)',
-          icon: 'ambulance',
-          isCommunity: true,
-        }
-        : null,
-    ];
-    return items.filter(Boolean) as ConsultationModeItem[];
-  }, [doctor]);
-
-  useEffect(() => {
-    if (consultationModes.length > 0 && !consultationModes.some((m) => m.id === selectedMode)) {
-      setSelectedMode(consultationModes[0].id as ConsultationMode);
-    }
-  }, [consultationModes, selectedMode]);
-
-  const handleOpenUrl = async (url: string) => {
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-      } else {
-        showToast('Cannot open link on this device');
-      }
-    } catch {
-      showToast('Action could not be completed');
-    }
-  };
-
-  const handleOpenDirections = (addressQuery: string) => {
-    const query = encodeURIComponent(addressQuery);
-    handleOpenUrl(`https://www.google.com/maps/search/?api=1&query=${query}`);
-  };
+  const {
+    navigation,
+    doctor,
+    reviews,
+    reviewCount,
+    rating,
+    consultationModes,
+    selectedMode,
+    setSelectedMode,
+    isLoading,
+    isError,
+    refetch,
+    fullName,
+    reviewCountText,
+    bookingDisabled,
+    clinicTitle,
+    clinicPhone,
+    clinicEmail,
+    clinicAddress,
+    clinicImgUrl,
+    hasClinicSection,
+    expValue,
+    patientsCount,
+    handleOpenUrl,
+    handleOpenDirections,
+    handleBookNow,
+  } = useDoctorDetails();
 
   if (isLoading) {
     return (
@@ -145,35 +71,6 @@ export const DoctorDetailsScreen = ({ navigation, route }: Props) => {
       </View>
     );
   }
-
-  const fullName = formatDoctorName(doctor.f_name, doctor.l_name);
-  const rating = Number(doctor.average_rating ?? 0);
-  const reviewCount = Number(doctor.number_of_reviews ?? reviews.length);
-  const reviewCountText = `${rating > 0 ? rating.toFixed(1) : '0.0'} (${reviewCount} ${reviewCount === 1 ? 'Review' : 'Reviews'})`;
-
-  const bookingDisabled = doctor.stop_booking === 1;
-
-  // Dynamic Clinic Details
-  const clinicTitle =
-    doctor.clinic_title || doctor.clinic_name || (doctor as any).clinics_name || '';
-  const clinicPhone =
-    (doctor as any).clinic_phone || doctor.phone || (doctor as any).clinics_phone || '';
-  const clinicEmail =
-    (doctor as any).clinic_email || doctor.email || (doctor as any).clinics_email || '';
-  const clinicAddress =
-    doctor.clinics_address || doctor.clinic_address || '';
-
-  const clinicImgRaw = Array.isArray(doctor.clinic_image)
-    ? doctor.clinic_image[0]
-    : doctor.clinic_image || doctor.clinic_thumb_image || (doctor as any).clinics_image;
-  const clinicImgUrl = getImageUrl(clinicImgRaw);
-
-  const hasClinicSection = Boolean(
-    clinicTitle || clinicPhone || clinicEmail || clinicAddress
-  );
-
-  const expValue = doctor.ex_year ?? doctor.experience;
-  const patientsCount = doctor.total_appointment_done ?? (doctor as any).patients_served;
 
   return (
     <View style={styles.container}>
@@ -229,6 +126,7 @@ export const DoctorDetailsScreen = ({ navigation, route }: Props) => {
         <DoctorReviewsSection
           reviews={reviews}
           doctorName={fullName}
+          reviewCount={reviewCount}
         />
       </ScrollView>
 
@@ -242,21 +140,10 @@ export const DoctorDetailsScreen = ({ navigation, route }: Props) => {
         <TouchableOpacity
           style={[styles.bookBtn, bookingDisabled && styles.bookBtnDisabled]}
           disabled={bookingDisabled}
-          onPress={() => {
-            if (!isAuthenticated) {
-              navigation.navigate('Login');
-              return;
-            }
-            navigation.navigate('BookAppointment', {
-              doctId,
-              initialMode: selectedMode,
-              isReschedule,
-              rescheduledFromAppId,
-            });
-          }}
+          onPress={handleBookNow}
           activeOpacity={0.85}
         >
-          <MaterialIcons name="event" size={18} color="#FFFFFF" />
+          <MaterialIcons name="event" size={18} color={Colors.white} />
           <Text style={styles.bookBtnText}>
             {bookingDisabled ? 'Not Accepting Appointments' : 'Book Appointment'}
           </Text>
@@ -285,7 +172,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.border,
     elevation: 8,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -305,6 +192,6 @@ const styles = StyleSheet.create({
   bookBtnText: {
     fontSize: fs(13),
     ...TYPOGRAPHY.bold,
-    color: '#FFFFFF',
+    color: Colors.white,
   },
 });

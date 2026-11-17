@@ -1,63 +1,24 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
-  Platform,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton, AppCard, AppHeader, LoadingIndicator } from '../../components';
-import { ApiEndpoints, AppConstants, Colors } from '../../constants';
-import type { RootStackParamList } from '../../navigation/types';
-import { apiClient } from '../../services/apiClient';
-import { fs, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
+import { AppConstants, Colors } from '../../constants';
+import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
+import { useShare } from './useShare';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Share'>;
-
-export const ShareScreen = ({ navigation }: Props) => {
-  const insets = useSafeAreaInsets();
-  const [shareLink, setShareLink] = useState('');
-  const [pointsDesc, setPointsDesc] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    fetchShareConfig();
-  }, []);
-
-  const fetchShareConfig = async () => {
-    setIsLoading(true);
-    try {
-      const linkKey = Platform.OS === 'ios' ? 'app_store_link' : 'play_store_link';
-      const [linkRes, descRes] = await Promise.all([
-        apiClient.get(`${ApiEndpoints.getConfigByIdNameApiUrl}/${linkKey}`),
-        apiClient.get(`${ApiEndpoints.getConfigByIdNameApiUrl}/s_p_d_p_a`),
-      ]);
-
-      if (linkRes?.data?.value) setShareLink(linkRes.data.value);
-      if (descRes?.data?.value) setPointsDesc(descRes.data.value);
-    } catch (e) {
-      console.warn('Share config fetch error:', e);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleShare = async () => {
-    try {
-      await Share.share({
-        message: `Download ${AppConstants.appName} care app to manage appointments, vitals & prescriptions: ${shareLink || 'https://elderlycare.life'}`,
-        title: AppConstants.appName,
-      });
-    } catch (error) {
-      console.warn('Share error:', error);
-    }
-  };
+export const ShareScreen: React.FC = () => {
+  const {
+    navigation,
+    insets,
+    pointsDesc,
+    isLoading,
+    handleShare,
+  } = useShare();
 
   return (
     <View style={styles.container}>
@@ -89,7 +50,7 @@ export const ShareScreen = ({ navigation }: Props) => {
 
             {/* Share Features List */}
             <Text style={styles.sectionTitle}>Why Share {AppConstants.appName}?</Text>
-            
+
             <AppCard style={styles.featureCard}>
               <View style={styles.featureRow}>
                 <View style={[styles.featureIconBox, { backgroundColor: Colors.aquaSoft }]}>
@@ -104,8 +65,8 @@ export const ShareScreen = ({ navigation }: Props) => {
 
             <AppCard style={styles.featureCard}>
               <View style={styles.featureRow}>
-                <View style={[styles.featureIconBox, { backgroundColor: '#ECFDF5' }]}>
-                  <MaterialIcons name="event-available" size={fs(22)} color="#10B981" />
+                <View style={[styles.featureIconBox, { backgroundColor: Colors.green_ECFDF5 }]}>
+                  <MaterialIcons name="event-available" size={fs(22)} color={Colors.green_10B981} />
                 </View>
                 <View style={styles.featureInfo}>
                   <Text style={styles.featureTitle}>Instant Appointments</Text>
@@ -238,7 +199,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.border,
     elevation: 8,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,
     shadowRadius: 8,

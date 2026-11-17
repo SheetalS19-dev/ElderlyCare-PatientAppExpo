@@ -3,21 +3,22 @@
  * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
  */
 import { Platform } from 'react-native';
+import { Colors } from './colors';
 
 export const ThemeColors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    text: Colors.black,
+    background: Colors.white,
+    backgroundElement: Colors.theme_F0F0F3,
+    backgroundSelected: Colors.theme_E0E1E6,
+    textSecondary: Colors.theme_60646C,
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    text: Colors.white,
+    background: Colors.black,
+    backgroundElement: Colors.theme_212225,
+    backgroundSelected: Colors.theme_2E3135,
+    textSecondary: Colors.theme_B0B4BA,
   },
 } as const;
 

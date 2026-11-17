@@ -28,7 +28,7 @@ export const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
     <>
       {/* Main Balance Card (navy -> teal gradient) */}
       <View style={styles.balanceCard}>
-        <GradientFill id="walletCardGrad" colors={['#15275B', '#1B4C7C', '#1F6D96']} />
+        <GradientFill id="walletCardGrad" colors={[Colors.navy, Colors.navyMid, Colors.teal]} />
         <View style={styles.balanceGlow} pointerEvents="none" />
         <Text style={styles.balanceLabel}>CURRENT BALANCE</Text>
         <View style={styles.balanceValueRow}>
@@ -50,21 +50,21 @@ export const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
       {/* Stat Summary Cards Row */}
       <View style={styles.summaryStatsGrid}>
         <View style={styles.statSummaryCard}>
-          <View style={[styles.statIconCircle, { backgroundColor: '#E3F8EE' }]}>
-            <MaterialIcons name="arrow-downward" size={fs(16)} color="#10B981" />
+          <View style={[styles.statIconCircle, { backgroundColor: Colors.green_ECFDF5 }]}>
+            <MaterialIcons name="arrow-downward" size={fs(16)} color={Colors.green_10B981} />
           </View>
           <Text style={styles.statSummaryLabel}>Total Credited</Text>
-          <Text style={[styles.statSummaryValue, { color: '#10B981' }]}>
+          <Text style={[styles.statSummaryValue, { color: Colors.green_10B981 }]}>
             {AppConstants.appCurrency}{totalCredited.toLocaleString('en-IN')}
           </Text>
         </View>
 
         <View style={styles.statSummaryCard}>
-          <View style={[styles.statIconCircle, { backgroundColor: '#FDE8EA' }]}>
-            <MaterialIcons name="arrow-upward" size={fs(16)} color="#EF4444" />
+          <View style={[styles.statIconCircle, { backgroundColor: Colors.red_FEE2E2 }]}>
+            <MaterialIcons name="arrow-upward" size={fs(16)} color={Colors.red_EF4444} />
           </View>
           <Text style={styles.statSummaryLabel}>Wallet Spent</Text>
-          <Text style={[styles.statSummaryValue, { color: '#EF4444' }]}>
+          <Text style={[styles.statSummaryValue, { color: Colors.redColor }]}>
             {AppConstants.appCurrency}{totalSpent.toLocaleString('en-IN')}
           </Text>
         </View>
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     borderRadius: fs(14),
     padding: ws(14),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.slate_E2E8F0,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,

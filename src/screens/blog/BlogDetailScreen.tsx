@@ -1,181 +1,46 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import {
   ActivityIndicator,
   Image,
-  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppHeader, ErrorState, LoadingIndicator } from '../../components';
 import { Colors } from '../../constants';
-import { useAuth } from '../../context/AuthContext';
-import type { RootStackParamList } from '../../navigation/types';
-import {
-  type BlogModel,
-  useGetBlogCommentsQuery,
-  useGetBlogDetailQuery,
-  useSaveBlogCommentMutation,
-} from '../../redux/apis/blogApi';
-import { DateTimeUtils, fs, getImageUrl, hs, showToast, TYPOGRAPHY, ws } from '../../utils';
+import { DateTimeUtils, fs, getImageUrl, hs, TYPOGRAPHY, ws } from '../../utils';
+import { useBlogDetail } from './useBlogDetail';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'BlogDetail'>;
-
-interface CommentItem {
-  id: string;
-  author: string;
-  text: string;
-  date: string;
-  email?: string;
-}
-
-export const BlogDetailScreen = ({ route, navigation }: Props) => {
-  const { blogId } = route.params;
-  const insets = useSafeAreaInsets();
-  const { user } = useAuth();
-
-  const [commentName, setCommentName] = useState('');
-  const [commentEmail, setCommentEmail] = useState('');
-  const [commentText, setCommentText] = useState('');
-  const [localComments, setLocalComments] = useState<CommentItem[]>([]);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [isDescExpanded, setIsDescExpanded] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      const full = `${user.f_name ?? ''} ${user.l_name ?? ''}`.trim();
-      if (full) setCommentName(full);
-      if (user.email) setCommentEmail(user.email);
-    }
-  }, [user]);
-
-  const [saveBlogComment, { isLoading: isPostingComment }] = useSaveBlogCommentMutation();
-
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-
-    const showSub = Keyboard.addListener(showEvent, (e) => {
-      setKeyboardHeight(e.endCoordinates?.height ?? 0);
-    });
-    const hideSub = Keyboard.addListener(hideEvent, () => {
-      setKeyboardHeight(0);
-    });
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
-
-  const { data: blogData, isLoading, isError, refetch } = useGetBlogDetailQuery(blogId);
-  const blog: BlogModel | null = blogData?.data ?? blogData ?? null;
-
+export const BlogDetailScreen: React.FC = () => {
   const {
-    data: rawComments,
-    isLoading: isLoadingComments,
-    refetch: refetchComments,
-  } = useGetBlogCommentsQuery(blogId);
-
-  const apiComments: CommentItem[] = useMemo(() => {
-    let list: any[] = [];
-    if (Array.isArray(rawComments)) list = rawComments;
-    else if (Array.isArray((rawComments as any)?.data)) list = (rawComments as any).data;
-
-    return list.map((item: any) => ({
-      id: String(item.id || Math.random()),
-      author: item.name || item.email || 'Anonymous',
-      text: item.comment || '',
-      date: item.created_at
-        ? DateTimeUtils.getDataFormat(item.created_at)
-        : 'Recently',
-    }));
-  }, [rawComments]);
-
-  const allComments = useMemo(() => {
-    const combined = [...localComments];
-    for (const c of apiComments) {
-      if (!combined.some((x) => String(x.id) === String(c.id) || (x.text === c.text && x.author === c.author))) {
-        combined.push(c);
-      }
-    }
-    return combined;
-  }, [localComments, apiComments]);
-
-  const handleShare = async () => {
-    try {
-      if (blog?.title) {
-        await Share.share({
-          message: `${blog.title}\n\nRead more on ElderlyCare Patient App!`,
-        });
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleSendComment = async (overrideText?: string) => {
-    const textToSend = (overrideText || commentText).trim();
-    if (!textToSend || isPostingComment) return;
-
-    const authorName = commentName.trim() || (user
-      ? `${user.f_name ?? ''} ${user.l_name ?? ''}`.trim() || 'Patient'
-      : 'Guest User');
-    const authorEmail = commentEmail.trim() || user?.email || '';
-
-    setCommentText('');
-    Keyboard.dismiss();
-
-    const newComment: CommentItem = {
-      id: `c-${Date.now()}`,
-      author: authorName,
-      text: textToSend,
-      date: 'Just now',
-    };
-    setLocalComments((prev) => [newComment, ...prev]);
-
-    try {
-      await saveBlogComment({
-        blog_id: blogId,
-        name: authorName,
-        email: authorEmail,
-        comment: textToSend,
-      }).unwrap();
-      showToast('Comment posted successfully!');
-      refetch();
-      refetchComments();
-    } catch (err: any) {
-      console.warn('Post blog comment call:', err);
-      showToast('Comment posted successfully!');
-      refetchComments();
-    }
-  };
-
-  const stripHtml = (html?: string) => {
-    if (!html) return '';
-    return html
-      .replace(/<br\s*[\/]?>/gi, '\n')
-      .replace(/<\/p>/gi, '\n\n')
-      .replace(/<\/h[1-6]>/gi, '\n\n')
-      .replace(/<[^>]*>?/gm, '')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .trim();
-  };
+    navigation,
+    insets,
+    blog,
+    isLoading,
+    isError,
+    refetch,
+    commentName,
+    setCommentName,
+    commentEmail,
+    setCommentEmail,
+    commentText,
+    setCommentText,
+    allComments,
+    isLoadingComments,
+    isPostingComment,
+    isDescExpanded,
+    setIsDescExpanded,
+    handleShare,
+    handleSendComment,
+    stripHtml,
+  } = useBlogDetail();
 
   if (isLoading) {
     return (
@@ -342,13 +207,13 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
           <View style={styles.leaveCommentCard}>
             <Text style={styles.leaveCommentTitle}>Leave A Comment</Text>
             <Text style={styles.leaveCommentSubtitle}>
-              Your email address will not be published. Required fields are marked as <Text style={{ color: '#EF4444' }}>*</Text>.
+              Your email address will not be published. Required fields are marked as <Text style={{ color: Colors.red_EF4444 }}>*</Text>.
             </Text>
 
             <View style={styles.inputRow}>
               <View style={styles.inputFieldContainer}>
                 <Text style={styles.fieldLabel}>
-                  Name <Text style={{ color: '#EF4444' }}>*</Text>
+                  Name <Text style={{ color: Colors.red_EF4444 }}>*</Text>
                 </Text>
                 <TextInput
                   style={styles.formInput}
@@ -361,7 +226,7 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
 
               <View style={styles.inputFieldContainer}>
                 <Text style={styles.fieldLabel}>
-                  Email <Text style={{ color: '#EF4444' }}>*</Text>
+                  Email <Text style={{ color: Colors.red_EF4444 }}>*</Text>
                 </Text>
                 <TextInput
                   style={styles.formInput}
@@ -377,7 +242,7 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
 
             <View style={styles.inputFieldContainer}>
               <Text style={styles.fieldLabel}>
-                Comment <Text style={{ color: '#EF4444' }}>*</Text>
+                Comment <Text style={{ color: Colors.red_EF4444 }}>*</Text>
               </Text>
               <TextInput
                 style={[styles.formInput, styles.commentTextArea]}
@@ -401,11 +266,11 @@ export const BlogDetailScreen = ({ route, navigation }: Props) => {
               disabled={!commentText.trim() || isPostingComment}
             >
               {isPostingComment ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={Colors.white} />
               ) : (
                 <View style={styles.btnRow}>
                   <Text style={styles.postCommentBtnText}>Post a comment</Text>
-                  <MaterialIcons name="arrow-forward" size={fs(16)} color="#FFFFFF" />
+                  <MaterialIcons name="arrow-forward" size={fs(16)} color={Colors.white} />
                 </View>
               )}
             </TouchableOpacity>
@@ -435,7 +300,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: hs(16),
     position: 'relative',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
   },
   bannerImage: {
     width: '100%',
@@ -452,21 +317,23 @@ const styles = StyleSheet.create({
   },
   categoryPillText: {
     color: Colors.white,
-    fontSize: fs(12),
+    fontSize: fs(11),
     ...TYPOGRAPHY.bold,
+    textTransform: 'uppercase',
   },
   inlineCategoryPill: {
     alignSelf: 'flex-start',
     backgroundColor: Colors.aquaSoft,
-    paddingHorizontal: ws(12),
+    paddingHorizontal: ws(10),
     paddingVertical: hs(4),
-    borderRadius: fs(8),
+    borderRadius: fs(6),
     marginBottom: hs(10),
   },
   inlineCategoryPillText: {
     color: Colors.primaryColor,
-    fontSize: fs(12),
+    fontSize: fs(11),
     ...TYPOGRAPHY.bold,
+    textTransform: 'uppercase',
   },
   title: {
     fontSize: fs(20),
@@ -477,25 +344,26 @@ const styles = StyleSheet.create({
   },
   metaRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingBottom: hs(14),
+    marginBottom: hs(12),
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
-    marginBottom: hs(14),
   },
   authorGroup: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: ws(10),
   },
   authorAvatar: {
-    width: ws(38),
-    height: hs(38),
-    borderRadius: fs(19),
+    width: ws(36),
+    height: ws(36),
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: Colors.aquaSoft,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: ws(10),
   },
   authorName: {
     fontSize: fs(13),
@@ -511,28 +379,30 @@ const styles = StyleSheet.create({
   shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.aquaSoft,
+    backgroundColor: Colors.white,
     paddingHorizontal: ws(12),
-    paddingVertical: hs(6),
-    borderRadius: fs(10),
+    paddingVertical: hs(7),
+    borderRadius: fs(20),
+    borderWidth: 1,
+    borderColor: Colors.border,
     gap: ws(4),
   },
   shareBtnText: {
     fontSize: fs(12),
-    ...TYPOGRAPHY.bold,
+    ...TYPOGRAPHY.medium,
     color: Colors.primaryColor,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: ws(6),
-    marginBottom: hs(16),
+    marginBottom: hs(14),
   },
   tagPill: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.white,
     paddingHorizontal: ws(10),
-    paddingVertical: hs(4),
-    borderRadius: fs(8),
+    paddingVertical: hs(5),
+    borderRadius: fs(12),
     borderWidth: 1,
     borderColor: Colors.border,
   },
@@ -544,29 +414,34 @@ const styles = StyleSheet.create({
   bodyCard: {
     backgroundColor: Colors.white,
     borderRadius: fs(16),
-    padding: ws(18),
+    padding: ws(16),
     marginBottom: hs(16),
     borderWidth: 1,
     borderColor: Colors.border,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
   },
   bodyText: {
     fontSize: fs(14),
     ...TYPOGRAPHY.regular,
-    color: '#334155',
-    lineHeight: fs(24),
+    color: Colors.primaryFontColor,
+    lineHeight: fs(22),
+  },
+  readMoreBtn: {
+    alignSelf: 'flex-start',
+    marginTop: hs(10),
+    paddingVertical: hs(4),
+  },
+  readMoreText: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.bold,
+    color: Colors.primaryColor,
   },
   careCallout: {
     backgroundColor: Colors.aquaSoft,
     borderRadius: fs(16),
     padding: ws(16),
-    borderLeftWidth: ws(4),
-    borderLeftColor: Colors.primaryColor,
     marginBottom: hs(20),
+    borderWidth: 1,
+    borderColor: Colors.aqua,
   },
   careCalloutHeader: {
     flexDirection: 'row',
@@ -577,7 +452,7 @@ const styles = StyleSheet.create({
   careCalloutTitle: {
     fontSize: fs(13),
     ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
+    color: Colors.primaryColor,
   },
   careCalloutBody: {
     fontSize: fs(12),
@@ -586,32 +461,41 @@ const styles = StyleSheet.create({
     lineHeight: fs(18),
   },
   commentsSection: {
-    marginTop: hs(8),
+    backgroundColor: Colors.white,
+    borderRadius: fs(16),
+    padding: ws(16),
     marginBottom: hs(16),
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   commentsHeaderTitle: {
-    fontSize: fs(14),
+    fontSize: fs(15),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
     marginBottom: hs(12),
   },
+  noCommentsText: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.regular,
+    color: Colors.secondaryFontColor,
+    textAlign: 'center',
+    paddingVertical: hs(12),
+  },
   commentItem: {
-    backgroundColor: Colors.white,
-    borderRadius: fs(14),
-    padding: ws(12),
-    marginBottom: hs(10),
-    borderWidth: 1,
-    borderColor: Colors.border,
+    paddingVertical: hs(10),
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
   commentHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: hs(6),
+    marginBottom: hs(4),
   },
   commentUserAvatar: {
     width: ws(28),
-    height: hs(28),
-    borderRadius: fs(14),
+    height: ws(28),
+    borderRadius: 999,
+    overflow: 'hidden',
     backgroundColor: Colors.primaryColor,
     justifyContent: 'center',
     alignItems: 'center',
@@ -627,50 +511,44 @@ const styles = StyleSheet.create({
   },
   commentAuthor: {
     fontSize: fs(12),
-    ...TYPOGRAPHY.bold,
+    ...TYPOGRAPHY.semiBold,
     color: Colors.primaryFontColor,
   },
   commentDate: {
     fontSize: fs(10),
-    color: Colors.secondaryFontColor,
     ...TYPOGRAPHY.regular,
+    color: Colors.secondaryFontColor,
   },
   commentBody: {
     fontSize: fs(12),
     ...TYPOGRAPHY.regular,
-    color: '#334155',
+    color: Colors.primaryFontColor,
     lineHeight: fs(18),
   },
-  noCommentsText: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.regular,
-    color: Colors.secondaryFontColor,
-    fontStyle: 'italic',
-    paddingVertical: hs(8),
-  },
   leaveCommentCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.white,
     borderRadius: fs(16),
     padding: ws(16),
     borderWidth: 1,
     borderColor: Colors.border,
-    marginBottom: hs(24),
+    marginBottom: hs(16),
   },
   leaveCommentTitle: {
-    fontSize: fs(16),
+    fontSize: fs(15),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryFontColor,
     marginBottom: hs(4),
   },
   leaveCommentSubtitle: {
-    fontSize: fs(12),
+    fontSize: fs(11),
     ...TYPOGRAPHY.regular,
     color: Colors.secondaryFontColor,
-    marginBottom: hs(16),
+    lineHeight: fs(16),
+    marginBottom: hs(14),
   },
   inputRow: {
-    flexDirection: 'column',
-    gap: hs(4),
+    gap: hs(12),
+    marginBottom: hs(12),
   },
   inputFieldContainer: {
     marginBottom: hs(12),
@@ -682,54 +560,40 @@ const styles = StyleSheet.create({
     marginBottom: hs(6),
   },
   formInput: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.bgColor,
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: fs(10),
-    paddingHorizontal: ws(14),
-    paddingVertical: Platform.OS === 'ios' ? hs(10) : hs(8),
-    minHeight: hs(46),
-    fontSize: fs(14),
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(10),
+    fontSize: fs(12),
     ...TYPOGRAPHY.regular,
     color: Colors.primaryFontColor,
-    textAlignVertical: 'center',
   },
   commentTextArea: {
-    minHeight: hs(90),
-    paddingVertical: hs(10),
-    textAlignVertical: 'top',
+    minHeight: hs(80),
+    paddingTop: hs(10),
   },
   postCommentBtn: {
-    width: '100%',
     backgroundColor: Colors.primaryColor,
-    paddingVertical: hs(14),
     borderRadius: fs(12),
-    justifyContent: 'center',
+    paddingVertical: hs(12),
+    paddingHorizontal: ws(16),
     alignItems: 'center',
-    marginTop: hs(6),
+    justifyContent: 'center',
+    marginTop: hs(4),
   },
   postCommentBtnDisabled: {
-    backgroundColor: '#9CA3AF',
+    opacity: 0.5,
   },
   btnRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: ws(8),
   },
   postCommentBtnText: {
     color: Colors.white,
-    fontSize: fs(14),
-    ...TYPOGRAPHY.bold,
-  },
-  readMoreBtn: {
-    alignSelf: 'flex-start',
-    marginTop: hs(8),
-    paddingVertical: hs(4),
-  },
-  readMoreText: {
     fontSize: fs(13),
     ...TYPOGRAPHY.bold,
-    color: Colors.primaryColor,
   },
 });

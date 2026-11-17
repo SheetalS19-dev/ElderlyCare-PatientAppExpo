@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: fs(20),
     padding: ws(22),
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   },
   forgotEmailInput: {
     height: hs(44),
-    backgroundColor: '#F3F8FD',
+    backgroundColor: Colors.blue_F3F8FD,
     borderRadius: fs(12),
     paddingHorizontal: ws(14),
     fontSize: fs(13),
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   },
   inputBorderError: {
     borderColor: Colors.redColor,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: Colors.red_FFF5F5,
   },
   fieldErrorText: {
     fontSize: fs(11),
@@ -185,13 +185,13 @@ const styles = StyleSheet.create({
     minWidth: 0,
     height: hs(48),
     borderRadius: fs(12),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     justifyContent: 'center',
     alignItems: 'center',
   },
   forgotCancelBtnText: {
     fontSize: fs(13.5),
     ...TYPOGRAPHY.bold,
-    color: '#64748B',
+    color: Colors.slate_64748B,
   },
 });

@@ -45,7 +45,7 @@ export const BlogCommentsSection: React.FC<Props> = ({
           value={commentText}
           onChangeText={onChangeCommentText}
           placeholder="Write a comment..."
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={Colors.slate_94A3B8}
           multiline
         />
         <TouchableOpacity
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     borderRadius: ws(12),
     borderWidth: 1,
     borderColor: Colors.border,
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     borderRadius: ws(12),
     padding: ws(12),
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: Colors.slate_F1F5F9,
   },
   avatarCircle: {
     width: ws(32),

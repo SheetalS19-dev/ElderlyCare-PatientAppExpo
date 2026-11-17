@@ -150,7 +150,7 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <style>
     body {
-      background-color: #F8FAFC;
+      background-color: ${Colors.slate_F8FAFC};
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       display: flex;
       flex-direction: column;
@@ -164,8 +164,8 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
     .spinner {
       width: 44px;
       height: 44px;
-      border: 4px solid #DBEAFE;
-      border-top: 4px solid #2563EB;
+      border: 4px solid ${Colors.blue_DBEAFE};
+      border-top: 4px solid ${Colors.primaryColor};
       border-radius: 50%;
       animation: spin 1s linear infinite;
       margin-bottom: 16px;
@@ -177,12 +177,12 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
     .title {
       font-size: 16px;
       font-weight: 600;
-      color: #1E293B;
+      color: ${Colors.slate_1E293B};
       margin: 0 0 6px 0;
     }
     .subtitle {
       font-size: 13px;
-      color: #64748B;
+      color: ${Colors.slate_64748B};
       margin: 0;
     }
   </style>

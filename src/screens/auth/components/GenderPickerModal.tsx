@@ -89,9 +89,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: ws(16),
     paddingVertical: hs(12),
     borderRadius: fs(10),
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.slate_E2E8F0,
   },
   pickerOptionSelected: {
     backgroundColor: Colors.primaryColor,

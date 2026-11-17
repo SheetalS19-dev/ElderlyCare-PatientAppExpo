@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     height: hs(150),
     borderRadius: fs(20),
     overflow: 'hidden',
-    backgroundColor: '#0F2E4A',
+    backgroundColor: Colors.navy_0F2E4A,
   },
   bannerImage: {
     width: '100%',
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
   promoBadge: {
     fontSize: fs(10),
     ...TYPOGRAPHY.bold,
-    color: '#38BDF8',
+    color: Colors.sky_38BDF8,
     letterSpacing: 1,
     marginBottom: hs(4),
   },
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
   promoSubtext: {
     fontSize: fs(11),
     ...TYPOGRAPHY.regular,
-    color: '#D6E8F6',
+    color: Colors.blue_D6E8F6,
     lineHeight: fs(15),
   },
   promoIcon: {
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     width: ws(6),
     height: ws(6),
     borderRadius: 999,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: Colors.gray_CBD5E1,
   },
   dotActive: {
     width: ws(18),

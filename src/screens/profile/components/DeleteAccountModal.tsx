@@ -23,7 +23,7 @@ export const DeleteAccountModal: React.FC<Props> = ({
       <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
         <View style={styles.cardContent}>
           <View style={styles.iconCircle}>
-            <MaterialIcons name="delete-forever" size={ws(32)} color="#EF4444" />
+            <MaterialIcons name="delete-forever" size={ws(32)} color={Colors.red_EF4444} />
           </View>
 
           <Text style={styles.title}>Delete Account?</Text>
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
     borderRadius: ws(20),
     padding: ws(22),
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: hs(4) },
     shadowOpacity: 0.15,
     shadowRadius: ws(10),
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: Colors.red_FEF2F2,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: hs(12),
@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     height: hs(48),
     borderRadius: fs(12),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     height: hs(48),
     borderRadius: fs(12),
-    backgroundColor: '#EF4444',
+    backgroundColor: Colors.red_EF4444,
     justifyContent: 'center',
     alignItems: 'center',
   },

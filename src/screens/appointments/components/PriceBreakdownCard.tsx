@@ -1,123 +1,156 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Colors } from '../../../constants';
+import { AppCard } from '../../../components';
+import { AppConstants, Colors } from '../../../constants';
 import { fs, hs, ws } from '../../../utils/metrics';
 import { TYPOGRAPHY } from '../../../utils/typography';
 
 interface Props {
+  consultationTypeLabel?: string;
+  consultationTypeSubtext?: string;
+  isOnlineConsult?: boolean;
   fee: number;
-  taxPercent: number;
   taxAmount: number;
   couponDiscount: number;
+  couponCode?: string;
   total: number;
-  consultationType?: string;
 }
 
 export const PriceBreakdownCard: React.FC<Props> = ({
+  consultationTypeLabel,
+  consultationTypeSubtext,
+  isOnlineConsult,
   fee,
-  taxPercent,
   taxAmount,
   couponDiscount,
+  couponCode,
   total,
-  consultationType,
 }) => {
   return (
-    <View style={styles.card}>
-      <Text style={styles.sectionTitle}>Bill Summary</Text>
+    <AppCard style={styles.priceBreakdownCard}>
+      <Text style={styles.priceBreakdownTitle}>Price Breakdown</Text>
 
-      {!!consultationType && (
-        <View style={styles.row}>
-          <Text style={styles.label}>Consultation Type</Text>
-          <Text style={styles.value}>{consultationType}</Text>
+      <View style={styles.priceBreakdownRow}>
+        <Text style={styles.priceBreakdownLabel}>Consultation Type</Text>
+        <View style={styles.priceBreakdownTypeBadge}>
+          <MaterialIcons
+            name={isOnlineConsult ? 'videocam' : 'location-city'}
+            size={ws(14)}
+            color={Colors.primaryColor}
+          />
+          <Text style={styles.priceBreakdownTypeValue}>
+            {consultationTypeLabel ?? 'Clinic Visit'}{' '}
+            {consultationTypeSubtext ? (
+              <Text style={styles.priceBreakdownTypeSub}>{consultationTypeSubtext}</Text>
+            ) : null}
+          </Text>
         </View>
-      )}
-
-      <View style={styles.row}>
-        <Text style={styles.label}>Consultation Fee</Text>
-        <Text style={styles.value}>₹{fee.toLocaleString('en-IN')}</Text>
       </View>
 
-      <View style={styles.row}>
-        <Text style={styles.label}>Tax ({taxPercent}%)</Text>
-        <Text style={styles.value}>+ ₹{taxAmount.toFixed(2)}</Text>
+      <View style={styles.priceBreakdownRow}>
+        <Text style={styles.priceBreakdownLabel}>Consultation Fee</Text>
+        <Text style={styles.priceBreakdownValue}>
+          {AppConstants.appCurrency}{Number(fee || 0).toFixed(2)}
+        </Text>
+      </View>
+
+      <View style={styles.priceBreakdownRow}>
+        <Text style={styles.priceBreakdownLabel}>Tax (12%)</Text>
+        <Text style={styles.priceBreakdownValue}>
+          {AppConstants.appCurrency}{Number(taxAmount || 0).toFixed(2)}
+        </Text>
       </View>
 
       {couponDiscount > 0 && (
-        <View style={styles.row}>
-          <Text style={styles.discountLabel}>Coupon Discount</Text>
-          <Text style={styles.discountValue}>- ₹{couponDiscount.toFixed(2)}</Text>
+        <View style={styles.priceBreakdownRow}>
+          <Text style={styles.priceBreakdownDiscountLabel}>
+            Discount ({couponCode})
+          </Text>
+          <Text style={styles.priceBreakdownDiscountValue}>
+            -{AppConstants.appCurrency}{Number(couponDiscount || 0).toFixed(2)}
+          </Text>
         </View>
       )}
 
-      <View style={styles.divider} />
+      <View style={styles.priceBreakdownDivider} />
 
-      <View style={styles.row}>
-        <Text style={styles.totalLabel}>Total Payable</Text>
-        <Text style={styles.totalValue}>₹{Math.round(total).toLocaleString('en-IN')}</Text>
+      <View style={styles.priceBreakdownRow}>
+        <Text style={styles.priceBreakdownTotalLabel}>Total Amount</Text>
+        <Text style={styles.priceBreakdownTotalValue}>
+          {AppConstants.appCurrency}{Number(total || 0).toFixed(2)}
+        </Text>
       </View>
-    </View>
+    </AppCard>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: Colors.white,
-    borderRadius: ws(16),
+  priceBreakdownCard: {
     padding: ws(16),
     marginBottom: hs(14),
-    borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: hs(2) },
-    shadowOpacity: 0.03,
-    shadowRadius: ws(4),
-    elevation: 1,
+    borderRadius: ws(16),
   },
-  sectionTitle: {
-    fontSize: fs(14),
+  priceBreakdownTitle: {
     ...TYPOGRAPHY.bold,
+    fontSize: fs(14),
     color: Colors.primaryFontColor,
     marginBottom: hs(12),
   },
-  row: {
+  priceBreakdownRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: hs(8),
+    justifyContent: 'space-between',
+    marginBottom: hs(10),
   },
-  label: {
-    fontSize: fs(12),
+  priceBreakdownLabel: {
     ...TYPOGRAPHY.regular,
+    fontSize: fs(12.5),
     color: Colors.secondaryFontColor,
   },
-  value: {
-    fontSize: fs(13),
-    ...TYPOGRAPHY.medium,
+  priceBreakdownValue: {
+    ...TYPOGRAPHY.semiBold,
+    fontSize: fs(12.5),
     color: Colors.primaryFontColor,
   },
-  discountLabel: {
-    fontSize: fs(12),
-    ...TYPOGRAPHY.medium,
-    color: '#059669',
+  priceBreakdownTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ws(4),
   },
-  discountValue: {
-    fontSize: fs(13),
-    ...TYPOGRAPHY.bold,
-    color: '#059669',
+  priceBreakdownTypeValue: {
+    ...TYPOGRAPHY.semiBold,
+    fontSize: fs(12.5),
+    color: Colors.primaryColor,
   },
-  divider: {
+  priceBreakdownTypeSub: {
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(11),
+    color: Colors.secondaryFontColor,
+  },
+  priceBreakdownDiscountLabel: {
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(12.5),
+    color: Colors.green_16A34A,
+  },
+  priceBreakdownDiscountValue: {
+    ...TYPOGRAPHY.semiBold,
+    fontSize: fs(12.5),
+    color: Colors.green_16A34A,
+  },
+  priceBreakdownDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.border,
     marginVertical: hs(8),
   },
-  totalLabel: {
-    fontSize: fs(14),
+  priceBreakdownTotalLabel: {
     ...TYPOGRAPHY.bold,
+    fontSize: fs(14),
     color: Colors.primaryFontColor,
   },
-  totalValue: {
-    fontSize: fs(17),
+  priceBreakdownTotalValue: {
     ...TYPOGRAPHY.bold,
+    fontSize: fs(16),
     color: Colors.primaryColor,
   },
 });

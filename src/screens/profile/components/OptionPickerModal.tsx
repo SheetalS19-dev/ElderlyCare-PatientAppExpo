@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: ws(18),
     padding: ws(18),
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: hs(4) },
     shadowOpacity: 0.15,
     shadowRadius: ws(10),
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     marginBottom: hs(12),
     paddingBottom: hs(8),
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: Colors.slate_F1F5F9,
   },
   optionsList: {
     gap: hs(6),

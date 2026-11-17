@@ -133,5 +133,28 @@ export const validateStateName = (
   return { isValid: true };
 };
 
+/**
+ * Validates 6-digit Indian postal code.
+ */
+export const validatePostalCode = (
+  value: string,
+  required = false
+): ValidationResult => {
+  const trimmed = (value || '').trim();
+  if (!trimmed) {
+    return required
+      ? { isValid: false, error: 'Postal code is required' }
+      : { isValid: true };
+  }
+  const clean = trimmed.replace(/\D/g, '');
+  if (clean.length !== 6 || !/^[1-9][0-9]{5}$/.test(clean)) {
+    return {
+      isValid: false,
+      error: 'Please enter a valid 6-digit postal code',
+    };
+  }
+  return { isValid: true };
+};
+
 export { validateNameObj };
 

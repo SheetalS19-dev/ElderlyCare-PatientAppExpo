@@ -80,7 +80,7 @@ export const DocumentActionModal: React.FC<DocumentActionModalProps> = ({
             <View style={styles.actionsList}>
               {/* 1. View / Preview Option */}
               <TouchableOpacity style={styles.actionCard} activeOpacity={0.75} onPress={onView}>
-                <View style={[styles.actionIconCircle, { backgroundColor: '#EBF5FF' }]}>
+                <View style={[styles.actionIconCircle, { backgroundColor: Colors.aquaSoft }]}>
                   <MaterialIcons name="visibility" size={fs(22)} color={Colors.primaryColor} />
                 </View>
                 <View style={styles.actionMeta}>
@@ -89,13 +89,13 @@ export const DocumentActionModal: React.FC<DocumentActionModalProps> = ({
                     Open in full-page preview with zoom, read & print options
                   </Text>
                 </View>
-                <MaterialIcons name="chevron-right" size={fs(20)} color="#CBD5E1" />
+                <MaterialIcons name="chevron-right" size={fs(20)} color={Colors.gray_CBD5E1} />
               </TouchableOpacity>
 
               {/* 2. Download to Storage Option */}
               <TouchableOpacity style={styles.actionCard} activeOpacity={0.75} onPress={onDownload}>
-                <View style={[styles.actionIconCircle, { backgroundColor: '#ECFDF5' }]}>
-                  <MaterialIcons name="file-download" size={fs(22)} color="#059669" />
+                <View style={[styles.actionIconCircle, { backgroundColor: Colors.green_ECFDF5 }]}>
+                  <MaterialIcons name="file-download" size={fs(22)} color={Colors.green_059669} />
                 </View>
                 <View style={styles.actionMeta}>
                   <Text style={styles.actionTitle}>Download & Save to Device</Text>
@@ -103,7 +103,7 @@ export const DocumentActionModal: React.FC<DocumentActionModalProps> = ({
                     Save PDF file directly to your phone's storage
                   </Text>
                 </View>
-                <MaterialIcons name="chevron-right" size={fs(20)} color="#CBD5E1" />
+                <MaterialIcons name="chevron-right" size={fs(20)} color={Colors.gray_CBD5E1} />
               </TouchableOpacity>
 
               {/* 3. Share via Apps Option */}
@@ -117,7 +117,7 @@ export const DocumentActionModal: React.FC<DocumentActionModalProps> = ({
                     Send document via WhatsApp, Email, Drive or other apps
                   </Text>
                 </View>
-                <MaterialIcons name="chevron-right" size={fs(20)} color="#CBD5E1" />
+                <MaterialIcons name="chevron-right" size={fs(20)} color={Colors.gray_CBD5E1} />
               </TouchableOpacity>
             </View>
           )}
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: fs(24),
     paddingHorizontal: ws(18),
     paddingTop: hs(10),
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.12,
     shadowRadius: 10,
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     width: ws(38),
     height: hs(4),
     borderRadius: fs(2),
-    backgroundColor: '#CBD5E1',
+    backgroundColor: Colors.gray_CBD5E1,
     alignSelf: 'center',
     marginBottom: hs(14),
   },
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   actionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.slate_F8FAFC,
     borderRadius: fs(16),
     padding: ws(12),
     borderWidth: 1,
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     marginTop: hs(2),
   },
   cancelButton: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Colors.slate_F1F5F9,
     borderRadius: fs(14),
     paddingVertical: hs(12),
     alignItems: 'center',

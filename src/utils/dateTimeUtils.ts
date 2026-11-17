@@ -28,6 +28,97 @@ export const isWithinLast7Days = (dateStr?: string | null): boolean => {
   return itemDate.getTime() >= sevenDaysAgo.getTime() && itemDate.getTime() <= endOfToday.getTime();
 };
 
+/**
+ * Safely parses any vital item's date and time (supporting both 12-hour AM/PM and 24-hour formats)
+ * into a full epoch millisecond timestamp. Preserves created_at sub-second precision to break
+ * ties between entries logged within the same minute.
+ */
+export const getVitalTimestamp = (item: any): number => {
+  if (!item) return 0;
+
+  const dateStr = item.date ? String(item.date).split('T')[0] : '';
+  const timeStr = item.time ? String(item.time).trim() : '';
+
+  if (dateStr) {
+    const dateParts = dateStr.split('-');
+    if (dateParts.length >= 3) {
+      const year = parseInt(dateParts[0], 10);
+      const month = parseInt(dateParts[1], 10) - 1;
+      const day = parseInt(dateParts[2], 10);
+
+      let hour = 0;
+      let minute = 0;
+      let second = 0;
+
+      if (timeStr) {
+        const isPM = /pm/i.test(timeStr);
+        const isAM = /am/i.test(timeStr);
+        const cleanTime = timeStr.replace(/[^\d:]/g, '');
+        const timeParts = cleanTime.split(':');
+
+        let h = parseInt(timeParts[0], 10);
+        let m = parseInt(timeParts[1], 10);
+        let s = parseInt(timeParts[2], 10);
+
+        if (!isNaN(h)) {
+          if (isPM && h < 12) h += 12;
+          else if (isAM && h === 12) h = 0;
+          hour = h;
+        }
+        if (!isNaN(m)) minute = m;
+        if (!isNaN(s)) second = s;
+      }
+
+      // If created_at exists, preserve seconds and milliseconds to ensure precise sub-minute ordering
+      if (item.created_at) {
+        const cat = new Date(item.created_at);
+        if (!isNaN(cat.getTime())) {
+          if (second === 0) second = cat.getSeconds();
+          const ms = cat.getMilliseconds();
+          const d = new Date(year, month, day, hour, minute, second, ms);
+          if (!isNaN(d.getTime())) return d.getTime();
+        }
+      }
+
+      const d = new Date(year, month, day, hour, minute, second);
+      if (!isNaN(d.getTime())) return d.getTime();
+    }
+  }
+
+  if (item.created_at) {
+    const t = new Date(item.created_at).getTime();
+    if (!isNaN(t)) return t;
+  }
+
+  return 0;
+};
+
+/**
+ * Sorts vitals chronologically in descending order (newest first).
+ * Uses exact timestamp with created_at and ID tie-breakers so all screens sort consistently.
+ */
+export const sortVitalsDescending = <T = any>(list: T[]): T[] => {
+  if (!Array.isArray(list)) return [];
+  return [...list].sort((a: any, b: any) => {
+    const dtA = getVitalTimestamp(a);
+    const dtB = getVitalTimestamp(b);
+    if (dtB !== dtA && !isNaN(dtB) && !isNaN(dtA)) {
+      return dtB - dtA;
+    }
+    const catA = a?.created_at ? new Date(a.created_at).getTime() : 0;
+    const catB = b?.created_at ? new Date(b.created_at).getTime() : 0;
+    if (catB !== catA && !isNaN(catB) && !isNaN(catA)) {
+      return catB - catA;
+    }
+    const idA = Number(a?.id);
+    const idB = Number(b?.id);
+    if (!isNaN(idA) && !isNaN(idB) && idB !== idA) {
+      return idB - idA;
+    }
+    return String(b?.id ?? '').localeCompare(String(a?.id ?? ''), undefined, { numeric: true });
+  });
+};
+
 export class DateTimeUtils {
   static getDayName(day: number): string {
     switch (day) {

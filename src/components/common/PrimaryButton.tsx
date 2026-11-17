@@ -32,7 +32,7 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
       activeOpacity={0.7}
     >
       {isBtnLoading ? (
-        <ActivityIndicator color={Colors.white || '#FFFFFF'} />
+        <ActivityIndicator color={Colors.white || Colors.white} />
       ) : (
         <Text style={[styles.text, textStyle]}>{title}</Text>
       )}
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   text: {
-    color: Colors.white || '#FFFFFF',
+    color: Colors.white || Colors.white,
     ...TYPOGRAPHY.medium,
     fontSize: fs(14),
   },

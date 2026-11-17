@@ -1,3 +1,4 @@
+import { Colors } from '../constants';
 import RazorpayCheckout from 'react-native-razorpay';
 
 export interface RazorpayOptions {
@@ -63,7 +64,7 @@ export const startRazorpayPayment = async (options: RazorpayOptions) => {
       amount: String(paise), // <-- paise, not rupees
       name: options.name || 'ElderlyCare',
       prefill: prefillObj,
-      theme: options.theme || { color: '#2563EB' },
+      theme: options.theme || { color: Colors.primaryColor },
       send_sms_hash: true,
       retry: { enabled: true, max_count: 1 },
     };

@@ -50,12 +50,12 @@ export const HeaderBackdrop = memo(({ decor = true, id = 'themeHeaderGrad' }: { 
     <Svg style={StyleSheet.absoluteFill} viewBox="0 0 360 190" preserveAspectRatio="none">
       <Path
         d="M0 118 C60 84 130 150 210 116 C275 88 325 96 360 70 L360 190 L0 190 Z"
-        fill="#FFFFFF"
+        fill={Colors.white}
         fillOpacity={0.06}
       />
       <Path
         d="M0 146 C80 112 150 170 232 140 C292 118 336 126 360 108 L360 190 L0 190 Z"
-        fill="#FFFFFF"
+        fill={Colors.white}
         fillOpacity={0.07}
       />
     </Svg>
