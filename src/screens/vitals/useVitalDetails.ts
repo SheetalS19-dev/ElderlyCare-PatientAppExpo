@@ -1,7 +1,7 @@
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Keyboard } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { useAuth } from '../../context/AuthContext';
@@ -21,9 +21,11 @@ import type { FamilyMemberModel, UserModel, VitalModel } from '../../types';
 import {
   calculateWeightTrend,
   DateTimeUtils,
+  formatVitalErrorMessage,
   getVitalIconInfo,
   getVitalStatus,
   hs,
+  isUserSelfMember,
   showToast,
   sortVitalsDescending,
   ws,
@@ -64,24 +66,34 @@ export const useVitalDetails = () => {
     if (Array.isArray(familyData)) list = familyData;
     else if (Array.isArray((familyData as any)?.data)) list = (familyData as any).data;
     else if (Array.isArray((familyData as any)?.data?.data)) list = (familyData as any).data.data;
+    else if (Array.isArray((familyData as any)?.response)) list = (familyData as any).response;
+    else if (Array.isArray((familyData as any)?.response?.data)) list = (familyData as any).response.data;
     return list;
   }, [familyData]);
 
   // Find existing self member in family_members table
   const existingSelfMemberInDb = useMemo(() => {
-    return rawFamilyList.find(
-      (m) =>
-        (m.relationship || '').toLowerCase() === 'self' ||
-        (m as any).is_self === true ||
-        String(m.id) === uid
-    );
-  }, [rawFamilyList, uid]);
+    const matched = rawFamilyList.find((m) => isUserSelfMember(m, currentUser || authUser));
+    if (matched) return matched;
+
+    const byRel = rawFamilyList.find((m) => {
+      const rel = (m.relationship || (m as any).relation || '').trim().toLowerCase();
+      return rel === 'self' || rel === 'patient' || rel === 'myself' || rel === 'me' || rel === 'primary';
+    });
+    if (byRel) return byRel;
+
+    // If list has members and none explicitly matched, fallback to first member
+    if (rawFamilyList.length > 0) {
+      return rawFamilyList[0];
+    }
+    return null;
+  }, [rawFamilyList, currentUser, authUser]);
 
   const [selectedFamilyId, setSelectedFamilyId] = useState<string>(() => {
     if (initialFamilyId && initialFamilyId !== 'SELF' && initialFamilyId !== 'ALL') {
       return String(initialFamilyId);
     }
-    return uid;
+    return '';
   });
   const [showMemberDropdown, setShowMemberDropdown] = useState<boolean>(false);
 
@@ -93,85 +105,118 @@ export const useVitalDetails = () => {
       selectedFamilyId !== 'SELF' &&
       selectedFamilyId !== 'ALL'
     ) {
-      return String(selectedFamilyId);
+      const foundInList = rawFamilyList.find((m) => String(m.id) === String(selectedFamilyId));
+      if (foundInList?.id) {
+        return String(foundInList.id);
+      }
     }
     if (existingSelfMemberInDb?.id) {
       return String(existingSelfMemberInDb.id);
     }
-    return uid;
-  }, [selectedFamilyId, existingSelfMemberInDb, uid]);
-
-  const familyList: FamilyMemberModel[] = useMemo(() => {
-    const list: FamilyMemberModel[] = [...rawFamilyList];
-
-    const hasSelf = list.some(
-      (m) =>
-        (m.relationship || '').toLowerCase() === 'self' ||
-        (m as any).is_self === true ||
-        String(m.id) === uid ||
-        (existingSelfMemberInDb && String(m.id) === String(existingSelfMemberInDb.id))
-    );
-
-    if (!hasSelf && currentUser) {
-      return [
-        {
-          id: uid,
-          user_id: currentUser.id,
-          f_name: currentUser.f_name || 'Self',
-          l_name: currentUser.l_name || '',
-          name: userFullName,
-          phone: currentUser.phone || '',
-          gender: currentUser.gender || 'Male',
-          isd_code: currentUser.isd_code || '+91',
-          dob: currentUser.dob || '',
-          relationship: 'Self',
-          is_self: true,
-        },
-        ...list,
-      ];
+    if (rawFamilyList.length > 0 && rawFamilyList[0]?.id) {
+      return String(rawFamilyList[0].id);
     }
-    return list;
-  }, [rawFamilyList, currentUser, existingSelfMemberInDb, userFullName, uid]);
+    return uid;
+  }, [selectedFamilyId, existingSelfMemberInDb, rawFamilyList, uid]);
 
-  const activeMemberObj = useMemo(() => {
-    return familyList.find((m) => {
-      const mId = String(m.id);
-      if (selectedFamilyId === 'SELF' || selectedFamilyId === uid) {
-        return (m as any).is_self === true || (m.relationship || '').toLowerCase() === 'self' || mId === uid;
+  const selfMember: FamilyMemberModel = useMemo(() => {
+    const effectiveId = existingSelfMemberInDb?.id
+      ? String(existingSelfMemberInDb.id)
+      : rawFamilyList.length > 0 && rawFamilyList[0]?.id
+        ? String(rawFamilyList[0].id)
+        : uid;
+    return {
+      ...(existingSelfMemberInDb || {}),
+      id: effectiveId,
+      user_id: currentUser?.id ?? authUser?.id ?? uid,
+      f_name: existingSelfMemberInDb?.f_name || currentUser?.f_name || authUser?.f_name || 'Self',
+      l_name: existingSelfMemberInDb?.l_name || currentUser?.l_name || authUser?.l_name || '',
+      name: userFullName,
+      phone: existingSelfMemberInDb?.phone || currentUser?.phone || authUser?.phone || '',
+      gender: existingSelfMemberInDb?.gender || currentUser?.gender || authUser?.gender || 'Male',
+      isd_code: existingSelfMemberInDb?.isd_code || currentUser?.isd_code || authUser?.isd_code || '+91',
+      dob: existingSelfMemberInDb?.dob || currentUser?.dob || authUser?.dob || '',
+      relationship: existingSelfMemberInDb?.relationship || 'Self',
+      is_self: true,
+    } as FamilyMemberModel;
+  }, [existingSelfMemberInDb, rawFamilyList, currentUser, authUser, uid, userFullName]);
+
+  const nonSelfFamilyMembers = useMemo(() => {
+    return rawFamilyList.filter((m) => {
+      if (existingSelfMemberInDb?.id && String(m.id) === String(existingSelfMemberInDb.id)) {
+        return false;
       }
-      return mId === String(selectedFamilyId) || mId === String(activeFamilyId);
+      return !isUserSelfMember(m, currentUser || authUser);
     });
-  }, [familyList, selectedFamilyId, activeFamilyId, uid]);
-
-  const getMemberDisplayName = (mem?: FamilyMemberModel | null): string => {
-    if (!mem) return userFullName;
-    const isSelf =
-      (mem as any).is_self === true ||
-      (mem.relationship || '').toLowerCase() === 'self' ||
-      String(mem.id) === uid ||
-      String(mem.id) === String(currentUser?.id) ||
-      (existingSelfMemberInDb && String(mem.id) === String(existingSelfMemberInDb.id));
-    if (isSelf) return `${userFullName} (Self)`;
-    return mem.name || `${mem.f_name ?? ''} ${mem.l_name ?? ''}`.trim() || 'Family Member';
-  };
+  }, [rawFamilyList, currentUser, authUser, existingSelfMemberInDb]);
 
   const deduplicatedFamilyList: FamilyMemberModel[] = useMemo(() => {
     const seenIds = new Set<string>();
+    const seenNames = new Set<string>();
     const result: FamilyMemberModel[] = [];
 
-    for (const mem of familyList) {
+    // 1. Add Self / Primary member first
+    result.push(selfMember);
+    seenIds.add(String(selfMember.id));
+    seenIds.add(uid);
+    if (currentUser?.id) seenIds.add(String(currentUser.id));
+    if (authUser?.id) seenIds.add(String(authUser.id));
+    if (existingSelfMemberInDb?.id) seenIds.add(String(existingSelfMemberInDb.id));
+
+    const selfFName = (currentUser?.f_name || authUser?.f_name || '').trim().toLowerCase();
+    const selfLName = (currentUser?.l_name || authUser?.l_name || '').trim().toLowerCase();
+    const selfKey = `${selfFName}_${selfLName}`;
+    if (selfKey !== '_') seenNames.add(selfKey);
+
+    for (const mem of nonSelfFamilyMembers) {
       const idKey = String(mem.id);
-      if (!seenIds.has(idKey)) {
+      const mFName = (mem.f_name || '').trim().toLowerCase();
+      const mLName = (mem.l_name || '').trim().toLowerCase();
+      const nameKey = `${mFName}_${mLName}`;
+
+      if (!seenIds.has(idKey) && (nameKey === '_' || !seenNames.has(nameKey))) {
         seenIds.add(idKey);
+        if (nameKey !== '_') seenNames.add(nameKey);
         result.push(mem);
       }
     }
     return result;
-  }, [familyList]);
+  }, [selfMember, nonSelfFamilyMembers, uid, currentUser, authUser, existingSelfMemberInDb]);
+
+  const activeMemberObj = useMemo(() => {
+    if (
+      selectedFamilyId === 'SELF' ||
+      selectedFamilyId === uid ||
+      String(selectedFamilyId) === String(selfMember.id)
+    ) {
+      return selfMember;
+    }
+    const found = deduplicatedFamilyList.find((m) => String(m.id) === String(selectedFamilyId));
+    if (found) return found;
+    const foundActive = deduplicatedFamilyList.find((m) => String(m.id) === String(activeFamilyId));
+    return foundActive || selfMember;
+  }, [deduplicatedFamilyList, selectedFamilyId, selfMember, uid, activeFamilyId]);
+
+  const getMemberDisplayName = (mem?: FamilyMemberModel | null): string => {
+    if (!mem) return `${userFullName} (Self)`;
+    const isSelf = isUserSelfMember(mem, currentUser || authUser);
+    if (isSelf) return `${userFullName} (Self)`;
+    const memName = `${mem.f_name ?? ''} ${mem.l_name ?? ''}`.trim() || mem.name;
+    const rel = (mem as any).relation || mem.relationship;
+    if (
+      rel &&
+      rel.toLowerCase() !== 'self' &&
+      rel.toLowerCase() !== 'patient' &&
+      rel.toLowerCase() !== 'family member'
+    ) {
+      return `${memName || 'Family Member'} (${rel})`;
+    }
+    return memName || 'Family Member';
+  };
 
   const selectedMemberDisplayName = useMemo(() => {
     return getMemberDisplayName(activeMemberObj);
-  }, [activeMemberObj, userFullName]);
+  }, [activeMemberObj, userFullName, currentUser, authUser]);
 
   // Date Filter State
   const [activeFilter, setActiveFilter] = useState<VitalFilterType>('7 Days');
@@ -275,30 +320,46 @@ export const useVitalDetails = () => {
   };
 
   const ensureValidFamilyMemberId = async (): Promise<string> => {
+    // 1. Check if activeFamilyId matches a real member in rawFamilyList
     const activeMember = rawFamilyList.find((m) => String(m.id) === String(activeFamilyId));
     if (activeMember && activeMember.id) {
       return String(activeMember.id);
     }
 
+    // 2. Check if selectedFamilyId matches a real member in rawFamilyList
+    const selectedMember = rawFamilyList.find((m) => String(m.id) === String(selectedFamilyId));
+    if (selectedMember && selectedMember.id) {
+      return String(selectedMember.id);
+    }
+
+    // 3. Check existingSelfMemberInDb
     if (existingSelfMemberInDb?.id) {
       return String(existingSelfMemberInDb.id);
     }
 
+    // 4. Check first member in rawFamilyList
+    if (rawFamilyList.length > 0 && rawFamilyList[0]?.id) {
+      return String(rawFamilyList[0].id);
+    }
+
+    // 5. If rawFamilyList is completely empty, attempt auto-create
     try {
       const createRes: any = await addFamilyMember({
         user_id: uid,
-        f_name: currentUser?.f_name || 'Patient',
-        l_name: currentUser?.l_name || '',
-        gender: currentUser?.gender || 'Male',
-        dob: currentUser?.dob || '1990-01-01',
-        phone: currentUser?.phone || '',
-        isd_code: currentUser?.isd_code || '+91',
+        f_name: currentUser?.f_name || authUser?.f_name || 'Patient',
+        l_name: currentUser?.l_name || authUser?.l_name || '',
+        gender: currentUser?.gender || authUser?.gender || 'Male',
+        dob: currentUser?.dob || authUser?.dob || '1990-01-01',
+        phone: currentUser?.phone || authUser?.phone || '',
+        isd_code: currentUser?.isd_code || authUser?.isd_code || '+91',
         relationship: 'Self',
       }).unwrap();
 
       const newId =
         createRes?.data?.id ??
         createRes?.data?.member_id ??
+        createRes?.response?.id ??
+        createRes?.response?.member_id ??
         createRes?.id ??
         createRes?.member_id;
 
@@ -308,10 +369,10 @@ export const useVitalDetails = () => {
         return String(newId);
       }
     } catch {
-      // If auto-create failed, fall back to activeFamilyId
+      // Auto-create failed
     }
 
-    return activeFamilyId;
+    throw new Error('Please select or add a family member before logging vitals.');
   };
 
   const handleModalSubmit = async () => {
@@ -350,27 +411,26 @@ export const useVitalDetails = () => {
         errors.systolic = 'Systolic BP must be greater than Diastolic BP';
       }
     } else if (vitalName === 'Sugar') {
-      const hasFasting = !!value.trim();
-      const hasRandom = !!sugarRandom.trim();
-      if (!hasFasting && !hasRandom) {
-        errors.sugarGeneral = 'Please enter Fasting or Random sugar value (Accepted range: 20–1000 mg/dL)';
+      if (!value.trim()) {
+        errors.value = 'Fasting sugar is required';
       } else {
-        if (hasFasting) {
-          const fasting = parseFloat(value.trim());
-          if (isNaN(fasting) || fasting < 20 || fasting > 1000) {
-            errors.value = 'Fasting sugar must be between 20 and 1000 mg/dL';
-          }
+        const fasting = parseFloat(value.trim());
+        if (isNaN(fasting) || fasting < 20 || fasting > 1000) {
+          errors.value = 'Fasting sugar must be between 20 and 1000 mg/dL';
         }
-        if (hasRandom) {
-          const random = parseFloat(sugarRandom.trim());
-          if (isNaN(random) || random < 20 || random > 1000) {
-            errors.sugarRandom = 'Random sugar must be between 20 and 1000 mg/dL';
-          }
+      }
+
+      if (!sugarRandom.trim()) {
+        errors.sugarRandom = 'Random sugar is required';
+      } else {
+        const random = parseFloat(sugarRandom.trim());
+        if (isNaN(random) || random < 20 || random > 1000) {
+          errors.sugarRandom = 'Random sugar must be between 20 and 1000 mg/dL';
         }
       }
     } else if (vitalName === 'Weight') {
       if (!value.trim()) {
-        errors.value = 'Weight is required (Accepted range: 1–500 kg)';
+        errors.value = 'Weight is required';
       } else {
         const wt = parseFloat(value.trim());
         if (isNaN(wt) || wt < 1 || wt > 500) {
@@ -379,11 +439,11 @@ export const useVitalDetails = () => {
       }
     } else if (vitalName === 'Temperature') {
       if (!value.trim()) {
-        errors.value = 'Temperature is required (Accepted range: 70–115 °F)';
+        errors.value = 'Temperature is required (Accepted range: 25.0–45.0 °C)';
       } else {
         const temp = parseFloat(value.trim());
-        if (isNaN(temp) || temp < 70 || temp > 115) {
-          errors.value = 'Temperature must be between 70 and 115 °F';
+        if (isNaN(temp) || temp < 25.0 || temp > 45.0) {
+          errors.value = 'Temperature must be between 25.0 and 45.0 °C';
         }
       }
     } else if (vitalName === 'SpO2') {
@@ -403,31 +463,32 @@ export const useVitalDetails = () => {
     }
 
     setFieldErrors({});
-    const targetMemberId = await ensureValidFamilyMemberId();
-
-    const payload: any = {
-      user_id: uid,
-      family_member_id: targetMemberId,
-      type: vitalName,
-      date: selectedDate,
-      time: selectedTime,
-    };
-
-    if (vitalName === 'Blood Pressure') {
-      payload.bp_systolic = systolic.trim();
-      payload.bp_diastolic = diastolic.trim();
-    } else if (vitalName === 'Sugar') {
-      if (value.trim()) payload.sugar_fasting = value.trim();
-      if (sugarRandom.trim()) payload.sugar_random = sugarRandom.trim();
-    } else if (vitalName === 'Weight') {
-      payload.weight = value.trim();
-    } else if (vitalName === 'Temperature') {
-      payload.temperature = value.trim();
-    } else if (vitalName === 'SpO2') {
-      payload.spo2 = value.trim();
-    }
 
     try {
+      const targetMemberId = await ensureValidFamilyMemberId();
+
+      const payload: any = {
+        user_id: uid,
+        family_member_id: targetMemberId,
+        type: vitalName,
+        date: selectedDate,
+        time: selectedTime,
+      };
+
+      if (vitalName === 'Blood Pressure') {
+        payload.bp_systolic = systolic.trim();
+        payload.bp_diastolic = diastolic.trim();
+      } else if (vitalName === 'Sugar') {
+        if (value.trim()) payload.sugar_fasting = value.trim();
+        if (sugarRandom.trim()) payload.sugar_random = sugarRandom.trim();
+      } else if (vitalName === 'Weight') {
+        payload.weight = value.trim();
+      } else if (vitalName === 'Temperature') {
+        payload.temperature = value.trim();
+      } else if (vitalName === 'SpO2') {
+        payload.spo2 = value.trim();
+      }
+
       await addVital(payload).unwrap();
       showToast(`${vitalName} logged successfully`);
       setShowModal(false);
@@ -437,44 +498,9 @@ export const useVitalDetails = () => {
       await refetch();
       refetchFamily();
     } catch (e: any) {
-      const errMsg = e?.data?.message || e?.message || '';
-      if (
-        errMsg.toLowerCase().includes('foreign key constraint') ||
-        errMsg.toLowerCase().includes('vital_family_member_id')
-      ) {
-        try {
-          const createRes: any = await addFamilyMember({
-            user_id: uid,
-            f_name: currentUser?.f_name || 'Patient',
-            l_name: currentUser?.l_name || '',
-            gender: currentUser?.gender || 'Male',
-            dob: currentUser?.dob || '1990-01-01',
-            phone: currentUser?.phone || '',
-            isd_code: currentUser?.isd_code || '+91',
-            relationship: 'Self',
-          }).unwrap();
-          const retryId =
-            createRes?.data?.id ??
-            createRes?.data?.member_id ??
-            createRes?.id ??
-            createRes?.member_id;
-          if (retryId) {
-            payload.family_member_id = String(retryId);
-            setSelectedFamilyId(String(retryId));
-            await addVital(payload).unwrap();
-            showToast(`${vitalName} logged successfully`);
-            setShowModal(false);
-            dispatch(baseApi.util.invalidateTags(['Vitals']));
-            await refetch();
-            refetchFamily();
-            return;
-          }
-        } catch {
-          // fall through
-        }
-      }
+      const friendlyMsg = formatVitalErrorMessage(e);
       setFieldErrors({
-        general: errMsg || 'Failed to save vital reading',
+        general: friendlyMsg,
       });
     }
   };
@@ -486,7 +512,7 @@ export const useVitalDetails = () => {
       dispatch(baseApi.util.invalidateTags(['Vitals']));
       await refetch();
     } catch (e: any) {
-      showToast(e?.data?.message || 'Could not delete record');
+      showToast(formatVitalErrorMessage(e) || 'Could not delete record');
     }
   };
 
@@ -577,9 +603,11 @@ export const useVitalDetails = () => {
     deduplicatedFamilyList,
     selectedFamilyId,
     setSelectedFamilyId,
+    activeFamilyId,
     showMemberDropdown,
     setShowMemberDropdown,
     selectedMemberDisplayName,
+    getMemberDisplayName,
     activeFilter,
     setActiveFilter,
     customFilterDate,
@@ -591,6 +619,8 @@ export const useVitalDetails = () => {
     isLoading,
     isError,
     refetch,
+    vitals,
+    filteredVitals,
     historyVitals,
     latestVital,
     iconInfo,

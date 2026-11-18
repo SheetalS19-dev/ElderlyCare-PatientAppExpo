@@ -163,16 +163,18 @@ export const useLogin = () => {
     setPhoneError(undefined);
     setPasswordError(undefined);
     setStep('form');
-    try {
-      const savedRemember = await storageService.getItem<boolean | string>(REMEMBER_ME_KEY);
-      const savedPhone = await storageService.getItem<string>(REMEMBER_PHONE_KEY);
-      const savedPassword = await storageService.getItem<string>(REMEMBER_PASSWORD_KEY);
-      if (savedRemember === true || savedRemember === 'true') {
-        if (savedPhone) setPhone(String(savedPhone));
-        if (savedPassword) setPassword(String(savedPassword));
+    if (!phone) {
+      try {
+        const savedRemember = await storageService.getItem<boolean | string>(REMEMBER_ME_KEY);
+        const savedPhone = await storageService.getItem<string>(REMEMBER_PHONE_KEY);
+        const savedPassword = await storageService.getItem<string>(REMEMBER_PASSWORD_KEY);
+        if (savedRemember === true || savedRemember === 'true') {
+          if (savedPhone) setPhone(String(savedPhone));
+          if (savedPassword) setPassword(String(savedPassword));
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
     }
   };
 
@@ -343,11 +345,9 @@ export const useLogin = () => {
       errors.firstName = fNameRes.error!;
     }
 
-    if (lastName.trim()) {
-      const lNameRes = validateName(lastName, false, 'Last name');
-      if (!lNameRes.isValid) {
-        errors.lastName = lNameRes.error!;
-      }
+    const lNameRes = validateName(lastName, false, 'Last name');
+    if (!lNameRes.isValid) {
+      errors.lastName = lNameRes.error!;
     }
 
     const phoneRes = validatePhone(cleanPhone, true);
@@ -401,36 +401,14 @@ export const useLogin = () => {
         return;
       }
 
-      showToast('Account Created Successfully!');
-
-      if (res?.token && res?.data) {
-        resetRegisterForm();
-        setIsBusy(false);
-        await handleSuccessLogin(res.token, res.data);
-      } else {
-        try {
-          const loginRes = await loginWithPhone({ phone: cleanPhone, password: cleanPassword }).unwrap();
-          setIsBusy(false);
-
-          if (loginRes?.status !== false && loginRes?.token && loginRes?.data) {
-            resetRegisterForm();
-            await handleSuccessLogin(loginRes.token, loginRes.data);
-          } else {
-            resetRegisterForm();
-            setPhone(cleanPhone);
-            setPassword('');
-            showToast(loginRes?.message || 'Account created! Please sign in.');
-            setStep('form');
-          }
-        } catch (loginErr: any) {
-          setIsBusy(false);
-          resetRegisterForm();
-          setPhone(cleanPhone);
-          setPassword('');
-          showToast(loginErr?.data?.message || 'Account created! Please sign in.');
-          setStep('form');
-        }
-      }
+      setIsBusy(false);
+      resetRegisterForm();
+      setPhone(cleanPhone);
+      setPassword(cleanPassword);
+      setPhoneError(undefined);
+      setPasswordError(undefined);
+      setStep('form');
+      showToast('Account created successfully! Please sign in.');
     } catch (e: any) {
       setIsBusy(false);
       showToast(e?.data?.message || e?.message || 'Registration failed');

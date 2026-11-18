@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { memo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -25,7 +26,7 @@ export const EmergencySupportCard = memo(({ onContact }: EmergencySupportCardPro
         onPress={onContact}
         activeOpacity={0.8}
       >
-        <MaterialIcons name="call" size={16} color={Colors.white} />
+        <Ionicons name="call" size={16} color={Colors.white} />
         <Text style={styles.supportCallText}>Contact</Text>
       </TouchableOpacity>
     </View>

@@ -180,7 +180,9 @@ export const UploadPatientFileModal: React.FC<Props> = ({
             />
             {!!titleErrMessage && <Text style={styles.fieldErrorText}>{titleErrMessage}</Text>}
 
-            <Text style={styles.sheetLabel}>File <Text style={styles.asterisk}>*</Text></Text>
+            <Text style={styles.sheetLabel}>
+              Select File (max 5 MB) <Text style={styles.asterisk}>*</Text>
+            </Text>
             {pickedFile ? (
               <View style={styles.pickedFileRow}>
                 <MaterialIcons
@@ -191,8 +193,16 @@ export const UploadPatientFileModal: React.FC<Props> = ({
                 <View style={{ flex: 1, marginRight: ws(8) }}>
                   <Text style={styles.pickedFileName} numberOfLines={1}>{pickedFile.name}</Text>
                   {!!pickedFile.size && (
-                    <Text style={{ fontSize: fs(10), color: Colors.secondaryFontColor }}>
-                      {(pickedFile.size / (1024 * 1024)).toFixed(2)} MB
+                    <Text
+                      style={{
+                        fontSize: fs(10),
+                        color:
+                          pickedFile.size > 5 * 1024 * 1024
+                            ? Colors.redColor
+                            : Colors.secondaryFontColor,
+                      }}
+                    >
+                      {(pickedFile.size / (1024 * 1024)).toFixed(2)} MB / Max 5 MB
                     </Text>
                   )}
                 </View>
@@ -201,22 +211,27 @@ export const UploadPatientFileModal: React.FC<Props> = ({
                 </TouchableOpacity>
               </View>
             ) : (
-              <View style={styles.pickRow}>
-                <TouchableOpacity style={styles.pickOption} onPress={onPickFromCamera} activeOpacity={0.85}>
-                  <MaterialIcons name="photo-camera" size={ws(22)} color={Colors.primaryColor} />
-                  <Text style={styles.pickOptionText}>Camera</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.pickOption} onPress={onPickFromGallery} activeOpacity={0.85}>
-                  <MaterialIcons name="photo-library" size={ws(22)} color={Colors.primaryColor} />
-                  <Text style={styles.pickOptionText}>Gallery</Text>
-                </TouchableOpacity>
-                {hasDocumentPicker && onPickDocument && (
-                  <TouchableOpacity style={styles.pickOption} onPress={onPickDocument} activeOpacity={0.85}>
-                    <MaterialIcons name="description" size={ws(22)} color={Colors.primaryColor} />
-                    <Text style={styles.pickOptionText}>Document</Text>
+              <>
+                <View style={styles.pickRow}>
+                  <TouchableOpacity style={styles.pickOption} onPress={onPickFromCamera} activeOpacity={0.85}>
+                    <MaterialIcons name="photo-camera" size={ws(22)} color={Colors.primaryColor} />
+                    <Text style={styles.pickOptionText}>Camera</Text>
                   </TouchableOpacity>
-                )}
-              </View>
+                  <TouchableOpacity style={styles.pickOption} onPress={onPickFromGallery} activeOpacity={0.85}>
+                    <MaterialIcons name="photo-library" size={ws(22)} color={Colors.primaryColor} />
+                    <Text style={styles.pickOptionText}>Gallery</Text>
+                  </TouchableOpacity>
+                  {hasDocumentPicker && onPickDocument && (
+                    <TouchableOpacity style={styles.pickOption} onPress={onPickDocument} activeOpacity={0.85}>
+                      <MaterialIcons name="description" size={ws(22)} color={Colors.primaryColor} />
+                      <Text style={styles.pickOptionText}>Document</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                <Text style={styles.fileHintText}>
+                  Supported: PDF, Images (JPG, PNG, WEBP), DOC (Max 5 MB)
+                </Text>
+              </>
             )}
             {!!fileErrMessage && <Text style={styles.fieldErrorText}>{fileErrMessage}</Text>}
 
@@ -416,6 +431,13 @@ const styles = StyleSheet.create({
   },
   sheetInputError: {
     borderColor: Colors.redColor,
+  },
+  fileHintText: {
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(11),
+    color: Colors.secondaryFontColor,
+    marginTop: hs(6),
+    marginLeft: ws(2),
   },
   fieldErrorText: {
     ...TYPOGRAPHY.regular,

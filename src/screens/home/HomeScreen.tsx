@@ -14,21 +14,19 @@ import {
   AppTimePickerModal,
   BottomTabBar,
   CitySelectModal,
-  ErrorState,
-  LoadingIndicator,
+  LoadingIndicator
 } from '../../components';
 import { Colors } from '../../constants';
-import type { DepartmentModel, DoctorModel } from '../../redux/apis/doctorApi';
+import type { DoctorModel } from '../../redux/apis/doctorApi';
 import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
 import {
   ClinicFeatureCard,
-  DepartmentCard,
   DoctorSpotlightCard,
   EditVitalBottomSheet,
   EmergencySupportCard,
   HomeBannerSlider,
   HomeHeader,
-  HomePatientDashboard,
+  HomePatientDashboard
 } from './components';
 import { useHome } from './useHome';
 
@@ -190,7 +188,7 @@ export const HomeScreen: React.FC = () => {
         />
 
         {/* Section 3: Medical Specialties */}
-        <View style={styles.sectionHeader}>
+        {/* <View style={styles.sectionHeader}>
           <View style={{ flex: 1, marginRight: 8 }}>
             <Text style={styles.sectionHeading} adjustsFontSizeToFit numberOfLines={2}>
               Medical Specialties
@@ -224,7 +222,7 @@ export const HomeScreen: React.FC = () => {
               <DepartmentCard item={item} onPress={() => handleDepartmentPress(item)} />
             )}
           />
-        )}
+        )} */}
 
         {/* Section 4: Top Verified Doctors */}
         <View style={styles.sectionHeader}>
@@ -444,7 +442,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: ws(16),
-    marginTop: hs(22),
+    marginTop: hs(10),
     marginBottom: hs(10),
     gap: ws(8),
   },

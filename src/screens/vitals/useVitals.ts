@@ -48,8 +48,8 @@ export const VITAL_CATEGORIES: VitalCategory[] = [
     icon: 'thermostat',
     color: Colors.amber_F59E0B,
     bgColor: Colors.amber_FEF3C7,
-    unit: '°F',
-    idealRange: '97.8 - 99.1 °F',
+    unit: '°C',
+    idealRange: '36.1 - 37.5 °C',
   },
   {
     name: 'SpO2',

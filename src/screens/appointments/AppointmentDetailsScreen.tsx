@@ -115,8 +115,8 @@ export const AppointmentDetailsScreen: React.FC = () => {
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* Review Modal */}
-      <AppointmentReviewModal
+      {/* Review Modal (Commented Out) */}
+      {/* <AppointmentReviewModal
         visible={showReviewModal}
         onClose={() => setShowReviewModal(false)}
         doctorName={formatDoctorName(appointment.doct_f_name, appointment.doct_l_name)}
@@ -126,7 +126,7 @@ export const AppointmentDetailsScreen: React.FC = () => {
         onChangeReviewText={setReviewText}
         onSubmit={handleSubmitReview}
         isSubmitting={isSubmittingReview}
-      />
+      /> */}
 
       {/* Clinic Queue Arrival QR Code Modal */}
       <AppointmentQrModal

@@ -144,6 +144,7 @@ export const useDoctorDetails = () => {
 
   const clinicTitle = doctor ? (doctor.clinic_title || doctor.clinic_name || (doctor as any).clinics_name || '') : '';
   const clinicPhone = doctor ? ((doctor as any).clinic_phone || doctor.phone || (doctor as any).clinics_phone || '') : '';
+  const clinicWhatsapp = doctor ? ((doctor as any).clinic_whatsapp || (doctor as any).whatsapp || (doctor as any).clinics_whatsapp || '') : '';
   const clinicEmail = doctor ? ((doctor as any).clinic_email || doctor.email || (doctor as any).clinics_email || '') : '';
   const clinicAddress = doctor ? (doctor.clinics_address || doctor.clinic_address || '') : '';
 
@@ -152,7 +153,7 @@ export const useDoctorDetails = () => {
     : doctor.clinic_image || doctor.clinic_thumb_image || (doctor as any).clinics_image) : null;
   const clinicImgUrl = getImageUrl(clinicImgRaw);
 
-  const hasClinicSection = Boolean(clinicTitle || clinicPhone || clinicEmail || clinicAddress);
+  const hasClinicSection = Boolean(clinicTitle || clinicPhone || clinicWhatsapp || clinicEmail || clinicAddress);
   const expValue = doctor ? (doctor.ex_year ?? doctor.experience) : undefined;
   const patientsCount = doctor ? (doctor.total_appointment_done ?? (doctor as any).patients_served) : undefined;
 
@@ -193,6 +194,7 @@ export const useDoctorDetails = () => {
     bookingDisabled,
     clinicTitle,
     clinicPhone,
+    clinicWhatsapp,
     clinicEmail,
     clinicAddress,
     clinicImgUrl,

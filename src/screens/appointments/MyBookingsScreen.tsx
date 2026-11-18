@@ -181,16 +181,6 @@ export const MyBookingsScreen: React.FC = () => {
                       : 'No past appointment history found.'
                 }
               />
-              {tab === 'upcoming' && !searchQuery.trim() && (
-                <TouchableOpacity
-                  style={styles.bookNowBtn}
-                  activeOpacity={0.85}
-                  onPress={() => navigation.navigate('Search')}
-                >
-                  <MaterialIcons name="add" size={18} color={Colors.white} />
-                  <Text style={styles.bookNowText}>Book a Consultation</Text>
-                </TouchableOpacity>
-              )}
             </View>
           }
           renderItem={({ item }: { item: AppointmentModel }) => {

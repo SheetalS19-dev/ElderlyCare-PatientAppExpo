@@ -19,8 +19,7 @@ import {
   AppTimePickerModal,
 } from '../../../components';
 import { Colors } from '../../../constants';
-import { fs, hs, ws } from '../../../utils/metrics';
-import { TYPOGRAPHY } from '../../../utils/typography';
+import { DateTimeUtils, fs, hs, TYPOGRAPHY, ws } from '../../../utils';
 
 interface Props {
   visible: boolean;
@@ -153,30 +152,28 @@ export const AddEditVitalModal: React.FC<Props> = ({
               {/* Select Date */}
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalFieldLabel}>Select Date *</Text>
-                <View
+                <TouchableOpacity
                   style={[
                     styles.pickerTriggerBox,
                     !!fieldErrors.date && styles.inputErrorBorder,
                   ]}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    onOpenDatePicker();
+                  }}
+                  activeOpacity={0.8}
                 >
-                  <TextInput
-                    style={styles.pickerInput}
-                    value={selectedDate}
-                    onChangeText={onDateChange}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={Colors.slate_94A3B8}
-                  />
-                  <TouchableOpacity
-                    onPress={() => {
-                      Keyboard.dismiss();
-                      onOpenDatePicker();
-                    }}
-                    activeOpacity={0.8}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  <Text
+                    style={[
+                      styles.pickerTriggerText,
+                      !selectedDate && styles.placeholderText,
+                    ]}
+                    numberOfLines={1}
                   >
-                    <MaterialIcons name="calendar-today" size={ws(17)} color={Colors.primaryColor} />
-                  </TouchableOpacity>
-                </View>
+                    {selectedDate ? (DateTimeUtils.getDataFormat(selectedDate) || selectedDate) : 'Select Date'}
+                  </Text>
+                  <MaterialIcons name="calendar-today" size={ws(17)} color={Colors.primaryColor} />
+                </TouchableOpacity>
                 {!!fieldErrors.date && (
                   <View style={styles.errorRow}>
                     <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
@@ -188,30 +185,28 @@ export const AddEditVitalModal: React.FC<Props> = ({
               {/* Select Time */}
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalFieldLabel}>Select Time *</Text>
-                <View
+                <TouchableOpacity
                   style={[
                     styles.pickerTriggerBox,
                     !!fieldErrors.time && styles.inputErrorBorder,
                   ]}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    onOpenTimePicker();
+                  }}
+                  activeOpacity={0.8}
                 >
-                  <TextInput
-                    style={styles.pickerInput}
-                    value={selectedTime}
-                    onChangeText={onTimeChange}
-                    placeholder="HH:mm"
-                    placeholderTextColor={Colors.slate_94A3B8}
-                  />
-                  <TouchableOpacity
-                    onPress={() => {
-                      Keyboard.dismiss();
-                      onOpenTimePicker();
-                    }}
-                    activeOpacity={0.8}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  <Text
+                    style={[
+                      styles.pickerTriggerText,
+                      !selectedTime && styles.placeholderText,
+                    ]}
+                    numberOfLines={1}
                   >
-                    <MaterialIcons name="schedule" size={ws(17)} color={Colors.primaryColor} />
-                  </TouchableOpacity>
-                </View>
+                    {selectedTime ? (DateTimeUtils.formatTimeToAmPm(selectedTime) || selectedTime) : 'Select Time'}
+                  </Text>
+                  <MaterialIcons name="schedule" size={ws(17)} color={Colors.primaryColor} />
+                </TouchableOpacity>
                 {!!fieldErrors.time && (
                   <View style={styles.errorRow}>
                     <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
@@ -231,6 +226,12 @@ export const AddEditVitalModal: React.FC<Props> = ({
                     !!fieldErrors.systolic && styles.inputErrorBorder,
                   ]}
                 >
+                  <MaterialIcons
+                    name="favorite"
+                    size={ws(18)}
+                    color={fieldErrors.systolic ? Colors.redColor : Colors.redColor}
+                    style={{ marginRight: ws(8) }}
+                  />
                   <TextInput
                     style={styles.textInputWithIcon}
                     placeholder="e.g. 120"
@@ -257,6 +258,12 @@ export const AddEditVitalModal: React.FC<Props> = ({
                     !!fieldErrors.diastolic && styles.inputErrorBorder,
                   ]}
                 >
+                  <MaterialIcons
+                    name="favorite-border"
+                    size={ws(18)}
+                    color={fieldErrors.diastolic ? Colors.redColor : Colors.redColor}
+                    style={{ marginRight: ws(8) }}
+                  />
                   <TextInput
                     style={styles.textInputWithIcon}
                     placeholder="e.g. 80"
@@ -284,13 +291,19 @@ export const AddEditVitalModal: React.FC<Props> = ({
                     <Text style={styles.errorText}>{fieldErrors.sugarGeneral}</Text>
                   </View>
                 )}
-                <Text style={styles.modalFieldLabel}>Fasting (mg/dL)</Text>
+                <Text style={styles.modalFieldLabel}>Fasting (mg/dL) *</Text>
                 <View
                   style={[
                     styles.inputWithIconContainer,
                     !!fieldErrors.value && styles.inputErrorBorder,
                   ]}
                 >
+                  <MaterialIcons
+                    name="opacity"
+                    size={ws(18)}
+                    color={fieldErrors.value ? Colors.redColor : Colors.purple_8B5CF6}
+                    style={{ marginRight: ws(8) }}
+                  />
                   <TextInput
                     style={styles.textInputWithIcon}
                     placeholder="e.g. 95"
@@ -307,16 +320,22 @@ export const AddEditVitalModal: React.FC<Props> = ({
                     <Text style={styles.errorText}>{fieldErrors.value}</Text>
                   </View>
                 ) : (
-                  <Text style={styles.helperText}>Accepted range: 20–1000 mg/dL (Optional)</Text>
+                  <Text style={styles.helperText}>Accepted range: 20–1000 mg/dL</Text>
                 )}
 
-                <Text style={[styles.modalFieldLabel, { marginTop: hs(10) }]}>Random (mg/dL)</Text>
+                <Text style={[styles.modalFieldLabel, { marginTop: hs(10) }]}>Random (mg/dL) *</Text>
                 <View
                   style={[
                     styles.inputWithIconContainer,
                     !!fieldErrors.sugarRandom && styles.inputErrorBorder,
                   ]}
                 >
+                  <MaterialIcons
+                    name="water-drop"
+                    size={ws(18)}
+                    color={fieldErrors.sugarRandom ? Colors.redColor : Colors.purple_8B5CF6}
+                    style={{ marginRight: ws(8) }}
+                  />
                   <TextInput
                     style={styles.textInputWithIcon}
                     placeholder="e.g. 140"
@@ -333,12 +352,12 @@ export const AddEditVitalModal: React.FC<Props> = ({
                     <Text style={styles.errorText}>{fieldErrors.sugarRandom}</Text>
                   </View>
                 ) : (
-                  <Text style={styles.helperText}>Accepted range: 20–1000 mg/dL (Optional)</Text>
+                  <Text style={styles.helperText}>Accepted range: 20–1000 mg/dL</Text>
                 )}
               </View>
             ) : vitalName === 'Temperature' ? (
               <View style={styles.modalFieldGroup}>
-                <Text style={styles.modalFieldLabel}>Temperature (°F) *</Text>
+                <Text style={styles.modalFieldLabel}>Temperature (°C) *</Text>
                 <View
                   style={[
                     styles.inputWithIconContainer,
@@ -353,13 +372,13 @@ export const AddEditVitalModal: React.FC<Props> = ({
                   />
                   <TextInput
                     style={styles.textInputWithIcon}
-                    placeholder="Enter temperature in °F"
+                    placeholder="Enter temperature in °C (e.g. 37.0)"
                     placeholderTextColor={Colors.slate_94A3B8}
                     keyboardType="decimal-pad"
                     value={value}
                     onChangeText={onChangeValue}
                   />
-                  <Text style={styles.inputUnitSuffix}>°F</Text>
+                  <Text style={styles.inputUnitSuffix}>°C</Text>
                 </View>
                 {!!fieldErrors.value && (
                   <View style={styles.errorRow}>
@@ -368,7 +387,7 @@ export const AddEditVitalModal: React.FC<Props> = ({
                   </View>
                 )}
                 <Text style={styles.helperText}>
-                  Accepted range: 70 – 115 °F (Normal: 97.0 – 99.5 °F)
+                  Accepted range: 25.0 – 45.0 °C (Normal: 36.1 – 37.5 °C)
                 </Text>
               </View>
             ) : vitalName === 'Weight' ? (
@@ -413,6 +432,18 @@ export const AddEditVitalModal: React.FC<Props> = ({
                     !!fieldErrors.value && styles.inputErrorBorder,
                   ]}
                 >
+                  <MaterialIcons
+                    name={vitalName === 'SpO2' ? 'air' : 'favorite'}
+                    size={ws(18)}
+                    color={
+                      fieldErrors.value
+                        ? Colors.redColor
+                        : vitalName === 'SpO2'
+                          ? Colors.sky_0284C7
+                          : Colors.primaryColor
+                    }
+                    style={{ marginRight: ws(8) }}
+                  />
                   <TextInput
                     style={styles.textInputWithIcon}
                     placeholder={`Enter ${vitalName} reading`}
@@ -437,9 +468,9 @@ export const AddEditVitalModal: React.FC<Props> = ({
 
             {/* General API Error Row */}
             {!!fieldErrors.general && (
-              <View style={styles.errorRow}>
-                <MaterialIcons name="error-outline" size={ws(15)} color={Colors.redColor} />
-                <Text style={styles.errorText}>{fieldErrors.general}</Text>
+              <View style={styles.generalErrorBox}>
+                <MaterialIcons name="error-outline" size={ws(16)} color={Colors.redColor} style={{ marginTop: hs(1) }} />
+                <Text style={styles.generalErrorText}>{fieldErrors.general}</Text>
               </View>
             )}
           </ScrollView>
@@ -561,19 +592,23 @@ const styles = StyleSheet.create({
   pickerTriggerBox: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: ws(12),
     paddingHorizontal: ws(12),
-    paddingVertical: hs(10),
+    paddingVertical: hs(11),
     backgroundColor: Colors.white,
   },
-  pickerInput: {
+  pickerTriggerText: {
     flex: 1,
-    ...TYPOGRAPHY.regular,
+    ...TYPOGRAPHY.medium,
     fontSize: fs(13),
     color: Colors.primaryFontColor,
-    paddingVertical: 0,
+    marginRight: ws(6),
+  },
+  placeholderText: {
+    color: Colors.slate_94A3B8,
   },
   inputWithIconContainer: {
     flexDirection: 'row',
@@ -618,6 +653,25 @@ const styles = StyleSheet.create({
     fontSize: fs(11),
     color: Colors.secondaryFontColor,
     marginTop: hs(4),
+  },
+  generalErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: ws(8),
+    marginTop: hs(12),
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(8),
+    backgroundColor: Colors.red_FFF5F5,
+    borderRadius: ws(8),
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  generalErrorText: {
+    ...TYPOGRAPHY.medium,
+    fontSize: fs(12),
+    color: Colors.redColor,
+    flex: 1,
+    lineHeight: fs(17),
   },
   modalActions: {
     flexDirection: 'row',

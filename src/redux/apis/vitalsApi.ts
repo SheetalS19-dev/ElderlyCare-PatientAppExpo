@@ -43,6 +43,8 @@ export const vitalsApi = baseApi.injectEndpoints({
       transformResponse: (res: any) => {
         if (Array.isArray(res)) return res;
         if (Array.isArray(res?.data)) return res.data;
+        if (Array.isArray(res?.response)) return res.response;
+        if (Array.isArray(res?.response?.data)) return res.response.data;
         if (Array.isArray(res?.result)) return res.result;
         return [];
       },

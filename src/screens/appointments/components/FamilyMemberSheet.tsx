@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -21,9 +21,11 @@ import {
   useAddFamilyMemberMutation,
   useGetFamilyMembersQuery,
 } from '../../../redux/apis/bookingApi';
+import { saveFamilyRelation } from '../../../services';
 import type { FamilyMemberModel } from '../../../types';
-import { DateTimeUtils, fs, hs, showToast, TYPOGRAPHY, ws } from '../../../utils';
-import { validateName, validatePhone } from '../../../validation/authValidation';
+import { DateTimeUtils, fs, hs, isUserSelfMember, showToast, TYPOGRAPHY, ws } from '../../../utils';
+import { validateDob, validateName, validatePhone } from '../../../validation/authValidation';
+import { RELATION_OPTIONS } from '../../family/components/AddEditFamilyMemberModal';
 
 export interface FamilyMemberSheetProps {
   visible: boolean;
@@ -64,7 +66,14 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
   const [phone, setPhone] = useState('');
   const [dob, setDob] = useState('');
   const [gender, setGender] = useState<'Male' | 'Female' | 'Other' | ''>('');
-  const [error, setError] = useState<string | undefined>();
+  const [relation, setRelation] = useState('');
+  const [showRelationList, setShowRelationList] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const scrollRef = useRef<ScrollView>(null);
+
+  const clearError = (field: string) => {
+    setErrors((prev) => ({ ...prev, [field]: undefined }));
+  };
 
   const familyList: FamilyMemberModel[] = useMemo(() => {
     let sourceList: FamilyMemberModel[] = [];
@@ -81,14 +90,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
     const selfPhone = (user?.phone || '').trim();
     const selfId = user?.id ? String(user.id) : uid;
 
-    const existingSelf = sourceList.find((m) => {
-      return (
-        (m as any).is_self === true ||
-        (m.relationship || '').toLowerCase() === 'self' ||
-        (selfId && String(m.id) === selfId) ||
-        (selfFName && m.f_name?.trim().toLowerCase() === selfFName.toLowerCase() && m.phone === selfPhone)
-      );
-    });
+    const existingSelf = sourceList.find((m) => isUserSelfMember(m, user));
 
     const selfMember: FamilyMemberModel = existingSelf
       ? {
@@ -112,17 +114,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
       };
     (selfMember as any).is_self = true;
 
-    const otherMembers = sourceList.filter((m) => {
-      const isSelf =
-        (m as any).is_self === true ||
-        (m.relationship || '').toLowerCase() === 'self' ||
-        (selfId && String(m.id) === selfId) ||
-        (selfFName &&
-          m.f_name?.trim().toLowerCase() === selfFName.toLowerCase() &&
-          (m.l_name?.trim().toLowerCase() === selfLName.toLowerCase() || !m.l_name) &&
-          (m.phone === selfPhone || !m.phone));
-      return !isSelf;
-    });
+    const otherMembers = sourceList.filter((m) => !isUserSelfMember(m, user));
 
     return [selfMember, ...otherMembers];
   }, [rawData, user, uid]);
@@ -133,58 +125,80 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
     setPhone('');
     setDob('');
     setGender('');
-    setError(undefined);
+    setRelation('');
+    setShowRelationList(false);
+    setErrors({});
     setShowAddForm(false);
   };
 
   const handleAdd = async () => {
+    const nextErrors: Record<string, string | undefined> = {};
+
     const fnRes = validateName(firstName, true, 'First name');
-    if (!fnRes.isValid) {
-      setError(fnRes.error || 'Enter a valid first name');
-      return;
-    }
+    if (!fnRes.isValid) nextErrors.firstName = fnRes.error || 'First name is required';
+
     const lnRes = validateName(lastName, false, 'Last name');
-    if (!lnRes.isValid) {
-      setError(lnRes.error || 'Enter a valid last name');
-      return;
-    }
-    if (!phone.trim()) {
-      setError('Mobile number is required');
-      return;
-    }
+    if (!lnRes.isValid) nextErrors.lastName = lnRes.error || 'Invalid last name';
+
     const phoneRes = validatePhone(phone, true);
-    if (!phoneRes.isValid) {
-      setError(phoneRes.error || 'Enter a valid 10-digit mobile number');
-      return;
+    if (!phoneRes.isValid) nextErrors.phone = phoneRes.error || 'Valid 10-digit mobile number is required';
+
+    if (!dob || !dob.trim()) {
+      nextErrors.dob = 'Date of birth is required';
+    } else {
+      const dobRes = validateDob(dob, true);
+      if (!dobRes.isValid) nextErrors.dob = dobRes.error || 'Invalid date of birth';
     }
-    if (!dob.trim()) {
-      setError('Date of birth is required');
-      return;
+
+    if (!gender || !gender.trim()) {
+      nextErrors.gender = 'Please select a gender';
     }
-    if (!gender) {
-      setError('Please select a gender');
-      return;
+
+    if (!relation || !relation.trim()) {
+      nextErrors.relation = 'Please select a relation';
     }
+
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
     if (!uid) {
-      setError('Session expired. Please log in again.');
+      showToast('Session expired. Please log in again.');
       return;
     }
-    setError(undefined);
 
     try {
-      const payload = {
+      let formattedDob = dob.trim();
+      if (formattedDob.includes('T')) {
+        formattedDob = formattedDob.split('T')[0];
+      } else if (formattedDob.includes('/')) {
+        const parts = formattedDob.split('/');
+        if (parts.length === 3) {
+          if (parts[0].length === 4) {
+            formattedDob = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+          } else if (parts[2].length === 4) {
+            formattedDob = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+      }
+
+      const cleanRelation = relation.trim();
+
+      const payload: any = {
         user_id: uid,
         f_name: firstName.trim(),
+        first_name: firstName.trim(),
         l_name: lastName ? lastName.trim() : '',
+        last_name: lastName ? lastName.trim() : '',
         phone: phone.trim(),
-        gender,
+        gender: gender.trim(),
+        dob: formattedDob,
         isd_code: countryCode.dialCode || '+91',
-        dob: dob || '',
+        relation: cleanRelation,
+        relationship: cleanRelation,
       };
 
       const res: any = await addFamilyMember(payload).unwrap();
       showToast('Patient added successfully');
-      resetForm();
 
       // Extract new member ID from response safely
       let newMemberId: any = undefined;
@@ -196,6 +210,10 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
         } else if (typeof res.data === 'number' || typeof res.data === 'string') {
           newMemberId = res.data;
         }
+      }
+
+      if (newMemberId && cleanRelation) {
+        await saveFamilyRelation(uid, String(newMemberId), cleanRelation);
       }
 
       const updatedRefetch = await refetch();
@@ -220,12 +238,15 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
         gender: payload.gender,
         isd_code: payload.isd_code,
         dob: payload.dob,
+        relationship: cleanRelation,
+        relation: cleanRelation,
       };
 
+      resetForm();
       onSelect(savedMember);
       onClose();
     } catch (e: any) {
-      setError(e?.data?.message || e?.message || 'Could not add family member, please try again');
+      showToast(e?.data?.message || e?.message || 'Could not add patient, please try again');
     }
   };
 
@@ -263,32 +284,49 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
 
           {showAddForm ? (
             <ScrollView
+              ref={scrollRef}
               style={styles.formScroll}
               contentContainerStyle={styles.formContentContainer}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               bounces={false}
             >
-              <Text style={[styles.inputLabel, styles.firstInputLabel]}>First Name *</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Enter first name"
-                placeholderTextColor={Colors.slate_94A3B8}
-                value={firstName}
-                onChangeText={setFirstName}
-                autoCapitalize="words"
-              />
+              {/* 2-Column Row for First Name and Last Name */}
+              <View style={styles.twoColRow}>
+                <View style={styles.col}>
+                  <Text style={[styles.inputLabel, styles.firstInputLabel]}>First Name *</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Enter first name"
+                    placeholderTextColor={Colors.slate_94A3B8}
+                    value={firstName}
+                    onChangeText={(v) => {
+                      setFirstName(v);
+                      clearError('firstName');
+                    }}
+                    autoCapitalize="words"
+                  />
+                  {!!errors.firstName && <Text style={styles.errorText}>{errors.firstName}</Text>}
+                </View>
 
-              <Text style={styles.inputLabel}>Last Name</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Enter last name"
-                placeholderTextColor={Colors.slate_94A3B8}
-                value={lastName}
-                onChangeText={setLastName}
-                autoCapitalize="words"
-              />
+                <View style={styles.col}>
+                  <Text style={[styles.inputLabel, styles.firstInputLabel]}>Last Name</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Enter last name"
+                    placeholderTextColor={Colors.slate_94A3B8}
+                    value={lastName}
+                    onChangeText={(v) => {
+                      setLastName(v);
+                      clearError('lastName');
+                    }}
+                    autoCapitalize="words"
+                  />
+                  {!!errors.lastName && <Text style={styles.errorText}>{errors.lastName}</Text>}
+                </View>
+              </View>
 
+              {/* Mobile Number */}
               <Text style={styles.inputLabel}>Mobile Number *</Text>
               <View style={styles.phoneInputRow}>
                 <TextInput
@@ -298,11 +336,15 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                   keyboardType="phone-pad"
                   maxLength={10}
                   value={phone}
-                  onChangeText={(v) => setPhone(v.replace(/[^0-9]/g, ''))}
+                  onChangeText={(v) => {
+                    setPhone(v.replace(/[^0-9]/g, ''));
+                    clearError('phone');
+                  }}
                 />
               </View>
+              {!!errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
 
-              {/* Date of Birth Selection */}
+              {/* Date of Birth Selection Tile */}
               <Text style={styles.inputLabel}>Date of Birth *</Text>
               <TouchableOpacity
                 style={styles.dateSelectorTile}
@@ -310,24 +352,29 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                 activeOpacity={0.7}
               >
                 <Text style={[styles.dateSelectorText, !dob ? styles.dateSelectorPlaceholder : null]}>
-                  {dob ? DateTimeUtils.formatDob(dob) : DateTimeUtils.DOB_PLACEHOLDER}
+                  {dob ? (DateTimeUtils.getDataFormat(dob) || dob) : DateTimeUtils.DOB_PLACEHOLDER}
                 </Text>
-                <MaterialIcons name="calendar-today" size={18} color={Colors.primaryColor} />
+                <MaterialIcons name="calendar-today" size={16} color={Colors.primaryColor} />
               </TouchableOpacity>
+              {!!errors.dob && <Text style={styles.errorText}>{errors.dob}</Text>}
 
+              {/* Gender Selector */}
               <Text style={styles.inputLabel}>Gender *</Text>
               <View style={styles.genderRow}>
                 {(['Male', 'Female', 'Other'] as const).map((g) => (
                   <TouchableOpacity
                     key={g}
-                    style={[styles.genderChip, gender === g && styles.genderChipActive]}
-                    onPress={() => setGender(g)}
+                    style={[styles.genderChip, gender === g && styles.genderChipSelected]}
+                    onPress={() => {
+                      setGender(g);
+                      clearError('gender');
+                    }}
                     activeOpacity={0.8}
                   >
                     <Text
                       style={[
                         styles.genderChipText,
-                        gender === g && styles.genderChipTextActive,
+                        gender === g && styles.genderChipTextSelected,
                       ]}
                     >
                       {g}
@@ -335,23 +382,104 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                   </TouchableOpacity>
                 ))}
               </View>
+              {!!errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
 
-              {!!error && <Text style={styles.errorText}>{error}</Text>}
+              {/* Relation Selector */}
+              <Text style={styles.inputLabel}>Relation *</Text>
+              <TouchableOpacity
+                style={[
+                  styles.dateSelectorTile,
+                  showRelationList && styles.selectorTileActive,
+                ]}
+                onPress={() => {
+                  setShowRelationList((v) => {
+                    const next = !v;
+                    if (next) {
+                      setTimeout(() => {
+                        scrollRef.current?.scrollToEnd({ animated: true });
+                      }, 120);
+                    }
+                    return next;
+                  });
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.dateSelectorText, !relation ? styles.dateSelectorPlaceholder : null]}>
+                  {relation || 'Select relation'}
+                </Text>
+                <MaterialIcons
+                  name={showRelationList ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                  size={20}
+                  color={Colors.primaryColor}
+                />
+              </TouchableOpacity>
+              {!!errors.relation && <Text style={styles.errorText}>{errors.relation}</Text>}
 
-              <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={resetForm}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
+              {/* Relation Dropdown List */}
+              {showRelationList && (
+                <View style={styles.relationDropdownList}>
+                  <ScrollView
+                    nestedScrollEnabled
+                    bounces={false}
+                    showsVerticalScrollIndicator={true}
+                    style={styles.dropdownScrollView}
+                    contentContainerStyle={styles.dropdownScrollContent}
+                  >
+                    {RELATION_OPTIONS.map((opt, index) => {
+                      const isSelected = relation === opt;
+                      const isLast = index === RELATION_OPTIONS.length - 1;
+                      return (
+                        <TouchableOpacity
+                          key={opt}
+                          style={[
+                            styles.relationOptionItem,
+                            isSelected && styles.relationOptionItemSelected,
+                            isLast && styles.relationOptionItemLast,
+                          ]}
+                          onPress={() => {
+                            setRelation(opt);
+                            setShowRelationList(false);
+                            clearError('relation');
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Text
+                            style={[
+                              styles.relationOptionText,
+                              isSelected && styles.relationOptionTextSelected,
+                            ]}
+                          >
+                            {opt}
+                          </Text>
+                          {isSelected && (
+                            <MaterialIcons name="check" size={ws(18)} color={Colors.primaryColor} />
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* Action Buttons */}
+              <View style={styles.modalActionRow}>
+                <TouchableOpacity
+                  style={styles.modalCancelBtn}
+                  onPress={resetForm}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.modalCancelText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.submitBtn, isAdding && styles.btnDisabled]}
+                  style={[styles.modalSubmitBtn, isAdding && styles.modalSubmitBtnDisabled]}
                   onPress={handleAdd}
                   disabled={isAdding}
-                  activeOpacity={0.85}
+                  activeOpacity={0.8}
                 >
                   {isAdding ? (
-                    <ActivityIndicator color={Colors.white} size="small" />
+                    <ActivityIndicator size="small" color={Colors.white} />
                   ) : (
-                    <Text style={styles.submitBtnText}>Save Patient</Text>
+                    <Text style={styles.modalSubmitText}>Add Patient</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -495,7 +623,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: Colors.bg_F7F8FA,
+    backgroundColor: Colors.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '90%',
@@ -621,35 +749,42 @@ const styles = StyleSheet.create({
     maxHeight: hs(540),
   },
   formContentContainer: {
-    padding: ws(20),
+    padding: ws(16),
     paddingBottom: hs(24),
   },
   inputLabel: {
-    fontSize: fs(13),
+    fontSize: fs(12),
     ...TYPOGRAPHY.medium,
-    color: Colors.gray_2D3748,
-    marginTop: hs(14),
-    marginBottom: hs(6),
+    color: Colors.slate_1E293B,
+    marginBottom: hs(3),
+    marginTop: hs(8),
   },
   firstInputLabel: {
     marginTop: hs(2),
   },
+  twoColRow: {
+    flexDirection: 'row',
+    gap: ws(10),
+  },
+  col: {
+    flex: 1,
+  },
   textInput: {
-    backgroundColor: Colors.white,
+    height: hs(38),
+    backgroundColor: Colors.slate_F8FAFC,
+    borderRadius: fs(8),
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: fs(8),
-    height: hs(45),
-    paddingHorizontal: ws(12),
-    fontSize: fs(14),
+    paddingHorizontal: ws(10),
+    fontSize: fs(13),
+    color: Colors.slate_1E293B,
     ...TYPOGRAPHY.regular,
-    color: Colors.gray_1A202C,
   },
   phoneInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: hs(45),
-    backgroundColor: Colors.white,
+    height: hs(38),
+    backgroundColor: Colors.slate_F8FAFC,
     borderRadius: fs(8),
     borderWidth: 1,
     borderColor: Colors.border,
@@ -673,99 +808,149 @@ const styles = StyleSheet.create({
   },
   phoneInput: {
     flex: 1,
-    paddingHorizontal: ws(12),
-    fontSize: fs(14),
-    color: Colors.primaryFontColor,
+    paddingHorizontal: ws(10),
+    fontSize: fs(13),
+    color: Colors.slate_1E293B,
+    ...TYPOGRAPHY.regular,
   },
   dateSelectorTile: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: hs(45),
-    backgroundColor: Colors.white,
+    height: hs(38),
+    backgroundColor: Colors.slate_F8FAFC,
     borderRadius: fs(8),
     borderWidth: 1,
     borderColor: Colors.border,
-    paddingHorizontal: ws(12),
+    paddingHorizontal: ws(10),
   },
   dateSelectorText: {
-    fontSize: fs(14),
-    color: Colors.primaryFontColor,
+    fontSize: fs(13),
+    color: Colors.slate_1E293B,
+    ...TYPOGRAPHY.regular,
   },
   dateSelectorPlaceholder: {
     color: Colors.slate_94A3B8,
   },
   genderRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: hs(3),
+    marginBottom: hs(6),
     gap: ws(8),
-    marginTop: hs(4),
   },
   genderChip: {
     flex: 1,
-    height: hs(40),
+    paddingVertical: hs(7),
     borderRadius: fs(8),
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.slate_F1F5F9,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  genderChipActive: {
+  genderChipSelected: {
     backgroundColor: Colors.primaryColor,
     borderColor: Colors.primaryColor,
   },
   genderChipText: {
-    fontSize: fs(13),
-    ...TYPOGRAPHY.medium,
-    color: Colors.gray_4A5568,
-  },
-  genderChipTextActive: {
-    color: Colors.white,
-    ...TYPOGRAPHY.bold,
-  },
-  errorText: {
     fontSize: fs(12),
-    ...TYPOGRAPHY.regular,
-    color: Colors.red_E53E3E,
-    marginTop: hs(8),
+    ...TYPOGRAPHY.medium,
+    color: Colors.slate_1E293B,
   },
-  modalActions: {
+  genderChipTextSelected: {
+    ...TYPOGRAPHY.bold,
+    color: Colors.white,
+  },
+  selectorTileActive: {
+    borderColor: Colors.primaryColor,
+  },
+  relationDropdownList: {
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: fs(10),
+    marginTop: hs(4),
+    marginBottom: hs(8),
+    maxHeight: hs(190),
+    overflow: 'hidden',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: hs(2) },
+    shadowOpacity: 0.08,
+    shadowRadius: fs(4),
+    elevation: 3,
+  },
+  dropdownScrollView: {
+    maxHeight: hs(190),
+  },
+  dropdownScrollContent: {
+    flexGrow: 1,
+    paddingVertical: hs(2),
+  },
+  relationOptionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ws(12),
-    marginTop: hs(20),
+    justifyContent: 'space-between',
+    paddingVertical: hs(11),
+    paddingHorizontal: ws(14),
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.slate_F1F5F9,
   },
-  submitBtn: {
+  relationOptionItemLast: {
+    borderBottomWidth: 0,
+  },
+  relationOptionItemSelected: {
+    backgroundColor: Colors.aquaSoft,
+  },
+  relationOptionText: {
+    fontSize: fs(13),
+    ...TYPOGRAPHY.medium,
+    color: Colors.slate_1E293B,
+  },
+  relationOptionTextSelected: {
+    ...TYPOGRAPHY.bold,
+    color: Colors.primaryColor,
+  },
+  errorText: {
+    fontSize: fs(11),
+    color: Colors.redColor,
+    marginTop: hs(2),
+    ...TYPOGRAPHY.regular,
+  },
+  modalActionRow: {
+    flexDirection: 'row',
+    gap: ws(10),
+    marginTop: hs(16),
+  },
+  modalCancelBtn: {
     flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
-    backgroundColor: Colors.primaryColor,
-    borderRadius: fs(12),
-    height: hs(48),
-    alignItems: 'center',
+    height: hs(44),
+    borderRadius: fs(10),
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.white,
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  btnDisabled: {
-    opacity: 0.6,
+  modalCancelText: {
+    fontSize: fs(13.5),
+    ...TYPOGRAPHY.medium,
+    color: Colors.slate_64748B,
   },
-  submitBtnText: {
-    fontSize: fs(14),
+  modalSubmitBtn: {
+    flex: 1.2,
+    height: hs(44),
+    borderRadius: fs(10),
+    backgroundColor: Colors.primaryColor,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalSubmitBtnDisabled: {
+    opacity: 0.7,
+  },
+  modalSubmitText: {
+    fontSize: fs(13.5),
     ...TYPOGRAPHY.bold,
     color: Colors.white,
-  },
-  cancelBtn: {
-    flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
-    height: hs(48),
-    borderRadius: fs(12),
-    backgroundColor: Colors.slate_F1F5F9,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelBtnText: {
-    fontSize: fs(14),
-    ...TYPOGRAPHY.bold,
-    color: Colors.primaryFontColor,
   },
 });

@@ -194,7 +194,7 @@ export const BlogDetailScreen: React.FC = () => {
                     </View>
                     <View style={styles.commentUserMeta}>
                       <Text style={styles.commentAuthor}>{c.author}</Text>
-                      <Text style={styles.commentDate}>{c.date}</Text>
+                      <Text style={styles.commentDate}>{c.date ? (DateTimeUtils.getDataFormat(c.date) || c.date) : ''}</Text>
                     </View>
                   </View>
                   <Text style={styles.commentBody}>{c.text}</Text>

@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { Colors } from '../../../constants';
-import { fs, hs, ws } from '../../../utils/metrics';
+import { DateTimeUtils, fs, hs, ws } from '../../../utils';
 import { TYPOGRAPHY } from '../../../utils/typography';
 
 export interface CommentItem {
@@ -72,7 +72,7 @@ export const BlogCommentsSection: React.FC<Props> = ({
             <View style={styles.commentContent}>
               <View style={styles.commentHeader}>
                 <Text style={styles.commentAuthor}>{comment.author}</Text>
-                <Text style={styles.commentDate}>{comment.date}</Text>
+                <Text style={styles.commentDate}>{comment.date ? (DateTimeUtils.getDataFormat(comment.date) || comment.date) : ''}</Text>
               </View>
               <Text style={styles.commentText}>{comment.text}</Text>
             </View>

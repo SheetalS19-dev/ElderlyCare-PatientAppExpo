@@ -4,8 +4,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { getSavedFamilyRelations } from '../../services';
-import { storageService } from '../../services/storageService';
 import type { RootStackParamList } from '../../navigation/types';
 import { useGetAppointmentsQuery } from '../../redux/apis/appointmentApi';
 import { useGetFamilyMembersQuery } from '../../redux/apis/bookingApi';
@@ -28,12 +26,17 @@ import {
   useGetVitalsQuery,
   useUpdateVitalMutation,
 } from '../../redux/apis/vitalsApi';
+import { getSavedFamilyRelations } from '../../services';
+import { storageService } from '../../services/storageService';
 import { getUserFullName, type FamilyMemberModel, type NotificationModel } from '../../types';
 import {
+  DateTimeUtils,
   detectDeviceCityName,
   extractNotificationsList,
   formatDoctorName,
+  formatVitalErrorMessage,
   getNotificationSeenKey,
+  isUserSelfMember,
   isWithinLast7Days,
   matchCityFromList,
   showToast,
@@ -117,7 +120,7 @@ export const useHome = () => {
           setIsUsingCurrentLocation(true);
           try {
             await AsyncStorage.setItem(SAVED_LOCATION_KEY, JSON.stringify(matched));
-          } catch {}
+          } catch { }
           showToast(`Location set to ${matched.title || detected}`);
         } else {
           showToast(`Detected ${detected}; showing all locations`);
@@ -231,7 +234,9 @@ export const useHome = () => {
     let raw: any[] = [];
     if (Array.isArray(familyMembersData)) raw = familyMembersData;
     else if (Array.isArray((familyMembersData as any)?.data)) raw = (familyMembersData as any).data;
+    else if (Array.isArray((familyMembersData as any)?.data?.data)) raw = (familyMembersData as any).data.data;
     else if (Array.isArray((familyMembersData as any)?.response)) raw = (familyMembersData as any).response;
+    else if (Array.isArray((familyMembersData as any)?.response?.data)) raw = (familyMembersData as any).response.data;
 
     return raw.map((m) => {
       const memIdStr = String(m.id ?? m.member_id ?? '');
@@ -250,16 +255,10 @@ export const useHome = () => {
 
   const filteredFamilyMembersList = useMemo(() => {
     if (!familyMembersList || familyMembersList.length === 0) return [];
-    const mainUserId = String(user?.id ?? (userProfileData as any)?.data?.id ?? userIdStr);
+    const mainUser = userProfileData?.data ?? userProfileData ?? user;
 
-    return familyMembersList.filter((m) => {
-      const isSelf =
-        (m as any).is_self === true ||
-        (m.relationship || '').toLowerCase() === 'self' ||
-        String(m.id) === mainUserId;
-      return !isSelf;
-    });
-  }, [familyMembersList, user, userProfileData, userIdStr]);
+    return familyMembersList.filter((m) => !isUserSelfMember(m, mainUser));
+  }, [familyMembersList, userProfileData, user]);
 
   const selfFullName = useMemo(() => {
     const fName = user?.f_name || (userProfileData as any)?.data?.f_name || '';
@@ -376,17 +375,27 @@ export const useHome = () => {
 
   // Dynamic Vitals Queries based on active selected member filter
   const activeFamilyId = useMemo(() => {
+    const mainUser = userProfileData?.data ?? userProfileData ?? user;
     if (selectedMemberId === 'ALL' || selectedMemberId === 'SELF') {
       const selfMem = familyMembersList.find(
         (m: any) =>
+          isUserSelfMember(m, mainUser) ||
           (m.relationship || '').toLowerCase() === 'self' ||
           m.is_self === true
       );
       if (selfMem?.id) return String(selfMem.id);
+      if (familyMembersList.length > 0 && familyMembersList[0]?.id) {
+        return String(familyMembersList[0].id);
+      }
       return userIdStr;
     }
+    const foundMem = familyMembersList.find((m: any) => String(m.id) === String(selectedMemberId));
+    if (foundMem?.id) return String(foundMem.id);
+    if (familyMembersList.length > 0 && familyMembersList[0]?.id) {
+      return String(familyMembersList[0].id);
+    }
     return String(selectedMemberId);
-  }, [selectedMemberId, userIdStr, familyMembersList]);
+  }, [selectedMemberId, userIdStr, familyMembersList, userProfileData, user]);
 
   const { data: rawBpVitals, refetch: refetchBp } = useGetVitalsQuery(
     { familyMemberId: activeFamilyId, type: 'Blood Pressure' },
@@ -469,12 +478,28 @@ export const useHome = () => {
       payload.bp_systolic = systolic;
       payload.bp_diastolic = diastolic;
     } else if (editingVitalType === 'Sugar') {
-      if (!value.trim() && !sugarRandom.trim()) {
-        showToast('Enter Fasting or Random sugar reading');
+      if (!value.trim()) {
+        showToast('Fasting sugar reading is required');
         return;
       }
-      payload.sugar_fasting = value;
-      payload.sugar_random = sugarRandom;
+      const fastingNum = parseFloat(value.trim());
+      if (isNaN(fastingNum) || fastingNum < 20 || fastingNum > 1000) {
+        showToast('Fasting sugar must be between 20 and 1000 mg/dL');
+        return;
+      }
+
+      if (!sugarRandom.trim()) {
+        showToast('Random sugar reading is required');
+        return;
+      }
+      const randomNum = parseFloat(sugarRandom.trim());
+      if (isNaN(randomNum) || randomNum < 20 || randomNum > 1000) {
+        showToast('Random sugar must be between 20 and 1000 mg/dL');
+        return;
+      }
+
+      payload.sugar_fasting = value.trim();
+      payload.sugar_random = sugarRandom.trim();
     } else if (editingVitalType === 'Weight') {
       if (!value.trim()) {
         showToast('Enter Weight reading');
@@ -486,7 +511,12 @@ export const useHome = () => {
         showToast('Enter Temperature reading');
         return;
       }
-      payload.temperature = value;
+      const t = parseFloat(value.trim());
+      if (isNaN(t) || t < 25.0 || t > 45.0) {
+        showToast('Temperature must be between 25.0 and 45.0 °C');
+        return;
+      }
+      payload.temperature = value.trim();
     } else if (editingVitalType === 'SpO2') {
       if (!value.trim()) {
         showToast('Enter SpO2 reading');
@@ -506,10 +536,10 @@ export const useHome = () => {
         refetchSpo2();
         setShowEditModal(false);
       } else {
-        showToast(res?.message || 'Failed to update vital');
+        showToast(formatVitalErrorMessage(res?.message || 'Failed to update vital'));
       }
     } catch (err: any) {
-      showToast(err?.data?.message || err?.message || 'Failed to update vital');
+      showToast(formatVitalErrorMessage(err));
     }
   };
 
@@ -613,7 +643,7 @@ export const useHome = () => {
       return {
         name: getUserFullName(mainUser) || 'N/A',
         gender: mainUser?.gender || 'N/A',
-        dob: dobStr || 'N/A',
+        dob: dobStr ? (DateTimeUtils.getDataFormat(dobStr) || dobStr) : 'N/A',
         age: calculatePatientAge(dobStr),
         bloodGroup: mainUser?.blood_group || mainUser?.blood_g || 'N/A',
         consultingDoctor: recentDocName,
@@ -629,7 +659,7 @@ export const useHome = () => {
         return {
           name: `${member.f_name || ''} ${member.l_name || ''}`.trim() || 'N/A',
           gender: member.gender || 'N/A',
-          dob: dobStr || 'N/A',
+          dob: dobStr ? (DateTimeUtils.getDataFormat(dobStr) || dobStr) : 'N/A',
           age: calculatePatientAge(dobStr),
           bloodGroup: blood && String(blood).trim() ? String(blood).trim() : 'N/A',
           consultingDoctor: recentDocName,
@@ -642,7 +672,7 @@ export const useHome = () => {
     return {
       name: getUserFullName(mainUser) || 'N/A',
       gender: mainUser?.gender || 'N/A',
-      dob: dobStr || 'N/A',
+      dob: dobStr ? (DateTimeUtils.getDataFormat(dobStr) || dobStr) : 'N/A',
       age: calculatePatientAge(dobStr),
       bloodGroup: mainUser?.blood_group || mainUser?.blood_g || 'N/A',
       consultingDoctor: recentDocName,

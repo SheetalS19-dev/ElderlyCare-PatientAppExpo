@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React from 'react';
 import {
@@ -55,15 +56,15 @@ export const ContactUsScreen: React.FC = () => {
 
         {/* Phone Support / Emergency Line */}
         <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handlePhoneCall}>
-          <View style={[styles.iconCircle, { backgroundColor: Colors.lightBlueTint }]}>
-            <MaterialIcons name="phone" size={fs(22)} color={Colors.primaryColor} />
+          <View style={[styles.iconCircle, { backgroundColor: Colors.aquaSoft }]}>
+            <Ionicons name="call" size={fs(20)} color={Colors.primaryColor} />
           </View>
           <View style={styles.info}>
             <Text style={styles.label}>EMERGENCY LINE / HELPLINE</Text>
             <Text style={styles.value}>{AppConstants.support.helplineFormattedPhone}</Text>
             <Text style={styles.subLabel}>Available 24/7 for urgent support</Text>
           </View>
-          <View style={[styles.actionPill, { backgroundColor: Colors.lightBlueTint }]}>
+          <View style={[styles.actionPill, { backgroundColor: Colors.aquaSoft }]}>
             <Text style={[styles.actionPillText, { color: Colors.primaryColor }]}>Call Now</Text>
             <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.primaryColor} />
           </View>
@@ -72,7 +73,7 @@ export const ContactUsScreen: React.FC = () => {
         {/* WhatsApp Support */}
         <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleWhatsApp}>
           <View style={[styles.iconCircle, { backgroundColor: Colors.green_ECFDF5 }]}>
-            <MaterialIcons name="chat" size={fs(22)} color={Colors.green_10B981} />
+            <Ionicons name="logo-whatsapp" size={fs(20)} color={Colors.green_10B981} />
           </View>
           <View style={styles.info}>
             <Text style={styles.label}>WHATSAPP CARE CHAT</Text>
@@ -88,7 +89,7 @@ export const ContactUsScreen: React.FC = () => {
         {/* Support Email */}
         <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleSupportEmail}>
           <View style={[styles.iconCircle, { backgroundColor: Colors.aquaSoft }]}>
-            <MaterialIcons name="mail-outline" size={fs(22)} color={Colors.primaryColor} />
+            <Ionicons name="mail" size={fs(20)} color={Colors.primaryColor} />
           </View>
           <View style={styles.info}>
             <Text style={styles.label}>PATIENT SUPPORT EMAIL</Text>
@@ -103,24 +104,24 @@ export const ContactUsScreen: React.FC = () => {
 
         {/* General Info Email */}
         <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleInfoEmail}>
-          <View style={[styles.iconCircle, { backgroundColor: Colors.slate_F1F5F9 }]}>
-            <MaterialIcons name="info-outline" size={fs(22)} color={Colors.secondaryFontColor} />
+          <View style={[styles.iconCircle, { backgroundColor: Colors.aquaSoft }]}>
+            <Ionicons name="mail" size={fs(20)} color={Colors.primaryColor} />
           </View>
           <View style={styles.info}>
             <Text style={styles.label}>GENERAL INQUIRIES</Text>
             <Text style={styles.value}>{AppConstants.support.infoEmail}</Text>
             <Text style={styles.subLabel}>Partnerships, clinic network & general info</Text>
           </View>
-          <View style={[styles.actionPill, { backgroundColor: Colors.slate_F1F5F9 }]}>
-            <Text style={[styles.actionPillText, { color: Colors.secondaryFontColor }]}>Inquire</Text>
-            <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.secondaryFontColor} />
+          <View style={[styles.actionPill, { backgroundColor: Colors.aquaSoft }]}>
+            <Text style={[styles.actionPillText, { color: Colors.primaryColor }]}>Inquire</Text>
+            <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.primaryColor} />
           </View>
         </TouchableOpacity>
 
         {/* Office Address Card */}
         <TouchableOpacity activeOpacity={0.85} style={styles.card} onPress={handleOpenMap}>
-          <View style={[styles.iconCircle, { backgroundColor: Colors.aquaSoft }]}>
-            <MaterialIcons name="location-on" size={fs(22)} color={Colors.primaryColor} />
+          <View style={[styles.iconCircle, { backgroundColor: Colors.purple_F3E8FF }]}>
+            <Ionicons name="navigate" size={fs(20)} color={Colors.purple_9333EA} />
           </View>
           <View style={styles.info}>
             <Text style={styles.label}>HEADQUARTERS</Text>
@@ -129,9 +130,9 @@ export const ContactUsScreen: React.FC = () => {
             </Text>
             <Text style={styles.subLabel}>Tap to view on Google Maps</Text>
           </View>
-          <View style={[styles.actionPill, { backgroundColor: Colors.aquaSoft }]}>
-            <Text style={[styles.actionPillText, { color: Colors.primaryColor }]}>Map</Text>
-            <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.primaryColor} />
+          <View style={[styles.actionPill, { backgroundColor: Colors.purple_F3E8FF }]}>
+            <Text style={[styles.actionPillText, { color: Colors.purple_9333EA }]}>Directions</Text>
+            <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.purple_9333EA} />
           </View>
         </TouchableOpacity>
 

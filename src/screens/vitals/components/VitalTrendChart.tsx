@@ -3,7 +3,7 @@ import React, { memo, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop, Text as SvgText } from 'react-native-svg';
 import { Colors } from '../../../constants';
-import { DateTimeUtils, fs, hs, TYPOGRAPHY, ws } from '../../../utils';
+import { DateTimeUtils, fs, hs, sortVitalsDescending, TYPOGRAPHY, ws } from '../../../utils';
 
 /** Catmull-Rom -> cubic bezier so vital trends render as smooth curves matching dashboard */
 const buildSmoothPath = (pts: { x: number; y: number }[]): string => {
@@ -64,12 +64,8 @@ export const VitalTrendChart = memo(({
 
     if (valid.length === 0) return [];
 
-    // Sort descending by date to get most recent first
-    const sorted = [...valid].sort((a, b) => {
-      const tA = new Date(a.date || a.created_at || 0).getTime();
-      const tB = new Date(b.date || b.created_at || 0).getTime();
-      return tB - tA;
-    });
+    // Sort descending by date/time (matching dashboard) to get most recent first
+    const sorted = sortVitalsDescending(valid);
 
     // Take up to 5 most recent records and reverse to plot chronologically left to right
     return sorted.slice(0, Math.min(sorted.length, 5)).reverse();
@@ -161,212 +157,247 @@ export const VitalTrendChart = memo(({
 
   const linePath = useMemo(() => buildSmoothPath(points), [points]);
 
+  // Dynamic segments: decrease in red, increase in green
+  const segments = useMemo(() => {
+    if (points.length < 2) return [];
+    const segs: { d: string; color: string; isDecreased: boolean }[] = [];
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[i - 1] || points[i];
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const p3 = points[i + 2] || p2;
+      const c1x = p1.x + (p2.x - p0.x) / 6;
+      const c1y = p1.y + (p2.y - p0.y) / 6;
+      const c2x = p2.x + (p3.x - p1.x) / 6;
+      const c2y = p2.y + (p3.y - p1.y) / 6;
+      const d = `M${p1.x} ${p1.y} C${c1x} ${c1y} ${c2x} ${c2y} ${p2.x} ${p2.y}`;
+      const isDecreased = p2.val < p1.val;
+      const color = isDecreased ? Colors.redColor : Colors.green_10B981;
+      segs.push({ d, color, isDecreased });
+    }
+    return segs;
+  }, [points]);
+
+  const isLatestDecreased = useMemo(() => {
+    if (points.length < 2) return false;
+    return points[points.length - 1].val < points[points.length - 2].val;
+  }, [points]);
+
+  const trendColor = isLatestDecreased ? Colors.redColor : Colors.green_10B981;
+  const trendBg = isLatestDecreased ? Colors.red_FEE2E2 : Colors.green_ECFDF5;
+  const trendIcon = isLatestDecreased ? 'trending-down' : 'trending-up';
+
   return (
     <View style={styles.vitalsGridCard}>
-      {/* Title pill + 7-day note pill matching dashboard exactly */}
+      {/* Title pill */}
       <View style={styles.vitalsCardHeaderRow}>
-        <View style={styles.vitalsTitlePill}>
-          <MaterialIcons name="fitness-center" size={fs(14)} color={Colors.green_10B981} />
-          <Text style={styles.vitalsCardTitle} numberOfLines={1}>Weight</Text>
-        </View>
-        <View style={styles.vitalsNotePill}>
-          <MaterialIcons name="info-outline" size={fs(12)} color={Colors.redColor} />
-          <Text style={styles.vitalsSevenDaysNote} numberOfLines={1}>
-            Note: Data beyond 7 days is not shown
-          </Text>
-        </View>
-      </View>
-
-      {/* Line / area chart */}
-      <View style={styles.vitalsMiniChartArea}>
-        <View style={styles.vitalsRotatedUnitBox}>
-          <Text style={styles.vitalsRotatedUnitText} numberOfLines={1}>
-            Weight (kg)
-          </Text>
+          <View style={[styles.vitalsTitlePill, { backgroundColor: points.length >= 2 ? trendBg : Colors.green_ECFDF5 }]}>
+            <MaterialIcons
+              name={points.length >= 2 ? (trendIcon as any) : 'fitness-center'}
+              size={fs(14)}
+              color={points.length >= 2 ? trendColor : Colors.green_10B981}
+            />
+            <Text style={[styles.vitalsCardTitle, { color: points.length >= 2 ? trendColor : Colors.green_10B981 }]} numberOfLines={1}>
+              Weight
+            </Text>
+          </View>
         </View>
 
-        <View
-          style={styles.vitalsSvgBox}
-          onLayout={(e) => setChartWidth(Math.floor(e.nativeEvent.layout.width))}
-        >
-          {chartWidth > 0 && (
-            <Svg width={chartWidth} height={CHART_H}>
-              <Defs>
-                <LinearGradient
-                  id="vitalFill-Weight-Details"
-                  x1="0"
-                  y1="0"
-                  x2="0"
-                  y2="1"
-                >
-                  <Stop offset="0%" stopColor={Colors.green_10B981} stopOpacity="0.22" />
-                  <Stop offset="100%" stopColor={Colors.green_10B981} stopOpacity="0.02" />
-                </LinearGradient>
-              </Defs>
+        {/* Line / area chart */}
+        <View style={styles.vitalsMiniChartArea}>
+          <View style={styles.vitalsRotatedUnitBox}>
+            <Text style={styles.vitalsRotatedUnitText} numberOfLines={1}>
+              Weight (kg)
+            </Text>
+          </View>
 
-              {/* Grid + Y labels */}
-              {computedYLabels.map((lbl, idx) => {
-                const n = computedYLabels.length;
-                const lineY = n > 1 ? CHART_PAD_T + idx * (plotH / (n - 1)) : CHART_PAD_T + plotH / 2;
-                const isBase = idx === n - 1;
-                return (
-                  <React.Fragment key={`grid-${idx}`}>
-                    <Line
-                      x1={CHART_Y_GUTTER}
-                      y1={lineY}
-                      x2={chartWidth - CHART_PAD_R}
-                      y2={lineY}
-                      stroke={isBase ? Colors.aquaBorder : Colors.blue_EDF5FF}
-                      strokeWidth={isBase ? 1.5 : 1}
-                      strokeDasharray={isBase ? undefined : '3 4'}
+          <View
+            style={styles.vitalsSvgBox}
+            onLayout={(e) => setChartWidth(Math.floor(e.nativeEvent.layout.width))}
+          >
+            {chartWidth > 0 && (
+              <Svg width={chartWidth} height={CHART_H}>
+                <Defs>
+                  <LinearGradient
+                    id="vitalFill-Weight-Details"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <Stop offset="0%" stopColor={trendColor} stopOpacity="0.22" />
+                    <Stop offset="100%" stopColor={trendColor} stopOpacity="0.02" />
+                  </LinearGradient>
+                </Defs>
+
+                {/* Grid + Y labels */}
+                {computedYLabels.map((lbl, idx) => {
+                  const n = computedYLabels.length;
+                  const lineY = n > 1 ? CHART_PAD_T + idx * (plotH / (n - 1)) : CHART_PAD_T + plotH / 2;
+                  const isBase = idx === n - 1;
+                  return (
+                    <React.Fragment key={`grid-${idx}`}>
+                      <Line
+                        x1={CHART_Y_GUTTER}
+                        y1={lineY}
+                        x2={chartWidth - CHART_PAD_R}
+                        y2={lineY}
+                        stroke={isBase ? Colors.aquaBorder : Colors.blue_EDF5FF}
+                        strokeWidth={isBase ? 1.5 : 1}
+                        strokeDasharray={isBase ? undefined : '3 4'}
+                      />
+                      <SvgText
+                        x={CHART_Y_GUTTER - 7}
+                        y={lineY + 3}
+                        fontSize={fs(9)}
+                        fill={Colors.inkSoft}
+                        textAnchor="end"
+                        fontFamily="Poppins-Medium"
+                      >
+                        {lbl}
+                      </SvgText>
+                    </React.Fragment>
+                  );
+                })}
+
+                {/* Area + line + dots matching dashboard smooth curves */}
+                {points.length > 1 && (
+                  <Path
+                    d={`${linePath} L${points[points.length - 1].x} ${baseY} L${points[0].x} ${baseY} Z`}
+                    fill="url(#vitalFill-Weight-Details)"
+                  />
+                )}
+                  {
+                    segments.length > 0 ? (
+                      segments.map((seg, sIdx) => (
+                        <Path
+                          key={`trend-seg-${sIdx}`}
+                          d={seg.d}
+                          stroke={seg.color}
+                          strokeWidth={2.4}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          fill="none"
+                        />
+                      ))
+                    ) : points.length > 1 ? (
+                      <Path
+                        d={linePath}
+                        stroke={trendColor}
+                        strokeWidth={2.2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                      />
+              ) : null}
+                {points.map((p, pi) => {
+                  let dotColor = trendColor;
+                  if (pi > 0) {
+                    dotColor = p.val < points[pi - 1].val ? Colors.redColor : Colors.green_10B981;
+                  } else if (points.length > 1) {
+                    dotColor = points[1].val < p.val ? Colors.green_10B981 : Colors.green_10B981;
+                  }
+                  return (
+                    <Circle
+                      key={`dot-${pi}`}
+                      cx={p.x}
+                      cy={p.y}
+                      r={4.2}
+                      fill={dotColor}
+                      stroke={Colors.white}
+                      strokeWidth={1.5}
                     />
-                    <SvgText
-                      x={CHART_Y_GUTTER - 7}
-                      y={lineY + 3}
-                      fontSize={fs(9)}
-                      fill={Colors.inkSoft}
-                      textAnchor="end"
-                      fontFamily="Poppins-Medium"
-                    >
-                      {lbl}
-                    </SvgText>
-                  </React.Fragment>
-                );
-              })}
+                  );
+                })}
+              </Svg>
+            )}
 
-              {/* Area + line + dots matching dashboard smooth curves */}
-              {points.length > 1 && (
-                <Path
-                  d={`${linePath} L${points[points.length - 1].x} ${baseY} L${points[0].x} ${baseY} Z`}
-                  fill="url(#vitalFill-Weight-Details)"
-                />
-              )}
-              {points.length > 1 && (
-                <Path
-                  d={linePath}
-                  stroke={Colors.green_10B981}
-                  strokeWidth={2.2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-              )}
-              {points.map((p, pi) => (
-                <Circle
-                  key={`dot-${pi}`}
-                  cx={p.x}
-                  cy={p.y}
-                  r={4.2}
-                  fill={Colors.green_10B981}
-                  stroke={Colors.white}
-                  strokeWidth={1.5}
-                />
+            {/* X-axis date labels */}
+            <View style={styles.vitalsXAxisRow}>
+              {xAxisLabels.map((lbl, idx) => (
+                <Text key={`x-${idx}`} style={styles.vitalsXLabel} numberOfLines={1}>
+                  {lbl}
+                </Text>
               ))}
-            </Svg>
-          )}
-
-          {/* X-axis date labels */}
-          <View style={styles.vitalsXAxisRow}>
-            {xAxisLabels.map((lbl, idx) => (
-              <Text key={`x-${idx}`} style={styles.vitalsXLabel} numberOfLines={1}>
-                {lbl}
-              </Text>
-            ))}
+            </View>
           </View>
         </View>
       </View>
-    </View>
-  );
+      );
 });
 
-const styles = StyleSheet.create({
-  vitalsGridCard: {
-    width: '100%',
-    backgroundColor: Colors.white,
-    borderRadius: fs(18),
-    padding: ws(14),
-    marginBottom: hs(14),
-    borderWidth: 1,
-    borderColor: Colors.border_E3EDF7,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+      const styles = StyleSheet.create({
+        vitalsGridCard: {
+        width: '100%',
+      backgroundColor: Colors.white,
+      borderRadius: fs(18),
+      padding: ws(14),
+      marginBottom: hs(14),
+      borderWidth: 1,
+      borderColor: Colors.border_E3EDF7,
+      shadowColor: Colors.shadow,
+      shadowOffset: {width: 0, height: 2 },
+      shadowOpacity: 0.04,
+      shadowRadius: 6,
+      elevation: 2,
   },
-  vitalsCardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: ws(8),
-    marginBottom: hs(10),
+      vitalsCardHeaderRow: {
+        flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: ws(8),
+      marginBottom: hs(10),
   },
-  vitalsTitlePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ws(6),
-    borderRadius: fs(16),
-    paddingVertical: hs(6),
-    paddingHorizontal: ws(12),
-    backgroundColor: Colors.green_D1FAE5,
+      vitalsTitlePill: {
+        flexDirection: 'row',
+      alignItems: 'center',
+      gap: ws(6),
+      borderRadius: fs(16),
+      paddingVertical: hs(6),
+      paddingHorizontal: ws(12),
+      backgroundColor: Colors.green_D1FAE5,
   },
-  vitalsNotePill: {
-    flexShrink: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ws(4),
-    borderRadius: fs(14),
-    backgroundColor: Colors.red_FFE8E8,
-    paddingVertical: hs(6),
-    paddingHorizontal: ws(9),
+      vitalsCardTitle: {
+        fontSize: fs(12.5),
+      ...TYPOGRAPHY.semiBold,
+      color: Colors.ink,
   },
-  vitalsCardTitle: {
-    fontSize: fs(12.5),
-    ...TYPOGRAPHY.semiBold,
-    color: Colors.ink,
+      vitalsMiniChartArea: {
+        flexDirection: 'row',
+      width: '100%',
+      marginBottom: hs(4),
+      alignItems: 'flex-start',
   },
-  vitalsSevenDaysNote: {
-    flexShrink: 1,
-    fontSize: fs(9),
-    ...TYPOGRAPHY.medium,
-    color: Colors.redColor,
+      vitalsRotatedUnitBox: {
+        width: ws(14),
+      height: CHART_H,
+      justifyContent: 'center',
+      alignItems: 'center',
   },
-  vitalsMiniChartArea: {
-    flexDirection: 'row',
-    width: '100%',
-    marginBottom: hs(4),
-    alignItems: 'flex-start',
+      vitalsRotatedUnitText: {
+        fontSize: fs(9),
+      ...TYPOGRAPHY.semiBold,
+      color: Colors.inkSoft,
+      transform: [{rotate: '-90deg' }],
+      width: CHART_H,
+      textAlign: 'center',
   },
-  vitalsRotatedUnitBox: {
-    width: ws(14),
-    height: CHART_H,
-    justifyContent: 'center',
-    alignItems: 'center',
+      vitalsSvgBox: {
+        flex: 1,
+      position: 'relative',
   },
-  vitalsRotatedUnitText: {
-    fontSize: fs(9),
-    ...TYPOGRAPHY.semiBold,
-    color: Colors.inkSoft,
-    transform: [{ rotate: '-90deg' }],
-    width: CHART_H,
-    textAlign: 'center',
+      vitalsXAxisRow: {
+        flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: hs(2),
+      paddingLeft: CHART_Y_GUTTER,
+      paddingRight: CHART_PAD_R,
   },
-  vitalsSvgBox: {
-    flex: 1,
-    position: 'relative',
-  },
-  vitalsXAxisRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: hs(2),
-    paddingLeft: CHART_Y_GUTTER,
-    paddingRight: CHART_PAD_R,
-  },
-  vitalsXLabel: {
-    flex: 1,
-    fontSize: fs(8),
-    ...TYPOGRAPHY.medium,
-    color: Colors.inkSoft,
-    textAlign: 'center',
+      vitalsXLabel: {
+        flex: 1,
+      fontSize: fs(8),
+      ...TYPOGRAPHY.medium,
+      color: Colors.inkSoft,
+      textAlign: 'center',
   },
 });

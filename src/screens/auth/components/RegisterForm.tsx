@@ -160,7 +160,7 @@ export const RegisterForm = memo(({
           onPress={onOpenDatePicker}
         >
           <Text style={[styles.dropdownSelectorText, !dob && styles.placeholderText]}>
-            {dob ? DateTimeUtils.formatDob(dob) : DateTimeUtils.DOB_PLACEHOLDER}
+            {dob ? (DateTimeUtils.getDataFormat(dob) || dob) : DateTimeUtils.DOB_PLACEHOLDER}
           </Text>
           <MaterialIcons name="calendar-today" size={16} color={Colors.inkSoft} />
         </TouchableOpacity>

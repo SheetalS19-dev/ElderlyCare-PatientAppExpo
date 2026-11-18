@@ -49,6 +49,8 @@ export interface FamilyMemberModel {
   dob?: string;
   isd_code?: string;
   relationship?: string;
+  relation?: string;
+  is_self?: boolean | number;
 }
 
 export const getUserFullName = (user?: Pick<UserModel, 'f_name' | 'l_name'> | null): string => {

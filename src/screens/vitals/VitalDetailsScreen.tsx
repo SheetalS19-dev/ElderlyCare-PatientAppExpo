@@ -48,6 +48,7 @@ export const VitalDetailsScreen: React.FC = () => {
     showMemberDropdown,
     setShowMemberDropdown,
     selectedMemberDisplayName,
+    getMemberDisplayName,
     activeFilter,
     setActiveFilter,
     customFilterDate,
@@ -59,6 +60,8 @@ export const VitalDetailsScreen: React.FC = () => {
     isLoading,
     isError,
     refetch,
+    vitals,
+    filteredVitals,
     historyVitals,
     latestVital,
     iconInfo,
@@ -91,6 +94,7 @@ export const VitalDetailsScreen: React.FC = () => {
     fieldErrors,
     handleModalSubmit,
     handleDelete,
+    activeFamilyId,
   } = useVitalDetails();
 
   return (
@@ -99,7 +103,7 @@ export const VitalDetailsScreen: React.FC = () => {
 
       <VitalMemberSelector
         familyList={deduplicatedFamilyList}
-        activeFamilyId={selectedFamilyId}
+        activeFamilyId={activeFamilyId || selectedFamilyId}
         selectedMemberDisplayName={selectedMemberDisplayName}
         showMemberDropdown={showMemberDropdown}
         onToggleDropdown={() => setShowMemberDropdown((prev) => !prev)}
@@ -107,7 +111,7 @@ export const VitalDetailsScreen: React.FC = () => {
           setSelectedFamilyId(id);
           setShowMemberDropdown(false);
         }}
-        getMemberDisplayName={() => selectedMemberDisplayName}
+        getMemberDisplayName={getMemberDisplayName}
       />
 
       {/* Date Filter Bar */}
@@ -184,7 +188,7 @@ export const VitalDetailsScreen: React.FC = () => {
 
               {vitalName === 'Weight' && (
                 <VitalTrendChart
-                  records={historyVitals}
+                  records={filteredVitals.length > 0 ? filteredVitals : vitals}
                   chartPoints={chartPoints}
                   yTicks={yTicks}
                   chartW={chartW}

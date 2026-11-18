@@ -127,14 +127,14 @@ export const EditVitalBottomSheet = memo(({
               </>
             ) : vitalType === 'Sugar' ? (
               <>
-                <Text style={styles.fieldLabel}>Fasting (mg/dL)</Text>
+                <Text style={styles.fieldLabel}>Fasting (mg/dL) *</Text>
                 <AppTextField
                   placeholder="e.g. 95"
                   keyboardType="number-pad"
                   value={value}
                   onChangeText={onChangeValue}
                 />
-                <Text style={styles.fieldLabel}>Random (mg/dL)</Text>
+                <Text style={styles.fieldLabel}>Random (mg/dL) *</Text>
                 <AppTextField
                   placeholder="e.g. 140"
                   keyboardType="number-pad"
@@ -144,9 +144,9 @@ export const EditVitalBottomSheet = memo(({
               </>
             ) : (
               <>
-                <Text style={styles.fieldLabel}>{vitalType}</Text>
+                <Text style={styles.fieldLabel}>{vitalType === 'Temperature' ? 'Temperature (°C)' : vitalType}</Text>
                 <AppTextField
-                  placeholder={`Enter ${vitalType} reading`}
+                  placeholder={`Enter ${vitalType === 'Temperature' ? 'temperature in °C' : vitalType} reading`}
                   keyboardType="decimal-pad"
                   value={value}
                   onChangeText={onChangeValue}

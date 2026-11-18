@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -8,15 +8,17 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { GradientFill } from '../../../components/common/ThemeBackdrop';
 import { Colors } from '../../../constants';
 import type { FamilyMemberModel } from '../../../types';
 import {
+  DateTimeUtils,
   downloadAndSaveFile,
   formatDoctorName,
   fs,
   getImageUrl,
   hs,
+  isWithinLast7Days,
+  sortVitalsDescending,
   TYPOGRAPHY,
   ws
 } from '../../../utils';
@@ -94,6 +96,43 @@ export const HomePatientDashboard = memo(({
   downloadingFileId,
   setDownloadingFileId,
 }: HomePatientDashboardProps) => {
+  const weightTrendInfo = useMemo(() => {
+    let list: any[] = [];
+    if (Array.isArray(rawWeightVitals)) list = rawWeightVitals;
+    else if (Array.isArray(rawWeightVitals?.data)) list = rawWeightVitals.data;
+    else if (Array.isArray(rawWeightVitals?.response)) list = rawWeightVitals.response;
+
+    const filtered = list.filter((item) => isWithinLast7Days(item.date || item.created_at));
+    const valid = filtered.filter((r) => {
+      const v = Number(r.weight ?? r.value ?? 0);
+      return !isNaN(v) && v > 0;
+    });
+
+    const sorted = sortVitalsDescending(valid);
+    if (sorted.length < 2) {
+      return {
+        color: Colors.green_10B981,
+        bgColor: Colors.green_D1FAE5,
+        icon: 'fitness-center' as const,
+      };
+    }
+
+    const latest = Number(sorted[0].weight || sorted[0].value || 0);
+    const prev = Number(sorted[1].weight || sorted[1].value || 0);
+    if (latest < prev) {
+      return {
+        color: Colors.redColor,
+        bgColor: Colors.red_FEE2E2,
+        icon: 'trending-down' as const,
+      };
+    }
+    return {
+      color: Colors.green_10B981,
+      bgColor: Colors.green_D1FAE5,
+      icon: 'trending-up' as const,
+    };
+  }, [rawWeightVitals]);
+
   return (
     <View style={styles.newDashboardSection}>
       <View style={styles.dashCard}>
@@ -328,7 +367,7 @@ export const HomePatientDashboard = memo(({
       </View>
 
       {/* Appointment banner */}
-      <View style={styles.apptBanner}>
+      {/* <View style={styles.apptBanner}>
         <GradientFill id="apptBannerGrad" colors={Colors.bannerGradient} x1="0" y1="0" x2="1" y2="0" />
         <MaterialCommunityIcons name="calendar-clock" size={fs(44)} color={Colors.navy} />
         <View style={styles.apptDivider} />
@@ -344,7 +383,7 @@ export const HomePatientDashboard = memo(({
           <Text style={styles.apptBtnText}>Book Now</Text>
           <MaterialIcons name="arrow-forward" size={fs(16)} color={Colors.white} />
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       {/* Health Vitals Tracker */}
       <View style={styles.vitalsWrapCard}>
@@ -408,9 +447,9 @@ export const HomePatientDashboard = memo(({
             title="Weight"
             subtitle="Recent 5 visits"
             unit="kg"
-            iconName="fitness-center"
-            iconColor={Colors.green_10B981}
-            pillBgColor={Colors.green_D1FAE5}
+            iconName={weightTrendInfo.icon}
+            iconColor={weightTrendInfo.color}
+            pillBgColor={weightTrendInfo.bgColor}
             headers={['WEIGHT', 'DATE', 'TIME', 'ACTION']}
             records={rawWeightVitals}
             latestVal={getLatestVitalValue(rawWeightVitals, 'Weight')}
@@ -424,11 +463,11 @@ export const HomePatientDashboard = memo(({
             vitalType="Temperature"
             title="Temperature"
             subtitle="Recent 5 visits"
-            unit="°F"
+            unit="°C"
             iconName="thermostat"
             iconColor={Colors.amber_F59E0B}
             pillBgColor={Colors.amber_FEF3C7}
-            headers={['TEMP (°F)', 'DATE', 'TIME', 'ACTION']}
+            headers={['TEMP (°C)', 'DATE', 'TIME', 'ACTION']}
             records={rawTempVitals}
             latestVal={getLatestVitalValue(rawTempVitals, 'Temperature')}
             onPress={() => onNavigateVitalDetails('Temperature')}
@@ -476,8 +515,8 @@ export const HomePatientDashboard = memo(({
           {latestAppointments.length > 0 ? (
             latestAppointments.map((app: any, idx: number) => {
               const docName = formatDoctorName(app.doct_f_name || app.doctor_name || app.name || 'Doctor', app.doct_l_name);
-              const dateStr = app.date ? String(app.date).split('T')[0] : '';
-              const timeStr = app.time_slots || '';
+              const dateStr = app.date ? (DateTimeUtils.getDataFormat(app.date) || String(app.date).split('T')[0]) : '';
+              const timeStr = app.time_slots ? (DateTimeUtils.formatTimeToAmPm(app.time_slots) || app.time_slots) : '';
               return (
                 <View key={`app-row-${app.id || idx}`} style={styles.mobileCardItem}>
                   <View style={styles.appointmentIconCircle}>
@@ -523,7 +562,7 @@ export const HomePatientDashboard = memo(({
           {latestFiles.length > 0 ? (
             latestFiles.map((file: any, idx: number) => {
               const fileName = file.title || file.name || file.file_name || `Report #${idx + 1}`;
-              const fileDate = file.created_at ? String(file.created_at).split('T')[0] : '';
+              const fileDate = file.created_at ? (DateTimeUtils.getDataFormat(file.created_at) || String(file.created_at).split('T')[0]) : '';
               const fileSource = file.file_url || file.file || file.url || file.document;
               const downloadUrl = fileSource ? (String(fileSource).startsWith('http') ? fileSource : getImageUrl(fileSource)) : null;
 

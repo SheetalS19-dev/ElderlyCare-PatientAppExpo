@@ -171,8 +171,8 @@ export const VitalChartCard = ({
         if (v > maxV) maxV = v;
         if (v > 0 && v < minV) minV = v;
       });
-      if (maxV === 0) maxV = 99;
-      if (minV === 999) minV = 95;
+      if (maxV === 0) maxV = 39;
+      if (minV === 999) minV = 35;
 
       let top = Math.ceil(maxV) + 1;
       let bottom = Math.floor(minV) - 1;
@@ -227,7 +227,7 @@ export const VitalChartCard = ({
 
   const xAxisLabels = useMemo(() => {
     if (last7DaysRecords.length > 0) {
-      const slice = [...last7DaysRecords].slice(0, 4).reverse();
+      const slice = [...last7DaysRecords].slice(0, 5).reverse();
       return slice.map((item) => {
         const dStr = item.date ? item.date.split('T')[0] : (item.created_at ? item.created_at.split('T')[0] : '');
         let dateFormatted = dStr ? DateTimeUtils.getDataFormat(dStr) : '';
@@ -240,20 +240,20 @@ export const VitalChartCard = ({
     }
     const dates = [];
     const today = new Date();
-    for (let i = 3; i >= 0; i--) {
-      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
-      let dateFormatted = DateTimeUtils.getDataFormat(d.toISOString().split('T')[0]);
-      dateFormatted = dateFormatted.replace(/,?\s*\d{4}/g, '').trim();
-      dates.push(`${dateFormatted} 00:00`);
-    }
-    return dates;
-  }, [last7DaysRecords]);
+      for (let i = 4; i >= 0; i--) {
+        const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+        let dateFormatted = DateTimeUtils.getDataFormat(d.toISOString().split('T')[0]);
+        dateFormatted = dateFormatted.replace(/,?\s*\d{4}/g, '').trim();
+        dates.push(`${dateFormatted} 00:00`);
+      }
+      return dates;
+    }, [last7DaysRecords]);
 
   const [chartW, setChartW] = useState(0);
 
   const series = useMemo(() => {
     if (!hasData || chartW <= 0) return [] as { color: string; points: { x: number; y: number }[] }[];
-    const slice = [...last7DaysRecords].slice(0, 4).reverse();
+    const slice = [...last7DaysRecords].slice(0, 5).reverse();
     const count = slice.length;
     const plotW = chartW - CHART_Y_GUTTER - CHART_PAD_R;
     const plotH = CHART_H - CHART_PAD_T - CHART_PAD_B;
@@ -273,6 +273,19 @@ export const VitalChartCard = ({
         { color: Colors.sky_0284C7, get: (r) => Number(r.sugar_fasting || 0) },
         { color: Colors.orange_F96335, get: (r) => Number(r.sugar_random || 0) },
       ];
+    } else if (vitalType === 'Weight') {
+      const isLatestDecreased =
+        slice.length >= 2 &&
+        Number(slice[slice.length - 1].weight || slice[slice.length - 1].value || 0) <
+        Number(slice[slice.length - 2].weight || slice[slice.length - 2].value || 0);
+
+      const weightColor = isLatestDecreased ? Colors.redColor : Colors.green_10B981;
+      defs = [
+        {
+          color: weightColor,
+          get: (r) => Number(r.weight || r.value || 0),
+        },
+      ];
     } else {
       defs = [
         {
@@ -285,11 +298,34 @@ export const VitalChartCard = ({
     return defs.map((d) => ({
       color: d.color,
       points: slice
-        .map((r, i) => ({ v: d.get(r), x: xAt(i), y: 0 }))
+        .map((r, i) => ({ v: d.get(r), val: d.get(r), x: xAt(i), y: 0 }))
         .filter((p) => p.v > 0)
-        .map((p) => ({ x: p.x, y: yAt(p.v) })),
+        .map((p) => ({ x: p.x, y: yAt(p.v), v: p.v, val: p.v })),
     }));
   }, [hasData, chartW, last7DaysRecords, vitalType, minY, maxY, iconColor]);
+
+  const weightSegments = useMemo(() => {
+    if (vitalType !== 'Weight') return [];
+    const weightSeries = series[0];
+    if (!weightSeries || weightSeries.points.length < 2) return [];
+    const pts = weightSeries.points;
+    const segs: { d: string; color: string; isDecreased: boolean }[] = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] || pts[i];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = pts[i + 2] || p2;
+      const c1x = p1.x + (p2.x - p0.x) / 6;
+      const c1y = p1.y + (p2.y - p0.y) / 6;
+      const c2x = p2.x + (p3.x - p1.x) / 6;
+      const c2y = p2.y + (p3.y - p1.y) / 6;
+      const d = `M${p1.x} ${p1.y} C${c1x} ${c1y} ${c2x} ${c2y} ${p2.x} ${p2.y}`;
+      const isDecreased = (p2 as any).val < (p1 as any).val;
+      const color = isDecreased ? Colors.redColor : Colors.green_10B981;
+      segs.push({ d, color, isDecreased });
+    }
+    return segs;
+  }, [vitalType, series]);
 
   const legendItems =
     hasData && vitalType === 'Blood Pressure'
@@ -318,7 +354,7 @@ export const VitalChartCard = ({
       <View style={styles.vitalsCardHeaderRow}>
         <View style={[styles.vitalsTitlePill, { backgroundColor: pillBgColor }]}>
           <MaterialIcons name={iconName} size={fs(14)} color={iconColor} />
-          <Text style={styles.vitalsCardTitle} numberOfLines={1}>{title}</Text>
+          <Text style={[styles.vitalsCardTitle, vitalType === 'Weight' && { color: iconColor }]} numberOfLines={1}>{title}</Text>
         </View>
         <View style={styles.vitalsNotePill}>
           <MaterialIcons name="info-outline" size={fs(12)} color={Colors.redColor} />
@@ -413,27 +449,50 @@ export const VitalChartCard = ({
                         fill={`url(#vitalFill-${fillKey}-${si})`}
                       />
                     )}
-                    {sr.points.length > 1 && (
-                      <Path
-                        d={linePath}
-                        stroke={sr.color}
-                        strokeWidth={2.2}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        fill="none"
-                      />
-                    )}
-                    {sr.points.map((p, pi) => (
-                      <Circle
-                        key={`dot-${si}-${pi}`}
-                        cx={p.x}
-                        cy={p.y}
-                        r={4.2}
-                        fill={sr.color}
-                        stroke={Colors.white}
-                        strokeWidth={1.5}
-                      />
-                    ))}
+                      {
+                        sr.points.length > 1 && vitalType === 'Weight' && weightSegments.length > 0 ? (
+                          weightSegments.map((seg, sIdx) => (
+                            <Path
+                              key={`weight-seg-${sIdx}`}
+                              d={seg.d}
+                              stroke={seg.color}
+                              strokeWidth={2.4}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              fill="none"
+                            />
+                          ))
+                        ) : sr.points.length > 1 ? (
+                          <Path
+                            d={linePath}
+                            stroke={sr.color}
+                            strokeWidth={2.2}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            fill="none"
+                          />
+                    ) : null}
+                    {sr.points.map((p, pi) => {
+                      let dotColor = sr.color;
+                      if (vitalType === 'Weight') {
+                        if (pi > 0) {
+                          dotColor = (p as any).val < (sr.points[pi - 1] as any).val ? Colors.redColor : Colors.green_10B981;
+                        } else if (sr.points.length > 1) {
+                          dotColor = (sr.points[1] as any).val < (p as any).val ? Colors.green_10B981 : Colors.green_10B981;
+                        }
+                      }
+                      return (
+                        <Circle
+                          key={`dot-${si}-${pi}`}
+                          cx={p.x}
+                          cy={p.y}
+                          r={4.2}
+                          fill={dotColor}
+                          stroke={Colors.white}
+                          strokeWidth={1.5}
+                        />
+                      );
+                    })}
                   </React.Fragment>
                 );
               })}
@@ -515,7 +574,8 @@ export const VitalChartCard = ({
                 const actionMinW = 48;
                 const isLastRow = idx === last7DaysRecords.length - 1;
 
-                const dateStr = item.date ? item.date.split('T')[0] : (item.created_at ? item.created_at.split('T')[0] : '--');
+                const rawDateVal = item.date || item.created_at;
+                const dateStr = rawDateVal ? (DateTimeUtils.getDataFormat(rawDateVal) || String(rawDateVal).split('T')[0]) : '--';
                 const timeStr = item.time ? DateTimeUtils.formatTimeToAmPm(item.time) || item.time : '--';
 
                 return (

@@ -112,8 +112,8 @@ export const AppointmentActionsCard = memo(({
         </TouchableOpacity>
       )}
 
-      {/* Review Trigger Card */}
-      {canReview && (
+      {/* Review Trigger Card (Commented Out) */}
+      {/* {canReview && (
         <TouchableOpacity style={styles.reviewCard} activeOpacity={0.85} onPress={onOpenReview}>
           <View style={styles.reviewIconCircle}>
             <MaterialIcons name="star-outline" size={22} color={Colors.primaryColor} />
@@ -124,7 +124,7 @@ export const AppointmentActionsCard = memo(({
           </View>
           <MaterialIcons name="chevron-right" size={22} color={Colors.primaryColor} />
         </TouchableOpacity>
-      )}
+      )} */}
     </>
   );
 });

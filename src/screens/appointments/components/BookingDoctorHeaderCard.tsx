@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -86,8 +87,8 @@ export const BookingDoctorHeaderCard: React.FC<Props> = ({
           }}
           activeOpacity={0.8}
         >
-          <View style={styles.clinicPinCircle}>
-            <MaterialIcons name="location-on" size={ws(18)} color={Colors.primaryColor} />
+          <View style={[styles.clinicPinCircle, { backgroundColor: Colors.purple_F3E8FF }]}>
+            <Ionicons name="navigate" size={ws(18)} color={Colors.purple_9333EA} />
           </View>
           <View style={styles.clinicMeta}>
             <Text style={styles.clinicTitle}>{clinicTitle}</Text>

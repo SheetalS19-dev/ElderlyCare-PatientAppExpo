@@ -1,4 +1,4 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { memo } from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppCard } from '../../../components';
@@ -19,6 +19,15 @@ export const AppointmentContactCard = memo(({ appointment, doctorData }: Appoint
     (appointment as any).phone ||
     doctorData?.phone ||
     doctorData?.mobile ||
+    '';
+
+  const docWhatsapp =
+    (appointment as any).doct_whatsapp ||
+    (appointment as any).doctor_whatsapp ||
+    (appointment as any).whatsapp ||
+    (appointment as any).clinic_whatsapp ||
+    doctorData?.whatsapp ||
+    doctorData?.clinic_whatsapp ||
     '';
 
   const docEmail =
@@ -48,7 +57,7 @@ export const AppointmentContactCard = memo(({ appointment, doctorData }: Appoint
       ? `${clinicName}, ${rawAddress}`
       : rawAddress || clinicName;
 
-  if (!docPhone && !docEmail && !clinicAddr) {
+  if (!docPhone && !docWhatsapp && !docEmail && !clinicAddr) {
     return null;
   }
 
@@ -65,16 +74,40 @@ export const AppointmentContactCard = memo(({ appointment, doctorData }: Appoint
             Linking.openURL(`tel:${docPhone}`).catch(() => showToast('Could not initiate call'));
           }}
         >
-          <View style={styles.contactIconCircle}>
-            <MaterialIcons name="phone" size={fs(18)} color={Colors.primaryColor} />
+          <View style={[styles.contactIconCircle, { backgroundColor: Colors.aquaSoft }]}>
+            <Ionicons name="call" size={fs(18)} color={Colors.primaryColor} />
           </View>
           <View style={styles.contactTextGroup}>
             <Text style={styles.contactLabel}>Phone</Text>
             <Text style={styles.contactValue}>{docPhone}</Text>
           </View>
-          <View style={styles.actionPillBtn}>
-            <MaterialIcons name="phone" size={fs(12)} color={Colors.primaryColor} />
-            <Text style={styles.actionPillBtnText}>Call</Text>
+          <View style={[styles.actionPillBtn, { backgroundColor: Colors.aquaSoft }]}>
+            <Ionicons name="call" size={fs(12)} color={Colors.primaryColor} />
+            <Text style={[styles.actionPillBtnText, { color: Colors.primaryColor }]}>Call</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* WhatsApp Row */}
+      {!!docWhatsapp && (
+        <TouchableOpacity
+          style={styles.contactRow}
+          activeOpacity={0.75}
+          onPress={() => {
+            const cleanWa = docWhatsapp.replace(/[^0-9]/g, '');
+            Linking.openURL(`https://wa.me/${cleanWa}?text=Hello`).catch(() => showToast('Could not open WhatsApp'));
+          }}
+        >
+          <View style={[styles.contactIconCircle, { backgroundColor: Colors.green_ECFDF5 }]}>
+            <Ionicons name="logo-whatsapp" size={fs(18)} color={Colors.green_10B981} />
+          </View>
+          <View style={styles.contactTextGroup}>
+            <Text style={styles.contactLabel}>WhatsApp</Text>
+            <Text style={styles.contactValue}>Chat with us</Text>
+          </View>
+          <View style={[styles.actionPillBtn, { backgroundColor: Colors.green_ECFDF5 }]}>
+            <Ionicons name="logo-whatsapp" size={fs(12)} color={Colors.green_10B981} />
+            <Text style={[styles.actionPillBtnText, { color: Colors.green_10B981 }]}>Chat</Text>
           </View>
         </TouchableOpacity>
       )}
@@ -88,16 +121,16 @@ export const AppointmentContactCard = memo(({ appointment, doctorData }: Appoint
             Linking.openURL(`mailto:${docEmail}`).catch(() => showToast('Could not open mail app'));
           }}
         >
-          <View style={styles.contactIconCircle}>
-            <MaterialIcons name="email" size={fs(18)} color={Colors.primaryColor} />
+          <View style={[styles.contactIconCircle, { backgroundColor: Colors.aquaSoft }]}>
+            <Ionicons name="mail" size={fs(18)} color={Colors.primaryColor} />
           </View>
           <View style={styles.contactTextGroup}>
             <Text style={styles.contactLabel}>Email</Text>
             <Text style={styles.contactValue}>{docEmail}</Text>
           </View>
-          <View style={styles.actionPillBtn}>
-            <MaterialIcons name="email" size={fs(12)} color={Colors.primaryColor} />
-            <Text style={styles.actionPillBtnText}>Email</Text>
+          <View style={[styles.actionPillBtn, { backgroundColor: Colors.aquaSoft }]}>
+            <Ionicons name="mail" size={fs(12)} color={Colors.primaryColor} />
+            <Text style={[styles.actionPillBtnText, { color: Colors.primaryColor }]}>Email</Text>
           </View>
         </TouchableOpacity>
       )}
@@ -111,16 +144,16 @@ export const AppointmentContactCard = memo(({ appointment, doctorData }: Appoint
             Linking.openURL(`http://maps.google.com/maps?q=${encodeURIComponent(clinicAddr)}`).catch(() => showToast('Could not open map'));
           }}
         >
-          <View style={styles.contactIconCircle}>
-            <MaterialIcons name="location-on" size={fs(18)} color={Colors.primaryColor} />
+          <View style={[styles.contactIconCircle, { backgroundColor: Colors.purple_F3E8FF }]}>
+            <Ionicons name="navigate" size={fs(18)} color={Colors.purple_9333EA} />
           </View>
           <View style={styles.contactTextGroup}>
             <Text style={styles.contactLabel}>Clinic Address</Text>
             <Text style={styles.contactValue} numberOfLines={3}>{clinicAddr}</Text>
           </View>
-          <View style={styles.actionPillBtn}>
-            <MaterialIcons name="directions" size={fs(12)} color={Colors.primaryColor} />
-            <Text style={styles.actionPillBtnText}>Directions</Text>
+          <View style={[styles.actionPillBtn, { backgroundColor: Colors.purple_F3E8FF }]}>
+            <Ionicons name="navigate" size={fs(12)} color={Colors.purple_9333EA} />
+            <Text style={[styles.actionPillBtnText, { color: Colors.purple_9333EA }]}>Directions</Text>
           </View>
         </TouchableOpacity>
       )}

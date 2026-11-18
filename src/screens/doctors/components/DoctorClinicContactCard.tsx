@@ -1,5 +1,6 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppCard } from '../../../components';
 import { Colors } from '../../../constants';
@@ -10,6 +11,7 @@ interface DoctorClinicContactCardProps {
   clinicImgUrl?: string | null;
   clinicTitle?: string;
   clinicPhone?: string;
+  clinicWhatsapp?: string;
   clinicEmail?: string;
   clinicAddress?: string;
   onPressClinicHeader?: () => void;
@@ -22,6 +24,7 @@ export const DoctorClinicContactCard = memo(({
   clinicImgUrl,
   clinicTitle,
   clinicPhone,
+  clinicWhatsapp,
   clinicEmail,
   clinicAddress,
   onPressClinicHeader,
@@ -67,12 +70,36 @@ export const DoctorClinicContactCard = memo(({
               onPress={() => onOpenUrl(`tel:${clinicPhone}`)}
               activeOpacity={0.7}
             >
-              <View style={styles.contactIconCircle}>
-                <MaterialIcons name="phone" size={16} color={Colors.primaryColor} />
+              <View style={[styles.contactIconCircle, { backgroundColor: Colors.aquaSoft }]}>
+                <Ionicons name="call" size={16} color={Colors.primaryColor} />
               </View>
               <View style={styles.contactMeta}>
                 <Text style={styles.contactLabel}>Phone</Text>
                 <Text style={styles.contactValueLink}>{clinicPhone}</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={18} color={Colors.slate_94A3B8} />
+            </TouchableOpacity>
+          )}
+
+          {/* Clickable WhatsApp */}
+          {!!clinicWhatsapp && (
+            <TouchableOpacity
+              style={styles.contactRowItem}
+              onPress={() =>
+                onOpenUrl(
+                  `https://wa.me/${clinicWhatsapp.replace(/[^0-9]/g, '')}?text=Hello%20${encodeURIComponent(
+                    clinicTitle || 'Clinic'
+                  )}`
+                )
+              }
+              activeOpacity={0.7}
+            >
+              <View style={[styles.contactIconCircle, { backgroundColor: Colors.green_ECFDF5 }]}>
+                <Ionicons name="logo-whatsapp" size={16} color={Colors.green_10B981} />
+              </View>
+              <View style={styles.contactMeta}>
+                <Text style={styles.contactLabel}>WhatsApp</Text>
+                <Text style={[styles.contactValueLink, { color: Colors.green_10B981 }]}>Chat with us</Text>
               </View>
               <MaterialIcons name="chevron-right" size={18} color={Colors.slate_94A3B8} />
             </TouchableOpacity>
@@ -85,8 +112,8 @@ export const DoctorClinicContactCard = memo(({
               onPress={() => onOpenUrl(`mailto:${clinicEmail}`)}
               activeOpacity={0.7}
             >
-              <View style={styles.contactIconCircle}>
-                <MaterialIcons name="email" size={16} color={Colors.primaryColor} />
+              <View style={[styles.contactIconCircle, { backgroundColor: Colors.aquaSoft }]}>
+                <Ionicons name="mail" size={16} color={Colors.primaryColor} />
               </View>
               <View style={styles.contactMeta}>
                 <Text style={styles.contactLabel}>Email</Text>
@@ -103,17 +130,14 @@ export const DoctorClinicContactCard = memo(({
               onPress={() => onOpenDirections(`${clinicTitle || ''}, ${clinicAddress}`)}
               activeOpacity={0.7}
             >
-              <View style={styles.contactIconCircle}>
-                <MaterialIcons name="location-on" size={16} color={Colors.primaryColor} />
+              <View style={[styles.contactIconCircle, { backgroundColor: Colors.aquaSoft }]}>
+                <Ionicons name="navigate" size={16} color={Colors.primaryColor} />
               </View>
               <View style={styles.contactMeta}>
                 <Text style={styles.contactLabel}>Clinic Address</Text>
                 <Text style={styles.contactValue}>{clinicAddress}</Text>
               </View>
-              <View style={styles.locatePill}>
-                <Text style={styles.locatePillText}>Locate</Text>
-                <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.yellow_D97706} />
-              </View>
+              <MaterialIcons name="chevron-right" size={18} color={Colors.slate_94A3B8} />
             </TouchableOpacity>
           )}
 
@@ -121,15 +145,15 @@ export const DoctorClinicContactCard = memo(({
           {!!clinicAddress && (
             <View style={styles.clinicActionButtonsRow}>
               <TouchableOpacity
-                style={styles.directionsBtn}
+                style={[styles.directionsBtn, { backgroundColor: Colors.purple_F3E8FF }]}
                 onPress={() =>
                   onOpenDirections(`${clinicTitle || ''}, ${clinicAddress}`)
                 }
                 activeOpacity={0.8}
               >
-                <MaterialIcons name="directions" size={16} color={Colors.yellow_D97706} />
-                <Text style={styles.directionsBtnText}>Get Directions</Text>
-                <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.yellow_D97706} />
+                <Ionicons name="navigate" size={16} color={Colors.purple_9333EA} />
+                <Text style={[styles.directionsBtnText, { color: Colors.purple_9333EA }]}>Get Directions</Text>
+                <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.purple_9333EA} />
               </TouchableOpacity>
             </View>
           )}
@@ -232,7 +256,7 @@ const styles = StyleSheet.create({
   locatePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.amber_FEF3C7,
+    backgroundColor: Colors.purple_F3E8FF,
     paddingHorizontal: ws(8),
     paddingVertical: hs(4),
     borderRadius: fs(6),
@@ -241,7 +265,7 @@ const styles = StyleSheet.create({
   locatePillText: {
     fontSize: fs(10),
     ...TYPOGRAPHY.bold,
-    color: Colors.yellow_D97706,
+    color: Colors.purple_9333EA,
   },
   clinicActionButtonsRow: {
     marginTop: hs(10),
@@ -251,14 +275,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: ws(6),
-    backgroundColor: Colors.amber_FEF3C7,
+    backgroundColor: Colors.purple_F3E8FF,
     paddingVertical: hs(10),
     borderRadius: fs(10),
   },
   directionsBtnText: {
     fontSize: fs(12),
     ...TYPOGRAPHY.bold,
-    color: Colors.yellow_D97706,
+    color: Colors.purple_9333EA,
   },
   emptyInfoCard: {
     flexDirection: 'row',

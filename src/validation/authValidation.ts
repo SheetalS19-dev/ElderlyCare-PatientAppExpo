@@ -9,17 +9,11 @@ export const validateName = (name: string, required = true, fieldName = 'Name'):
     if (!required) return { isValid: true };
     return { isValid: false, error: `${fieldName} is required` };
   }
-  if (/\d/.test(trimmed)) {
-    return { isValid: false, error: 'Numbers are not allowed in name' };
-  }
-  if (/-/.test(trimmed)) {
-    return { isValid: false, error: 'Hyphens are not allowed in name' };
-  }
   if (!/^[A-Za-z\s]+$/.test(trimmed)) {
     return { isValid: false, error: 'Special characters, hyphens, and numbers are not allowed' };
   }
-  if (trimmed.length < 2) {
-    return { isValid: false, error: `${fieldName} must be at least 2 characters` };
+  if (trimmed.length < 3) {
+    return { isValid: false, error: `${fieldName} must be at least 3 characters` };
   }
   return { isValid: true };
 };
@@ -27,11 +21,17 @@ export const validateName = (name: string, required = true, fieldName = 'Name'):
 export const validatePhoneNumber = (phone: string, required = true): ValidationResult => {
   if (!phone || phone.trim().length === 0) {
     if (!required) return { isValid: true };
-    return { isValid: false, error: 'Phone number is required' };
+    return { isValid: false, error: 'Mobile number is required' };
   }
   const cleanPhone = phone.trim().replace(/\D/g, '');
   if (cleanPhone.length !== 10) {
-    return { isValid: false, error: 'Please enter a valid 10-digit phone number' };
+    return { isValid: false, error: 'Please enter a valid 10-digit mobile number' };
+  }
+  if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+    return {
+      isValid: false,
+      error: 'Please enter a valid Indian mobile number starting with 6, 7, 8 or 9',
+    };
   }
   return { isValid: true };
 };
@@ -64,19 +64,25 @@ export const validatePhoneOrEmail = (input: string, required = true): Validation
         isValid: false,
         error: trimmed.includes('@')
           ? 'Please enter a valid email address'
-          : 'Please enter a valid 10-digit phone number or email address',
+          : 'Please enter a valid 10-digit mobile number or email address',
       };
     }
     return { isValid: true };
   }
 
   if (!/^[\d\s\-()+]+$/.test(trimmed)) {
-    return { isValid: false, error: 'Please enter a valid 10-digit phone number or email address' };
+    return { isValid: false, error: 'Please enter a valid 10-digit mobile number or email address' };
   }
 
   const cleanPhone = trimmed.replace(/\D/g, '');
   if (cleanPhone.length !== 10) {
-    return { isValid: false, error: 'Please enter a valid 10-digit phone number or email address' };
+    return { isValid: false, error: 'Please enter a valid 10-digit mobile number or email address' };
+  }
+  if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+    return {
+      isValid: false,
+      error: 'Please enter a valid Indian mobile number starting with 6, 7, 8 or 9',
+    };
   }
   return { isValid: true };
 };
@@ -140,8 +146,8 @@ export const validateVitalMetric = (
     }
   } else if (type === 'Temperature') {
     const temp = Number(val1);
-    if (isNaN(temp) || temp < 70 || temp > 115) {
-      return { isValid: false, error: 'Temperature must be between 70 and 115 °F' };
+    if (isNaN(temp) || temp < 25.0 || temp > 45.0) {
+      return { isValid: false, error: 'Temperature must be between 25.0 and 45.0 °C' };
     }
   } else if (type === 'SpO2') {
     const spo2 = Number(val1);

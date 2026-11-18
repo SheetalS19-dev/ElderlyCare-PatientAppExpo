@@ -51,7 +51,7 @@ export const NotificationScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}
           refreshing={isFetching}
           onRefresh={refetch}
-          ListEmptyComponent={<EmptyState message="You haven't received any notifications yet." />}
+          ListEmptyComponent={<EmptyState message="You haven't received any notification yet." />}
           renderItem={({ item }) => {
             const iconInfo = getNotificationIconInfo(item);
             return (

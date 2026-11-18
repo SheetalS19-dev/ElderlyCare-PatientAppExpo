@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -135,7 +136,7 @@ export const FamilyMemberCard: React.FC<FamilyMemberCardProps> = ({ item, onEdit
         {/* Phone number row if present */}
         {!!phoneVal && (
           <View style={styles.cardPhoneRow}>
-            <MaterialIcons name="call" size={fs(12)} color={Colors.green_059669} style={{ marginRight: ws(4) }} />
+            <Ionicons name="call" size={fs(12)} color={Colors.green_059669} style={{ marginRight: ws(4) }} />
             <Text style={styles.cardPhoneText}>{phoneVal}</Text>
           </View>
         )}

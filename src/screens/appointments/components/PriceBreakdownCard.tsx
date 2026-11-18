@@ -1,4 +1,3 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { AppCard } from '../../../components';
@@ -34,11 +33,6 @@ export const PriceBreakdownCard: React.FC<Props> = ({
       <View style={styles.priceBreakdownRow}>
         <Text style={styles.priceBreakdownLabel}>Consultation Type</Text>
         <View style={styles.priceBreakdownTypeBadge}>
-          <MaterialIcons
-            name={isOnlineConsult ? 'videocam' : 'location-city'}
-            size={ws(14)}
-            color={Colors.primaryColor}
-          />
           <Text style={styles.priceBreakdownTypeValue}>
             {consultationTypeLabel ?? 'Clinic Visit'}{' '}
             {consultationTypeSubtext ? (

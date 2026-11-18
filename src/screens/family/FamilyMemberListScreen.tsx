@@ -78,7 +78,7 @@ export const FamilyMemberListScreen: React.FC = () => {
             ) : null
           }
           ListEmptyComponent={
-            <EmptyState message="No family members added. Tap + at bottom right to add one." />
+            <EmptyState message="No family members found. Tap + to add one." />
           }
           renderItem={({ item }) => (
             <FamilyMemberCard

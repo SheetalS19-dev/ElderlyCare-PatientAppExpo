@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppButton, AppDatePickerModal } from '../../../components';
+import { AppDatePickerModal } from '../../../components';
 import { Colors } from '../../../constants';
 import { DateTimeUtils, fs, hs, TYPOGRAPHY, ws } from '../../../utils';
 
@@ -172,7 +172,7 @@ export const AddEditFamilyMemberModal: React.FC<AddEditFamilyMemberModalProps> =
               activeOpacity={0.7}
             >
               <Text style={[styles.dateSelectorText, !dob ? styles.dateSelectorPlaceholder : null]}>
-                {dob ? DateTimeUtils.formatDob(dob) : DateTimeUtils.DOB_PLACEHOLDER}
+                {dob ? (DateTimeUtils.getDataFormat(dob) || dob) : DateTimeUtils.DOB_PLACEHOLDER}
               </Text>
               <MaterialIcons name="calendar-today" size={16} color={Colors.primaryColor} />
             </TouchableOpacity>

@@ -330,6 +330,44 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
     if (isSearching) return null;
     return (
       <>
+
+        {allowAllCities && (
+          <TouchableOpacity
+            style={[styles.cityRow, isAllCitiesSelected && styles.cityRowSelected]}
+            activeOpacity={0.7}
+            onPress={() => handleSelect(null)}
+          >
+            <View style={styles.cityRowLeft}>
+              <View
+                style={[
+                  styles.cityIconWrap,
+                  isAllCitiesSelected && styles.cityIconWrapSelected,
+                ]}
+              >
+                <MaterialIcons
+                  name="public"
+                  size={fs(18)}
+                  color={isAllCitiesSelected ? Colors.white : Colors.primaryColor}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[
+                    styles.cityNameText,
+                    isAllCitiesSelected && styles.cityNameTextSelected,
+                  ]}
+                >
+                  All Cities
+                </Text>
+                <Text style={styles.cityStateText}>Show results from all locations</Text>
+              </View>
+            </View>
+            {isAllCitiesSelected && (
+              <MaterialIcons name="check-circle" size={fs(20)} color={Colors.primaryColor} />
+            )}
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           style={[styles.cityRow, isCurrentLocationSelected && styles.cityRowSelected]}
           activeOpacity={0.7}
@@ -373,43 +411,6 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
             <MaterialIcons name="check-circle" size={fs(20)} color={Colors.primaryColor} />
           ) : null}
         </TouchableOpacity>
-
-        {allowAllCities && (
-          <TouchableOpacity
-            style={[styles.cityRow, isAllCitiesSelected && styles.cityRowSelected]}
-            activeOpacity={0.7}
-            onPress={() => handleSelect(null)}
-          >
-            <View style={styles.cityRowLeft}>
-              <View
-                style={[
-                  styles.cityIconWrap,
-                  isAllCitiesSelected && styles.cityIconWrapSelected,
-                ]}
-              >
-                <MaterialIcons
-                  name="public"
-                  size={fs(18)}
-                  color={isAllCitiesSelected ? Colors.white : Colors.primaryColor}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={[
-                    styles.cityNameText,
-                    isAllCitiesSelected && styles.cityNameTextSelected,
-                  ]}
-                >
-                  All Cities
-                </Text>
-                <Text style={styles.cityStateText}>Show results from all locations</Text>
-              </View>
-            </View>
-            {isAllCitiesSelected && (
-              <MaterialIcons name="check-circle" size={fs(20)} color={Colors.primaryColor} />
-            )}
-          </TouchableOpacity>
-        )}
 
         <Text style={styles.sectionLabel}>States & Union Territories</Text>
       </>

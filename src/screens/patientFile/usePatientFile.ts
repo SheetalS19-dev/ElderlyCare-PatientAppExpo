@@ -8,7 +8,10 @@ import { ApiEndpoints, AppConstants } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import { useDebounce } from '../../hooks';
 import type { RootStackParamList } from '../../navigation/types';
-import { useGetFamilyMembersQuery } from '../../redux/apis/bookingApi';
+import {
+  useAddFamilyMemberMutation,
+  useGetFamilyMembersQuery,
+} from '../../redux/apis/bookingApi';
 import { patientFilesApi, useGetPatientFilesQuery } from '../../redux/apis/patientFilesApi';
 import { useAppDispatch } from '../../redux/hooks';
 import { storageService } from '../../services/storageService';
@@ -17,18 +20,21 @@ import {
   DateTimeUtils,
   downloadAndSaveFile,
   getImageUrl,
+  isUserSelfMember,
   showToast,
 } from '../../utils';
 import type { PickedFile } from './components';
 
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
-const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx'];
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
   'image/jpeg',
   'image/jpg',
   'image/png',
   'image/webp',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
 
 let DocumentPicker: any = null;
@@ -102,6 +108,8 @@ export const usePatientFile = () => {
     skip: !uid,
   });
 
+  const [addFamilyMember] = useAddFamilyMemberMutation();
+
   useFocusEffect(
     useCallback(() => {
       if (uid) {
@@ -111,7 +119,7 @@ export const usePatientFile = () => {
     }, [uid, refetch, refetchFamily])
   );
 
-  const familyList: FamilyMemberModel[] = useMemo(() => {
+  const rawFamilyList: FamilyMemberModel[] = useMemo(() => {
     let sourceList: FamilyMemberModel[] = [];
     if (Array.isArray(familyData)) {
       sourceList = familyData;
@@ -119,23 +127,51 @@ export const usePatientFile = () => {
       sourceList = (familyData as any).data;
     } else if (Array.isArray((familyData as any)?.data?.data)) {
       sourceList = (familyData as any).data.data;
+    } else if (Array.isArray((familyData as any)?.response)) {
+      sourceList = (familyData as any).response;
+    } else if (Array.isArray((familyData as any)?.response?.data)) {
+      sourceList = (familyData as any).response.data;
     }
+    return sourceList;
+  }, [familyData]);
 
+  // Find existing self member in family_members table
+  const existingSelfMemberInDb = useMemo(() => {
+    const matched = rawFamilyList.find((m) => isUserSelfMember(m, user));
+    if (matched) return matched;
+
+    const byRel = rawFamilyList.find((m) => {
+      const rel = (m.relationship || (m as any).relation || '').trim().toLowerCase();
+      return rel === 'self' || rel === 'myself' || rel === 'me' || rel === 'primary';
+    });
+    if (byRel) return byRel;
+
+    return null;
+  }, [rawFamilyList, user]);
+
+  const effectiveSelfId = useMemo(() => {
+    if (existingSelfMemberInDb?.id) {
+      return String(existingSelfMemberInDb.id);
+    }
+    return String(user?.id ?? uid ?? 'self');
+  }, [existingSelfMemberInDb, user?.id, uid]);
+
+  const familyList: FamilyMemberModel[] = useMemo(() => {
     const result: FamilyMemberModel[] = [];
     const seenKeys = new Set<string>();
 
-    // 1. Add Self (Account Holder) first
+    // 1. Add Self (Account Holder) first with real family_members table ID when present
     if (user) {
       const selfItem: FamilyMemberModel = {
-        id: String(user.id),
+        id: effectiveSelfId,
         user_id: user.id,
-        f_name: user.f_name || 'Self',
-        l_name: user.l_name || '',
+        f_name: existingSelfMemberInDb?.f_name || user.f_name || 'Self',
+        l_name: existingSelfMemberInDb?.l_name || user.l_name || '',
         name: `${user.f_name ?? ''} ${user.l_name ?? ''}`.trim() || 'Self',
-        phone: user.phone || '',
-        gender: user.gender || '',
-        dob: user.dob || '',
-        isd_code: user.isd_code || '+91',
+        phone: existingSelfMemberInDb?.phone || user.phone || '',
+        gender: existingSelfMemberInDb?.gender || user.gender || '',
+        dob: existingSelfMemberInDb?.dob || user.dob || '',
+        isd_code: existingSelfMemberInDb?.isd_code || user.isd_code || '+91',
         relationship: 'Self',
       };
       (selfItem as any).is_self = true;
@@ -145,18 +181,17 @@ export const usePatientFile = () => {
       if (selfKey !== '_') seenKeys.add(selfKey);
     }
 
-    // 2. Add family members from familyData (without phone-based Self hijacking)
-    for (const m of sourceList) {
-      const isSelf =
-        String(m.id) === String(user?.id) ||
-        (m.relationship || '').toLowerCase() === 'self' ||
-        (m as any).is_self === true;
-
-      if (isSelf) continue;
+    // 2. Add family members from rawFamilyList (excluding Self duplicate)
+    for (const m of rawFamilyList) {
+      if (isUserSelfMember(m, user)) continue;
+      if (existingSelfMemberInDb && String(m.id) === String(existingSelfMemberInDb.id)) continue;
+      if (effectiveSelfId && String(m.id) === effectiveSelfId) continue;
 
       const mFName = (m.f_name || '').trim().toLowerCase();
       const mLName = (m.l_name || '').trim().toLowerCase();
       const key = `${mFName}_${mLName}`;
+
+      if (key !== '_' && seenKeys.has(key)) continue;
 
       result.push(m);
       if (mFName) seenKeys.add(key);
@@ -193,14 +228,16 @@ export const usePatientFile = () => {
     }
 
     return result;
-  }, [familyData, user, rawData]);
+  }, [rawFamilyList, existingSelfMemberInDb, effectiveSelfId, user, rawData]);
 
   const getMemberDisplayName = (mem?: FamilyMemberModel | null): string => {
     if (!mem) return 'Patient';
     const isSelf =
       (mem as any).is_self === true ||
       (mem.relationship || '').toLowerCase() === 'self' ||
-      String(mem.id) === String(user?.id);
+      String(mem.id) === String(user?.id) ||
+      String(mem.id) === effectiveSelfId ||
+      (existingSelfMemberInDb && String(mem.id) === String(existingSelfMemberInDb.id));
 
     if (isSelf) {
       const uFull = `${user?.f_name ?? mem.f_name ?? ''} ${user?.l_name ?? mem.l_name ?? ''}`.trim();
@@ -215,7 +252,9 @@ export const usePatientFile = () => {
     const isSelf =
       (mem as any).is_self === true ||
       (mem.relationship || '').toLowerCase() === 'self' ||
-      String(mem.id) === String(user?.id);
+      String(mem.id) === String(user?.id) ||
+      String(mem.id) === effectiveSelfId ||
+      (existingSelfMemberInDb && String(mem.id) === String(existingSelfMemberInDb.id));
 
     if (isSelf) return '';
     const rel = (mem as any).relation || (mem as any).relationship || '';
@@ -232,9 +271,16 @@ export const usePatientFile = () => {
 
   const selectedMemberDisplayName = useMemo(() => {
     if (selectedMemberId === 'all') return 'All Members';
-    const target = familyList.find((m) => String(m.id) === selectedMemberId);
+    const target = familyList.find(
+      (m) =>
+        String(m.id) === selectedMemberId ||
+        ((m as any).is_self &&
+          (selectedMemberId === String(user?.id) ||
+            selectedMemberId === effectiveSelfId ||
+            selectedMemberId === 'self'))
+    );
     return target ? getMemberDisplayName(target) : 'All Members';
-  }, [selectedMemberId, familyList, user]);
+  }, [selectedMemberId, familyList, user, effectiveSelfId]);
 
   const files: PatientFileModel[] = useMemo(() => {
     let list: PatientFileModel[] = [];
@@ -247,13 +293,22 @@ export const usePatientFile = () => {
     else if (Array.isArray((rawData as any)?.result)) list = (rawData as any).result;
 
     if (selectedMemberId !== 'all') {
-      const curMember = familyList.find((m) => String(m.id) === String(selectedMemberId));
+      const curMember = familyList.find(
+        (m) =>
+          String(m.id) === String(selectedMemberId) ||
+          ((m as any).is_self &&
+            (selectedMemberId === String(user?.id) ||
+              selectedMemberId === effectiveSelfId ||
+              selectedMemberId === 'self'))
+      );
       const curFName = (curMember?.f_name || '').trim().toLowerCase();
       const curLName = (curMember?.l_name || '').trim().toLowerCase();
       const isSelfSelection =
         (curMember as any)?.is_self === true ||
         (curMember?.relationship || '').toLowerCase() === 'self' ||
-        String(selectedMemberId) === String(user?.id);
+        String(selectedMemberId) === String(user?.id) ||
+        String(selectedMemberId) === effectiveSelfId ||
+        (existingSelfMemberInDb && String(selectedMemberId) === String(existingSelfMemberInDb.id));
 
       list = list.filter((item: any) => {
         const itemPatientId = String(item.patient_id ?? item.family_member_id ?? item.member_id ?? '');
@@ -261,7 +316,11 @@ export const usePatientFile = () => {
         // 1. Direct ID match
         if (
           itemPatientId &&
-          (itemPatientId === String(selectedMemberId) || (curMember && itemPatientId === String(curMember.id)))
+          (itemPatientId === String(selectedMemberId) ||
+            (curMember && itemPatientId === String(curMember.id)) ||
+            (isSelfSelection && existingSelfMemberInDb && itemPatientId === String(existingSelfMemberInDb.id)) ||
+            (isSelfSelection && effectiveSelfId && itemPatientId === effectiveSelfId) ||
+            (isSelfSelection && itemPatientId === String(user?.id)))
         ) {
           return true;
         }
@@ -281,7 +340,7 @@ export const usePatientFile = () => {
           }
         }
 
-        // 3. Self selection fallback: matches user name or direct user_id
+        // 3. Self selection fallback: matches user name or direct user_id or empty / 0
         if (isSelfSelection) {
           const userFName = (user?.f_name || '').trim().toLowerCase();
           const userLName = (user?.l_name || '').trim().toLowerCase();
@@ -316,7 +375,7 @@ export const usePatientFile = () => {
     }
 
     return list;
-  }, [rawData, selectedMemberId, familyList, user, search]);
+  }, [rawData, selectedMemberId, familyList, user, search, effectiveSelfId, existingSelfMemberInDb]);
 
   const handleDownload = async (item: any) => {
     const fileSource =
@@ -379,10 +438,18 @@ export const usePatientFile = () => {
 
   const openUploadSheet = () => {
     setShowMemberDropdown(false);
-    const defaultId =
+    let defaultId =
       selectedMemberId !== 'all'
         ? selectedMemberId
-        : String(familyList[0]?.id ?? uid);
+        : String(familyList[0]?.id ?? effectiveSelfId ?? uid);
+
+    if (
+      defaultId === 'self' ||
+      defaultId === String(user?.id) ||
+      defaultId === String(uid)
+    ) {
+      defaultId = effectiveSelfId;
+    }
 
     setUploadMemberId(defaultId);
     setUploadTitle('');
@@ -407,12 +474,12 @@ export const usePatientFile = () => {
     );
 
     if (!isAllowedExt && !isAllowedMime) {
-      setFileError('Invalid file type. Only PDF, JPG, PNG, and WEBP files are allowed.');
+      setFileError('Invalid file type. Only PDF, JPG, PNG, WEBP, and DOC files are allowed.');
       return;
     }
 
     if (file.size && file.size > MAX_FILE_SIZE_BYTES) {
-      setFileError('File size exceeds 10MB limit. Please choose a smaller file.');
+      setFileError('File size exceeds 5MB limit. Please choose a file up to 5 MB.');
       return;
     }
 
@@ -482,7 +549,12 @@ export const usePatientFile = () => {
     if (!DocumentPicker) return;
     try {
       const res = await DocumentPicker.getDocumentAsync({
-        type: ['application/pdf', 'image/*'],
+        type: [
+          'application/pdf',
+          'image/*',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ],
         copyToCacheDirectory: true,
       });
       if (!res.canceled && res.assets?.length) {
@@ -540,6 +612,59 @@ export const usePatientFile = () => {
     });
   };
 
+  const resolvePatientIdForUpload = async (targetId: string): Promise<string> => {
+    const isSelf =
+      !targetId ||
+      targetId === 'self' ||
+      targetId === effectiveSelfId ||
+      targetId === String(user?.id) ||
+      targetId === String(uid) ||
+      (existingSelfMemberInDb && String(targetId) === String(existingSelfMemberInDb.id));
+
+    if (isSelf) {
+      if (existingSelfMemberInDb?.id) {
+        return String(existingSelfMemberInDb.id);
+      }
+
+      // If no self record in family_members table, auto-create one
+      try {
+        const createRes: any = await addFamilyMember({
+          user_id: uid,
+          f_name: user?.f_name || 'Patient',
+          l_name: user?.l_name || '',
+          gender: user?.gender || 'Male',
+          dob: user?.dob || '1990-01-01',
+          phone: user?.phone || '',
+          isd_code: user?.isd_code || '+91',
+          relationship: 'Self',
+        }).unwrap();
+
+        const newId =
+          createRes?.data?.id ??
+          createRes?.data?.member_id ??
+          createRes?.response?.id ??
+          createRes?.response?.member_id ??
+          createRes?.id ??
+          createRes?.member_id;
+
+        if (newId) {
+          refetchFamily();
+          return String(newId);
+        }
+      } catch {
+        // Auto-create failed, fallback to uid
+      }
+      return String(user?.id ?? uid);
+    }
+
+    const matched = rawFamilyList.find((m) => String(m.id) === String(targetId));
+    if (matched?.id) {
+      return String(matched.id);
+    }
+
+    return String(targetId);
+  };
+
   const handleUpload = async () => {
     let hasError = false;
     const trimmedTitle = uploadTitle.trim();
@@ -564,7 +689,7 @@ export const usePatientFile = () => {
     }
 
     if (!pickedFile) {
-      setFileError('Please choose a file to upload');
+      setFileError('Please choose a file to upload (max 5 MB)');
       hasError = true;
     } else {
       const ext = (pickedFile.name.split('.').pop() || '').toLowerCase();
@@ -573,10 +698,10 @@ export const usePatientFile = () => {
         pickedFile.mimeType.toLowerCase().includes(m) || m.includes(pickedFile.mimeType.toLowerCase())
       );
       if (!isAllowedExt && !isAllowedMime) {
-        setFileError('Only PDF, JPG, PNG, and WEBP files are allowed');
+        setFileError('Only PDF, JPG, PNG, WEBP, and DOC files are allowed');
         hasError = true;
       } else if (pickedFile.size && pickedFile.size > MAX_FILE_SIZE_BYTES) {
-        setFileError('File size exceeds 10MB limit');
+        setFileError('File size exceeds 5MB limit. Max 5 MB file can be uploaded.');
         hasError = true;
       } else {
         setFileError('');
@@ -589,22 +714,52 @@ export const usePatientFile = () => {
       setIsUploading(true);
       setUploadError('');
 
-      const formData = new FormData();
-      formData.append('file_name', trimmedTitle);
-      formData.append('title', trimmedTitle);
-      formData.append('user_id', String(uid));
-      formData.append('patient_id', String(uploadMemberId || uid));
-      formData.append('family_member_id', String(uploadMemberId || uid));
+      const resolvedPatientId = await resolvePatientIdForUpload(uploadMemberId);
 
-      const fileObj: any = {
-        uri: Platform.OS === 'android' ? pickedFile!.uri : pickedFile!.uri.replace('file://', ''),
-        name: pickedFile!.name,
-        type: pickedFile!.mimeType || guessMime(pickedFile!.name),
+      const buildUploadFormData = (pId: string | null) => {
+        const fd = new FormData();
+        fd.append('file_name', trimmedTitle);
+        fd.append('title', trimmedTitle);
+        fd.append('user_id', String(uid));
+        if (pId !== null) {
+          fd.append('patient_id', pId);
+          fd.append('family_member_id', pId);
+        }
+
+        const fileObj: any = {
+          uri: Platform.OS === 'android' ? pickedFile!.uri : pickedFile!.uri.replace('file://', ''),
+          name: pickedFile!.name,
+          type: pickedFile!.mimeType || guessMime(pickedFile!.name),
+        };
+        fd.append('file', fileObj);
+        return fd;
       };
-      formData.append('file', fileObj);
 
       const token = await storageService.getItem<string>(AppConstants.storageKeys.token);
-      await uploadPatientFileWithXHR(ApiEndpoints.addPatientFileUrl, formData, token || undefined);
+
+      try {
+        await uploadPatientFileWithXHR(
+          ApiEndpoints.addPatientFileUrl,
+          buildUploadFormData(resolvedPatientId),
+          token || undefined
+        );
+      } catch (firstErr: any) {
+        const errMsg = String(firstErr?.message || '').toLowerCase();
+        // If error indicates rejection due to ownership of patient, attempt fallback
+        if (errMsg.includes('own patients') && resolvedPatientId !== '0') {
+          try {
+            await uploadPatientFileWithXHR(
+              ApiEndpoints.addPatientFileUrl,
+              buildUploadFormData('0'),
+              token || undefined
+            );
+          } catch {
+            throw firstErr;
+          }
+        } else {
+          throw firstErr;
+        }
+      }
 
       showToast('File uploaded successfully');
       setUploadVisible(false);
@@ -627,9 +782,16 @@ export const usePatientFile = () => {
   };
 
   const uploadMemberName = useMemo(() => {
-    const mem = familyList.find((m) => String(m.id) === String(uploadMemberId));
+    const mem = familyList.find(
+      (m) =>
+        String(m.id) === String(uploadMemberId) ||
+        ((m as any).is_self &&
+          (String(uploadMemberId) === String(user?.id) ||
+            String(uploadMemberId) === effectiveSelfId ||
+            uploadMemberId === 'self'))
+    );
     return getMemberDisplayName(mem);
-  }, [uploadMemberId, familyList]);
+  }, [uploadMemberId, familyList, effectiveSelfId, user]);
 
   return {
     navigation,

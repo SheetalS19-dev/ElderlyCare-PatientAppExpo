@@ -10,7 +10,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import { useGetFamilyMembersQuery } from '../../redux/apis/bookingApi';
 import { useGetPrescriptionsQuery } from '../../redux/apis/prescriptionApi';
 import type { FamilyMemberModel, PrescriptionModel } from '../../types';
-import { DateTimeUtils, formatDoctorName, showToast } from '../../utils';
+import { DateTimeUtils, formatDoctorName, isUserSelfMember, showToast } from '../../utils';
 import {
   downloadPrescriptionPdf,
   sharePrescriptionPdf,
@@ -61,23 +61,8 @@ export const usePrescriptionList = () => {
 
   const filteredFamilyList = useMemo(() => {
     if (!familyList || familyList.length === 0) return [];
-    const selfFName = (user?.f_name || '').trim().toLowerCase();
-    const selfLName = (user?.l_name || '').trim().toLowerCase();
-    const selfPhone = (user?.phone || '').trim();
-    const mainUserId = String(user?.id ?? uid ?? '');
-
-    return familyList.filter((m) => {
-      const isSelf =
-        (m as any).is_self === true ||
-        (m.relationship || '').toLowerCase() === 'self' ||
-        String(m.id) === mainUserId ||
-        (selfFName &&
-          m.f_name?.trim().toLowerCase() === selfFName &&
-          (m.l_name?.trim().toLowerCase() === selfLName || !m.l_name) &&
-          (m.phone?.trim() === selfPhone || !m.phone || (m.relationship || '').toLowerCase() === 'self'));
-      return !isSelf;
-    });
-  }, [familyList, user, uid]);
+    return familyList.filter((m) => !isUserSelfMember(m, user));
+  }, [familyList, user]);
 
   const { data: rawData, isLoading, isError, refetch } = useGetPrescriptionsQuery(
     {

@@ -41,7 +41,7 @@ export const VitalHistoryRow: React.FC<Props> = ({
     unit = 'kg';
   } else if (vitalName === 'Temperature') {
     displayVal = String(vital.temperature || (vital as any).value || 'N/A');
-    unit = '°F';
+    unit = '°C';
   } else if (vitalName === 'SpO2') {
     displayVal = String(vital.spo2 || (vital as any).value || 'N/A');
     unit = '%';

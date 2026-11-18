@@ -4,6 +4,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
+import { DateTimeUtils } from './dateTimeUtils';
 import { saveLocalFileToDownloads } from './fileDownloader';
 
 
@@ -74,42 +75,12 @@ const escapeHtml = (value: unknown) => {
 
 const formatDate = (value?: string) => {
   if (!value) return '--';
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  return DateTimeUtils.getDataFormat(value) || value;
 };
 
 const formatDateTime = (value?: string) => {
   if (!value) return '--';
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return (
-    date.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    }) +
-    ', ' +
-    date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    })
-  );
+  return DateTimeUtils.getDataFormatWithTime(value) || value;
 };
 
 const getClinicImageUrl = (image?: string | null) => {

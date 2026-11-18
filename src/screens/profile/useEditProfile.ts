@@ -21,13 +21,14 @@ import { useAppDispatch } from '../../redux/hooks';
 import { storageService } from '../../services/storageService';
 import type { CityModel, PostalCodeModel, StateModel, UserModel } from '../../types';
 import {
-  isUnionTerritory,
   logApiCall,
   showToast,
   validateCityName,
   validateDob,
   validateEmail,
   validateName,
+  validatePhone,
+  validatePostalCode,
   validateStateName,
   validateStreetAddress,
 } from '../../utils';
@@ -107,9 +108,9 @@ export const useEditProfile = () => {
       const byId = apiStates.find((s) => String(s.id) === selectedStateId);
       if (byId) return byId;
     }
-    const cleanState = state.trim().toLowerCase();
+    const cleanState = state.trim().toLowerCase().replace(/\s*\((state|ut)\)/gi, '').trim();
     if (!cleanState) return undefined;
-    return apiStates.find((s) => s.title.trim().toLowerCase() === cleanState);
+    return apiStates.find((s) => (s.title || '').trim().toLowerCase().replace(/\s*\((state|ut)\)/gi, '').trim() === cleanState);
   }, [selectedStateId, state, apiStates]);
 
   const filteredCitiesForState = useMemo(() => {
@@ -157,27 +158,16 @@ export const useEditProfile = () => {
   }, [postalData]);
 
   const stateDropdownOptions: SearchableSelectOption<StateModel>[] = useMemo(() => {
-    const regularStates = apiStates
-      .filter((s) => !isUnionTerritory(s.title))
-      .sort((a, b) => a.title.localeCompare(b.title))
-      .map((s) => ({
-        id: String(s.id),
-        label: s.title,
-        badge: 'State',
-        section: 'States',
-        data: s,
-      }));
-    const uts = apiStates
-      .filter((s) => isUnionTerritory(s.title))
-      .sort((a, b) => a.title.localeCompare(b.title))
-      .map((s) => ({
-        id: String(s.id),
-        label: s.title,
-        badge: 'UT',
-        section: 'Union Territories (UTs)',
-        data: s,
-      }));
-    return [...regularStates, ...uts];
+    return [...apiStates]
+      .map((s) => {
+        const cleanTitle = (s.title || '').replace(/\s*\((state|ut)\)/gi, '').trim();
+        return {
+          id: String(s.id),
+          label: cleanTitle,
+          data: s,
+        };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
   }, [apiStates]);
 
   const cityDropdownOptions: SearchableSelectOption<CityModel>[] = useMemo(() => {
@@ -487,39 +477,47 @@ export const useEditProfile = () => {
     if (!lnRes.isValid) errs.lName = lnRes.error || 'Invalid last name';
     const emailRes = validateEmail(email, true);
     if (!emailRes.isValid) errs.email = emailRes.error || 'Please enter a valid email address';
-    if (!phone.trim()) errs.phone = 'Phone number is required';
+    const phoneRes = validatePhone(phone, true);
+    if (!phoneRes.isValid) errs.phone = phoneRes.error || 'Please enter a valid 10-digit Indian mobile number';
     const dobRes = validateDob(dob, true);
     if (!dobRes.isValid) errs.dob = dobRes.error || 'Date of birth is required';
     if (!gender.trim()) errs.gender = 'Gender is required';
+    if (!bloodGroup.trim()) errs.bloodGroup = 'Blood group is required';
 
-    const hasAnyAddress = Boolean(
-      address.trim() || city.trim() || state.trim() || postalCode.trim()
-    );
-    const addrRes = validateStreetAddress(address, hasAnyAddress);
-    if (!addrRes.isValid && addrRes.error) errs.address = addrRes.error;
-
-    const stateRes = validateStateName(state, hasAnyAddress);
-    if (!stateRes.isValid && stateRes.error) {
-      errs.state = stateRes.error;
-    } else if (state.trim() && apiStates.length > 0 && !resolvedStateObj) {
-      errs.state = 'Please select a valid State / UT from the list';
+    // Address & Location fields are completely optional
+    if (address.trim()) {
+      const addrRes = validateStreetAddress(address, false);
+      if (!addrRes.isValid && addrRes.error) errs.address = addrRes.error;
     }
 
-    const cityRes = validateCityName(city, hasAnyAddress);
-    if (!cityRes.isValid && cityRes.error) {
-      errs.city = cityRes.error;
-    } else if (
-      city.trim() &&
-      filteredCitiesForState.length > 0 &&
-      !filteredCitiesForState.some(
-        (c) => (c.title || c.name || '').trim().toLowerCase() === city.trim().toLowerCase()
-      )
-    ) {
-      errs.city = 'Please select a valid City from the list';
+    if (state.trim()) {
+      const stateRes = validateStateName(state, false);
+      if (!stateRes.isValid && stateRes.error) {
+        errs.state = stateRes.error;
+      } else if (apiStates.length > 0 && !resolvedStateObj) {
+        errs.state = 'Please select a valid State / UT from the list';
+      }
     }
 
-    if (postalCode.trim() && !/^\d{5,6}$/.test(postalCode.trim())) {
-      errs.postalCode = 'Please select or enter a valid 5 or 6 digit postal code';
+    if (city.trim()) {
+      const cityRes = validateCityName(city, false);
+      if (!cityRes.isValid && cityRes.error) {
+        errs.city = cityRes.error;
+      } else if (
+        filteredCitiesForState.length > 0 &&
+        !filteredCitiesForState.some(
+          (c) => (c.title || c.name || '').trim().toLowerCase() === city.trim().toLowerCase()
+        )
+      ) {
+        errs.city = 'Please select a valid City from the list';
+      }
+    }
+
+    if (postalCode.trim()) {
+      const postalRes = validatePostalCode(postalCode, false);
+      if (!postalRes.isValid && postalRes.error) {
+        errs.postalCode = postalRes.error;
+      }
     }
 
     setFieldErrors(errs);
@@ -650,7 +648,10 @@ export const useEditProfile = () => {
           title: 'Select Blood Group',
           options: BLOOD_GROUP_OPTIONS,
           current: bloodGroup,
-          onSelect: setBloodGroup,
+          onSelect: (bg: string) => {
+            setBloodGroup(bg);
+            setFieldErrors((prev) => ({ ...prev, bloodGroup: '' }));
+          },
         };
       case 'occupation':
         return {

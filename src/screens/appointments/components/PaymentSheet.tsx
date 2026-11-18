@@ -1,3 +1,4 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,9 +11,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { AppConstants, Colors, Typography } from '../../../constants';
-import { DateTimeUtils, fs, hs, ws, TYPOGRAPHY } from '../../../utils';
+import { AppConstants, Colors } from '../../../constants';
+import { DateTimeUtils, fs, hs, TYPOGRAPHY, ws } from '../../../utils';
 
 export type PaymentMethodChoice = 'razorpay' | 'wallet' | 'cash' | 'stripe';
 
@@ -162,7 +162,7 @@ export const PaymentSheet: React.FC<PaymentSheetProps> = ({
                     Tax ({taxPercent > 0 ? `${taxPercent}%` : '12%'}):
                   </Text>
                   <Text style={styles.summaryValue}>
-                    +{AppConstants.appCurrency}{taxAmount.toFixed(2)}
+                    {AppConstants.appCurrency}{taxAmount.toFixed(2)}
                   </Text>
                 </View>
               )}

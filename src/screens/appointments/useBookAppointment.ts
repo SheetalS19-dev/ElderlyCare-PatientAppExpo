@@ -7,8 +7,10 @@ import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
 import {
   useAddAppointmentMutation,
+  useAddFamilyMemberMutation,
   useGetActivePaymentGatewayQuery,
-  useValidateCouponMutation
+  useGetFamilyMembersQuery,
+  useValidateCouponMutation,
 } from '../../redux/apis/bookingApi';
 import {
   useGetDoctorByIdQuery,
@@ -26,6 +28,7 @@ import type {
 } from '../../types';
 import {
   CalculationUtils,
+  isUserSelfMember,
   markAppointmentAsRescheduled,
   showToast,
 } from '../../utils';
@@ -63,6 +66,20 @@ export const useBookAppointment = () => {
   const [validateCoupon, { isLoading: isValidatingCoupon }] = useValidateCouponMutation();
   const [addAppointment] = useAddAppointmentMutation();
   const [addWalletMoney] = useAddWalletMoneyMutation();
+  const [addFamilyMember] = useAddFamilyMemberMutation();
+
+  const { data: rawFamilyData, refetch: refetchFamilyMembers } = useGetFamilyMembersQuery(uid, {
+    skip: !uid,
+    refetchOnMountOrArgChange: true,
+  });
+
+  const familyMembersList: FamilyMemberModel[] = useMemo(() => {
+    let list: FamilyMemberModel[] = [];
+    if (Array.isArray(rawFamilyData)) list = rawFamilyData;
+    else if (Array.isArray((rawFamilyData as any)?.data)) list = (rawFamilyData as any).data;
+    else if (Array.isArray((rawFamilyData as any)?.response)) list = (rawFamilyData as any).response;
+    return list;
+  }, [rawFamilyData]);
 
   const doctor: DoctorModel | null = useMemo(() => {
     if (!rawDoctorData) return null;
@@ -82,22 +99,47 @@ export const useBookAppointment = () => {
   const [selectedTimeStart, setSelectedTimeStart] = useState<string | null>(null);
 
   React.useEffect(() => {
-    if (user && !selectedMember) {
-      const selfMember: FamilyMemberModel = {
-        id: user.id,
-        user_id: user.id,
-        f_name: user.f_name || 'Self',
-        l_name: user.l_name || '',
-        phone: user.phone || '',
-        gender: user.gender || '',
-        dob: user.dob || '',
-        isd_code: user.isd_code || '+91',
-        relationship: 'Self',
-      };
-      (selfMember as any).is_self = true;
-      setSelectedMember(selfMember);
+    if (!user) return;
+
+    const realSelf = familyMembersList.find((m) => isUserSelfMember(m, user));
+
+    if (!selectedMember) {
+      if (realSelf) {
+        setSelectedMember({
+          ...realSelf,
+          relationship: 'Self',
+          is_self: true,
+        } as any);
+      } else {
+        const selfMember: FamilyMemberModel = {
+          id: undefined as any,
+          user_id: user.id,
+          f_name: user.f_name || 'Self',
+          l_name: user.l_name || '',
+          phone: user.phone || '',
+          gender: user.gender || '',
+          dob: user.dob || '',
+          isd_code: user.isd_code || '+91',
+          relationship: 'Self',
+        };
+        (selfMember as any).is_self = true;
+        setSelectedMember(selfMember);
+      }
+    } else {
+      const isSelectedSelf =
+        (selectedMember as any).is_self ||
+        selectedMember.relationship === 'Self' ||
+        isUserSelfMember(selectedMember, user);
+
+      if (isSelectedSelf && realSelf && String(selectedMember.id) !== String(realSelf.id)) {
+        setSelectedMember({
+          ...realSelf,
+          relationship: 'Self',
+          is_self: true,
+        } as any);
+      }
     }
-  }, [user, selectedMember]);
+  }, [user, familyMembersList, selectedMember]);
 
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<CouponModel | null>(null);
@@ -310,7 +352,75 @@ export const useBookAppointment = () => {
     }
 
     const userId = String(user?.id ?? (user as any)?.user_id ?? '');
-    const familyMemberId = String(selectedMember.id ?? userId);
+
+    const resolveFamilyMemberId = async (member: FamilyMemberModel): Promise<string> => {
+      // 1. If member already has an id that matches an existing record in familyMembersList
+      const inList = familyMembersList.find((m) => String(m.id) === String(member.id));
+      if (inList && inList.id) {
+        return String(inList.id);
+      }
+
+      // 2. If it's Self, find the real record in familyMembersList
+      const isSelf =
+        (member as any).is_self ||
+        member.relationship === 'Self' ||
+        isUserSelfMember(member, user);
+
+      if (isSelf) {
+        const foundSelf = familyMembersList.find((m) => isUserSelfMember(m, user));
+        if (foundSelf && foundSelf.id) {
+          return String(foundSelf.id);
+        }
+
+        // 3. If no self member in familyMembersList, auto-create one
+        try {
+          const createRes: any = await addFamilyMember({
+            user_id: userId,
+            f_name: currentUser?.f_name || user?.f_name || 'Self',
+            l_name: currentUser?.l_name || user?.l_name || '',
+            phone: currentUser?.phone || user?.phone || '',
+            gender: currentUser?.gender || user?.gender || 'Male',
+            dob: currentUser?.dob || user?.dob || '2000-01-01',
+            isd_code: currentUser?.isd_code || user?.isd_code || '+91',
+            relationship: 'Self',
+          }).unwrap();
+
+          const createdId =
+            createRes?.data?.id ??
+            createRes?.data?.member_id ??
+            createRes?.response?.id ??
+            createRes?.id;
+
+          if (createdId) {
+            await refetchFamilyMembers();
+            return String(createdId);
+          }
+        } catch (createErr) {
+          console.warn('Failed to auto-create self family member for booking:', createErr);
+        }
+
+        // 4. Try refetching family members
+        const fresh = await refetchFamilyMembers();
+        const freshList: FamilyMemberModel[] = Array.isArray(fresh?.data)
+          ? fresh.data
+          : Array.isArray((fresh?.data as any)?.data)
+            ? (fresh.data as any).data
+            : [];
+        const freshSelf = freshList.find((m) => isUserSelfMember(m, user));
+        if (freshSelf && freshSelf.id) {
+          return String(freshSelf.id);
+        }
+      }
+
+      // 5. If member has an id, use it
+      if (member.id) {
+        return String(member.id);
+      }
+
+      throw new Error('Unable to verify patient family member. Please select a patient again.');
+    };
+
+    const familyMemberId = await resolveFamilyMemberId(selectedMember);
 
     const targetDoctId = String(
       (doctor as any)?.user_id ??
@@ -404,18 +514,7 @@ export const useBookAppointment = () => {
         await addWalletMoney(walletDebitPayload).unwrap();
       }
 
-      let bookingRes: any = null;
-      try {
-        bookingRes = await addAppointment(payload).unwrap();
-      } catch (firstErr: any) {
-        const errMsg = String(firstErr?.data?.message || firstErr?.message || firstErr?.error || '');
-        if (errMsg.toLowerCase().includes('foreign key') && payload.family_member_id !== userId) {
-          payload.family_member_id = userId;
-          bookingRes = await addAppointment(payload).unwrap();
-        } else {
-          throw firstErr;
-        }
-      }
+      const bookingRes = await addAppointment(payload).unwrap();
 
       if (isRescheduleMode) {
         const newAppId = bookingRes?.data?.id || bookingRes?.id || bookingRes?.appointment_id;

@@ -93,3 +93,54 @@ export const calculateAgeFromDob = (dobString?: string | null): string => {
   if (age === 0) return '< 1 Yr';
   return 'N/A';
 };
+
+/**
+ * Determines whether a given family member record corresponds to the logged-in user (Self).
+ */
+export const isUserSelfMember = (member: any, user: any): boolean => {
+  if (!member) return false;
+  if (member.is_self === true) return true;
+
+  const rel = (member.relationship || member.relation || '').trim().toLowerCase();
+  if (rel === 'self' || rel === 'patient' || rel === 'myself' || rel === 'me' || rel === 'primary') return true;
+
+  const userId = String(user?.id ?? (user as any)?.user_id ?? '');
+  const memberUserId = String(member.user_id ?? '');
+  if (userId && memberUserId && memberUserId !== userId) {
+    // This member belongs to a different user, cannot be self
+    return false;
+  }
+
+  const userFName = (user?.f_name || user?.firstName || user?.first_name || '').trim().toLowerCase();
+  const userLName = (user?.l_name || user?.lastName || user?.last_name || '').trim().toLowerCase();
+  const memFName = (member?.f_name || member?.firstName || member?.first_name || '').trim().toLowerCase();
+  const memLName = (member?.l_name || member?.lastName || member?.last_name || '').trim().toLowerCase();
+
+  const userPhone = String(user?.phone || '').replace(/\D/g, '').slice(-10);
+  const memPhone = String(member?.phone || '').replace(/\D/g, '').slice(-10);
+
+  // If first name matches
+  if (userFName && memFName === userFName) {
+    // And phone matches (last 10 digits)
+    if (userPhone && memPhone && userPhone === memPhone) {
+      return true;
+    }
+    // Or last name matches (or one is empty) and relationship is self/patient/generic
+    if (userLName === memLName || !memLName || !userLName) {
+      if (!rel || rel === 'self' || rel === 'patient' || rel === 'account holder' || rel === 'family member') {
+        if (!memPhone || !userPhone || memPhone === userPhone) {
+          return true;
+        }
+      }
+    }
+  }
+
+  // If same phone number and generic/empty relationship
+  if (userPhone && memPhone && userPhone === memPhone) {
+    if (!rel || rel === 'self' || rel === 'patient' || rel === 'account holder' || rel === 'family member') {
+      return true;
+    }
+  }
+
+  return false;
+};

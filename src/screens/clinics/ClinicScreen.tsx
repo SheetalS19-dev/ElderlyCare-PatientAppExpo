@@ -90,12 +90,12 @@ export const ClinicScreen: React.FC = () => {
             )}
 
             <View style={styles.headerInfo}>
-              {!!(clinic.city_title || clinic.city_name) && (
+              {/* {!!(clinic.city_title || clinic.city_name) && (
                 <View style={styles.cityPill}>
                   <MaterialIcons name="location-city" size={fs(12)} color={Colors.primaryColor} />
                   <Text style={styles.cityPillText}>{clinic.city_title || clinic.city_name}</Text>
                 </View>
-              )}
+              )} */}
               <Text style={styles.clinicTitle}>{clinic.title}</Text>
               {!!clinic.address && (
                 <View style={styles.addressRow}>

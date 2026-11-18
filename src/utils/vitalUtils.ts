@@ -57,7 +57,7 @@ export const renderVitalValue = (vitalName: string, item: VitalModel | any): str
   }
   if (vitalName === 'Temperature') {
     const val = item.temperature ?? item.value;
-    return val ? `${val} °F`.trim() : 'N/A';
+    return val ? `${val} °C`.trim() : 'N/A';
   }
   if (vitalName === 'SpO2') {
     const val = item.spo2 ?? item.value;
@@ -99,34 +99,34 @@ export const getVitalStatus = (vitalName: string, item?: VitalModel | null): Vit
         color: Colors.slate_64748B,
         bgColor: Colors.slate_F1F5F9,
         icon: 'info-outline',
-        normalRangeText: 'Normal range: 97.0 – 99.5 °F',
+        normalRangeText: 'Normal range: 36.1 – 37.5 °C',
       };
     }
-    if (temp < 97.0) {
+    if (temp < 36.1) {
       return {
         label: 'Below Normal',
         color: Colors.redColor,
         bgColor: Colors.red_FEE2E2,
         icon: 'error-outline',
-        normalRangeText: 'Normal range: 97.0 – 99.5 °F',
+        normalRangeText: 'Normal range: 36.1 – 37.5 °C',
       };
     }
-    if (temp <= 99.5) {
+    if (temp <= 37.5) {
       return {
         label: 'Normal',
         color: Colors.green_059669,
         bgColor: Colors.green_ECFDF5,
         icon: 'check-circle-outline',
-        normalRangeText: 'Normal range: 97.0 – 99.5 °F',
+        normalRangeText: 'Normal range: 36.1 – 37.5 °C',
       };
     }
-    if (temp <= 100.4) {
+    if (temp <= 38.0) {
       return {
         label: 'Low Fever',
         color: Colors.amber_D97706,
         bgColor: Colors.amber_FEF3C7,
         icon: 'warning-amber',
-        normalRangeText: 'Normal range: 97.0 – 99.5 °F',
+        normalRangeText: 'Normal range: 36.1 – 37.5 °C',
       };
     }
     return {
@@ -134,7 +134,7 @@ export const getVitalStatus = (vitalName: string, item?: VitalModel | null): Vit
       color: Colors.redColor,
       bgColor: Colors.red_FEE2E2,
       icon: 'error-outline',
-      normalRangeText: 'Normal range: 97.0 – 99.5 °F',
+      normalRangeText: 'Normal range: 36.1 – 37.5 °C',
     };
   }
 
@@ -336,4 +336,74 @@ export const calculateWeightTrend = (latestVal?: number | string, prevVal?: numb
     bgColor: Colors.aquaSoft,
     icon: 'trending-flat',
   };
+};
+
+/**
+ * Sanitizes and formats error messages from API or internal operations into user-friendly text.
+ * Prevents raw SQL, foreign key constraints, or technical error dumps from leaking to the UI.
+ */
+export const formatVitalErrorMessage = (error: any): string => {
+  if (!error) return 'Failed to save vital reading. Please try again.';
+
+  let rawMsg = '';
+  if (typeof error === 'string') {
+    rawMsg = error;
+  } else if (error?.data?.message && typeof error.data.message === 'string') {
+    rawMsg = error.data.message;
+  } else if (error?.data?.error && typeof error.data.error === 'string') {
+    rawMsg = error.data.error;
+  } else if (error?.message && typeof error.message === 'string') {
+    rawMsg = error.message;
+  } else if (error?.error && typeof error.error === 'string') {
+    rawMsg = error.error;
+  }
+
+  if (!rawMsg) return 'Failed to save vital reading. Please try again.';
+
+  const lower = rawMsg.toLowerCase();
+
+  // 1. Foreign Key / Family Member constraint error
+  if (
+    lower.includes('foreign key constraint') ||
+    lower.includes('vital_family_member_id') ||
+    lower.includes('family_members') ||
+    lower.includes('cannot add or update a child row') ||
+    lower.includes('a foreign key constraint fails')
+  ) {
+    return 'Unable to link vital reading to the patient profile. Please select a valid family member.';
+  }
+
+  // 2. Database/SQL internal error
+  if (
+    lower.includes('sql') ||
+    lower.includes('constraint') ||
+    lower.includes('query') ||
+    lower.includes('table') ||
+    lower.includes('column') ||
+    lower.includes('database') ||
+    lower.includes('syntax error') ||
+    lower.includes('duplicate entry')
+  ) {
+    return 'Unable to save vital reading due to a server error. Please try again later.';
+  }
+
+  // 3. Network or Timeout error
+  if (
+    lower.includes('network') ||
+    lower.includes('fetch') ||
+    lower.includes('timeout') ||
+    lower.includes('connection')
+  ) {
+    return 'Network connection error. Please check your internet connection.';
+  }
+
+  // 4. Strip redundant prefixes like "error Error: " or "Error: "
+  let cleaned = rawMsg.replace(/^(error\s*:?\s*)+/i, '').replace(/^error:\s*/i, '').trim();
+
+  // If technical details like brackets or stack trace remain
+  if (cleaned.length > 150 || cleaned.includes('{') || cleaned.includes('\\')) {
+    return 'Failed to save vital reading. Please try again.';
+  }
+
+  return cleaned || 'Failed to save vital reading. Please try again.';
 };

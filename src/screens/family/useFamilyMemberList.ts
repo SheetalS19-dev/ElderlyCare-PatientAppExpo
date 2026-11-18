@@ -17,7 +17,7 @@ import {
   saveFamilyRelation,
 } from '../../services';
 import type { FamilyMemberModel, UserModel } from '../../types';
-import { showToast, validateDob, validateName, validatePhone } from '../../utils';
+import { isUserSelfMember, showToast, validateDob, validateName, validatePhone } from '../../utils';
 
 export const useFamilyMemberList = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -64,23 +64,11 @@ export const useFamilyMemberList = () => {
 
   const familyList: FamilyMemberModel[] = useMemo(() => {
     const list: FamilyMemberModel[] = [...rawList];
-
-    const selfUserFName = (currentUser?.f_name || authUser?.f_name || '').trim().toLowerCase();
-    const selfUserLName = (currentUser?.l_name || authUser?.l_name || '').trim().toLowerCase();
-    const selfUserPhone = (currentUser?.phone || authUser?.phone || '').trim();
-    const currentUserIdStr = String(currentUser?.id ?? authUser?.id ?? uid ?? '');
-
+    const mainUser = currentUser || authUser;
     const nonSelfEntries: FamilyMemberModel[] = [];
 
     for (const m of list) {
-      const isSelf =
-        (m as any).is_self === true ||
-        (m.relationship || '').toLowerCase() === 'self' ||
-        (currentUserIdStr && String(m.id) === currentUserIdStr) ||
-        (selfUserFName &&
-          m.f_name?.trim().toLowerCase() === selfUserFName &&
-          (m.l_name?.trim().toLowerCase() === selfUserLName || !m.l_name) &&
-          (m.phone?.trim() === selfUserPhone || !m.phone || (m.relationship || '').toLowerCase() === 'self'));
+      const isSelf = isUserSelfMember(m, mainUser);
 
       if (!isSelf) {
         const memIdStr = String(m.id ?? (m as any)?.member_id ?? '');
@@ -98,7 +86,7 @@ export const useFamilyMemberList = () => {
     }
 
     return nonSelfEntries;
-  }, [rawList, currentUser, authUser, savedRelations, uid]);
+  }, [rawList, currentUser, authUser, savedRelations]);
 
   const [showModal, setShowModal] = useState(false);
   const [countryCode] = useState({
@@ -158,7 +146,11 @@ export const useFamilyMemberList = () => {
     const fnRes = validateName(firstName, true, 'First name');
     if (!fnRes.isValid) nextErrors.firstName = fnRes.error || 'First name is required';
 
-    // 2. Mobile Number * (Mandatory)
+    // 2. Last Name (Optional, but validated if filled)
+    const lnRes = validateName(lastName, false, 'Last name');
+    if (!lnRes.isValid) nextErrors.lastName = lnRes.error || 'Invalid last name';
+
+    // 3. Mobile Number * (Mandatory)
     const phoneRes = validatePhone(phone, true);
     if (!phoneRes.isValid) nextErrors.phone = phoneRes.error || 'Valid 10-digit mobile number is required';
 

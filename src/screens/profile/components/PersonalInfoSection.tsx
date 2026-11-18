@@ -68,7 +68,7 @@ export const PersonalInfoSection: React.FC<Props> = ({
           {!!errors?.fName && <Text style={styles.errorText}>{errors.fName}</Text>}
         </View>
         <View style={styles.colHalf}>
-          <Text style={styles.fieldLabel}>Last Name *</Text>
+          <Text style={styles.fieldLabel}>Last Name</Text>
           <TextInput
             style={[styles.inputField, !!errors?.lName && styles.inputError]}
             value={lName}
@@ -101,7 +101,7 @@ export const PersonalInfoSection: React.FC<Props> = ({
         <TextInput
           style={[styles.inputField, !!errors?.phone && styles.inputError]}
           value={phone}
-          onChangeText={onChangePhone}
+          onChangeText={(text) => onChangePhone(text.replace(/[^0-9]/g, ''))}
           placeholder="Enter 10-digit mobile number"
           placeholderTextColor={Colors.slate_94A3B8}
           keyboardType="phone-pad"
@@ -120,7 +120,7 @@ export const PersonalInfoSection: React.FC<Props> = ({
             onPress={onOpenDatePicker}
           >
             <Text style={[styles.selectorText, !dob && styles.placeholderText]} numberOfLines={1}>
-              {dob ? DateTimeUtils.formatDob(dob) : 'DD/MM/YYYY'}
+              {dob ? (DateTimeUtils.getDataFormat(dob) || dob) : 'Select Date of Birth'}
             </Text>
             <MaterialIcons name="calendar-today" size={16} color={Colors.primaryColor} />
           </TouchableOpacity>
@@ -160,9 +160,9 @@ export const PersonalInfoSection: React.FC<Props> = ({
         </View>
 
         <View style={styles.colHalf}>
-          <Text style={styles.fieldLabel}>Blood Group</Text>
+          <Text style={styles.fieldLabel}>Blood Group *</Text>
           <TouchableOpacity
-            style={styles.selectorField}
+            style={[styles.selectorField, !!errors?.bloodGroup && styles.inputError]}
             activeOpacity={0.8}
             onPress={onOpenBloodGroupPicker}
           >
@@ -171,6 +171,7 @@ export const PersonalInfoSection: React.FC<Props> = ({
             </Text>
             <MaterialIcons name="keyboard-arrow-down" size={20} color={Colors.secondaryFontColor} />
           </TouchableOpacity>
+          {!!errors?.bloodGroup && <Text style={styles.errorText}>{errors.bloodGroup}</Text>}
         </View>
       </View>
 

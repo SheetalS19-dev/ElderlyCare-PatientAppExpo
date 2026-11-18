@@ -2,7 +2,6 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../../constants';
-import { isUnionTerritory } from '../../../utils/locationHelper';
 import { fs, hs, ws } from '../../../utils/metrics';
 import { TYPOGRAPHY } from '../../../utils/typography';
 import {
@@ -63,7 +62,7 @@ export const AddressLocationSection: React.FC<Props> = ({
                 style={[styles.selectorText, !state && styles.placeholderText]}
                 numberOfLines={1}
               >
-                {state ? `${state} (${isUnionTerritory(state) ? 'UT' : 'State'})` : 'Select State'}
+                {state ? state.replace(/\s*\((state|ut)\)/gi, '').trim() : 'Select State'}
               </Text>
               <MaterialIcons name="keyboard-arrow-down" size={18} color={Colors.secondaryFontColor} />
             </TouchableOpacity>

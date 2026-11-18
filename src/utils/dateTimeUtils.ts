@@ -151,31 +151,16 @@ export class DateTimeUtils {
     }
   }
 
-  /** Placeholder shown by every Date of Birth field (testing report 05/11/26, item 40). */
-  static readonly DOB_PLACEHOLDER = 'DD/MM/YYYY';
+  /** Placeholder shown by every Date of Birth field. */
+  static readonly DOB_PLACEHOLDER = 'Select Date of Birth';
 
   /**
-   * Formats a stored DOB ("2026-07-28" / ISO string) as DD/MM/YYYY without
-   * timezone shifting. Returns '' for empty and the raw value if unparsable.
+   * Formats a stored DOB ("2026-07-28" / ISO string / DD/MM/YYYY) into "28 Jul, 2026".
+   * Safely delegates to DateTimeUtils.getDataFormat.
    */
   static formatDob(dob?: string | null): string {
     if (!dob) return '';
-    const str = String(dob).trim();
-    const clean = str.split('T')[0].split(' ')[0];
-    const separator = clean.includes('-') ? '-' : clean.includes('/') ? '/' : '';
-    if (separator) {
-      const parts = clean.split(separator);
-      if (parts.length >= 3) {
-        if (parts[0].length === 4) {
-          const [y, m, d] = parts;
-          return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
-        } else if (parts[2].length === 4) {
-          const [d, m, y] = parts;
-          return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
-        }
-      }
-    }
-    return str;
+    return DateTimeUtils.getDataFormat(dob) || String(dob);
   }
 
   /**
@@ -190,36 +175,26 @@ export class DateTimeUtils {
 
     const cleanDate = str.split('T')[0].split(' ')[0];
 
-    // Check for delimiter '-' or '/'
-    if (cleanDate.includes('-') || cleanDate.includes('/')) {
-      const separator = cleanDate.includes('-') ? '-' : '/';
+    // Check for delimiter '-', '/', or '.'
+    if (cleanDate.includes('-') || cleanDate.includes('/') || cleanDate.includes('.')) {
+      const separator = cleanDate.includes('-') ? '-' : cleanDate.includes('/') ? '/' : '.';
       const parts = cleanDate.split(separator);
 
-      if (parts.length >= 3) {
-        // Case 1: YYYY-MM-DD or YYYY/MM/DD
-        if (parts[0].length === 4) {
-          const year = parseInt(parts[0], 10);
-          const month = parseInt(parts[1], 10);
-          const day = parseInt(parts[2], 10);
-          if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-            return `${day} ${DateTimeUtils.getMonthName(month)}, ${year}`;
-          }
-        }
-        // Case 2: DD-MM-YYYY or DD/MM/YYYY or D/M/YYYY
-        if (parts[2].length === 4) {
-          const day = parseInt(parts[0], 10);
-          const month = parseInt(parts[1], 10);
-          const year = parseInt(parts[2], 10);
-          if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-            return `${day} ${DateTimeUtils.getMonthName(month)}, ${year}`;
-          }
-        }
-      }
     }
 
     const date = new Date(str);
     if (isNaN(date.getTime())) return str;
     return `${date.getDate()} ${DateTimeUtils.getMonthName(date.getMonth() + 1)}, ${date.getFullYear()}`;
+  }
+
+  /** Alias for getDataFormat matching dateFormatUtil naming */
+  static getDateFormat(createdAt?: string | null): string {
+    return DateTimeUtils.getDataFormat(createdAt);
+  }
+
+  /** Alias for getDataFormatWithTime matching dateFormatUtil naming */
+  static getDateFormatWithTime(createdAt?: string | null): string {
+    return DateTimeUtils.getDataFormatWithTime(createdAt);
   }
 
   /**
@@ -293,3 +268,9 @@ export class DateTimeUtils {
     return isWithinLast7Days(dateStr);
   }
 }
+
+export const DateFormatUtils = DateTimeUtils;
+export const dateFormatUtil = DateTimeUtils;
+export const DateFormatUtil = DateTimeUtils;
+export const dateTimeUtils = DateTimeUtils;
+

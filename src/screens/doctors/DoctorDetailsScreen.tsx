@@ -44,6 +44,7 @@ export const DoctorDetailsScreen: React.FC = () => {
     bookingDisabled,
     clinicTitle,
     clinicPhone,
+    clinicWhatsapp,
     clinicEmail,
     clinicAddress,
     clinicImgUrl,
@@ -106,7 +107,7 @@ export const DoctorDetailsScreen: React.FC = () => {
           reviewCountText={reviewCountText}
           expValue={expValue}
           patientsCount={patientsCount}
-          onPressReviews={handleOpenReviews}
+          // onPressReviews={handleOpenReviews}
         />
 
         {/* Consultation Modes & Fees Section */}
@@ -125,6 +126,7 @@ export const DoctorDetailsScreen: React.FC = () => {
           clinicImgUrl={clinicImgUrl}
           clinicTitle={clinicTitle}
           clinicPhone={clinicPhone}
+          clinicWhatsapp={clinicWhatsapp}
           clinicEmail={clinicEmail}
           clinicAddress={clinicAddress}
           onPressClinicHeader={() => {
@@ -137,13 +139,13 @@ export const DoctorDetailsScreen: React.FC = () => {
           onOpenDirections={handleOpenDirections}
         />
 
-        {/* Dynamic Patient Reviews Section */}
-        <DoctorReviewsSection
+        {/* Dynamic Patient Reviews Section (Commented Out) */}
+        {/* <DoctorReviewsSection
           reviews={reviews}
           doctorName={fullName}
           reviewCount={reviewCount}
           onPressViewAll={handleOpenReviews}
-        />
+        /> */}
       </ScrollView>
 
       {/* Floating Bottom Book Appointment Bar */}
