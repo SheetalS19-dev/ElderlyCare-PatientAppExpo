@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { Colors } from '../../constants';
 import { fs, hs, ws } from '../../utils/metrics';
@@ -14,7 +14,7 @@ interface EmptyStateProps {
   style?: ViewStyle;
 }
 
-export const EmptyState: React.FC<EmptyStateProps> = ({
+export const EmptyState: React.FC<EmptyStateProps> = memo(({
   message = 'No data available',
   subtitle,
   icon = 'inbox',
@@ -36,7 +36,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

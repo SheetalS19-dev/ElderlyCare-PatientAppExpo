@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Colors } from '../../../constants';
 import type { AppointmentModel } from '../../../types';
@@ -10,7 +10,7 @@ interface Props {
   appointment: AppointmentModel;
 }
 
-export const AppointmentPatientCard: React.FC<Props> = ({ appointment }) => {
+export const AppointmentPatientCard: React.FC<Props> = memo(({ appointment }) => {
   const patientName =
     appointment.patient_name ||
     (appointment as any)?.user_name ||
@@ -47,7 +47,7 @@ export const AppointmentPatientCard: React.FC<Props> = ({ appointment }) => {
       )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   card: {

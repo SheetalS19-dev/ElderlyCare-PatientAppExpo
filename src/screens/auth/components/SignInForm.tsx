@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Colors } from '../../../constants';
 import { fs, hs, TYPOGRAPHY, ws } from '../../../utils';
+import { FIELD_LIMITS } from '../../../validation';
 
 export interface SignInFormProps {
   phone: string;
@@ -62,6 +63,7 @@ export const SignInForm = memo(({
         textContentType="username"
         value={phone}
         onChangeText={onPhoneChange}
+        maxLength={FIELD_LIMITS.EMAIL_MAX}
       />
       {!!phoneError && <Text style={styles.fieldErrorText}>{phoneError}</Text>}
 
@@ -81,6 +83,7 @@ export const SignInForm = memo(({
             autoComplete="password"
             value={password}
             onChangeText={onPasswordChange}
+            maxLength={FIELD_LIMITS.PASSWORD_MAX}
           />
           <TouchableOpacity
             style={styles.eyeIconBtn}

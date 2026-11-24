@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants';
 import { fs, hs, ws } from '../../utils/metrics';
 import { TYPOGRAPHY } from '../../utils/typography';
+import { FIELD_LIMITS } from '../../validation';
 
 export interface SearchableSelectOption<T = any> {
   id: string | number;
@@ -44,7 +45,7 @@ export interface SearchableSelectModalProps<T = any> {
 
 const DEFAULT_PAGE_SIZE = 10;
 
-export const SearchableSelectModal = <T,>({
+const SearchableSelectModalComponent = <T,>({
   visible,
   onClose,
   title,
@@ -237,6 +238,7 @@ export const SearchableSelectModal = <T,>({
                 onChangeText={setSearchQuery}
                 autoCorrect={false}
                 returnKeyType="search"
+                maxLength={FIELD_LIMITS.SEARCH_MAX}
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -339,6 +341,8 @@ export const SearchableSelectModal = <T,>({
   );
 };
 
+export const SearchableSelectModal = memo(SearchableSelectModalComponent) as typeof SearchableSelectModalComponent;
+
 const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
@@ -426,13 +430,18 @@ const styles = StyleSheet.create({
   },
   sectionGroupHeader: {
     ...TYPOGRAPHY.bold,
-    fontSize: fs(11),
-    color: Colors.secondaryFontColor,
+    fontSize: fs(12),
+    color: Colors.primaryColor,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
-    marginTop: hs(8),
-    marginBottom: hs(6),
-    paddingHorizontal: ws(4),
+    backgroundColor: Colors.slate_F8FAFC,
+    paddingHorizontal: ws(10),
+    paddingVertical: hs(6),
+    borderRadius: fs(6),
+    borderWidth: 1,
+    borderColor: Colors.slate_E2E8F0,
+    marginTop: hs(12),
+    marginBottom: hs(8),
   },
   optionRow: {
     flexDirection: 'row',

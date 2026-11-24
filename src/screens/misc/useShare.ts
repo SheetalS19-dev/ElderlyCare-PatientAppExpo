@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Platform, Share } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiEndpoints, AppConstants } from '../../constants';
@@ -37,7 +37,7 @@ export const useShare = () => {
     }
   };
 
-  const handleShare = async () => {
+  const handleShare = useCallback(async () => {
     try {
       await Share.share({
         message: `Download ${AppConstants.appName} care app to manage appointments, vitals & prescriptions: ${shareLink || 'https://elderlycare.life'}`,
@@ -46,11 +46,11 @@ export const useShare = () => {
     } catch (error) {
       console.warn('Share error:', error);
     }
-  };
+  }, [shareLink]);
 
-  const handleCopyLink = () => {
+  const handleCopyLink = useCallback(() => {
     showToast('Link copied to clipboard!');
-  };
+  }, []);
 
   return {
     navigation,

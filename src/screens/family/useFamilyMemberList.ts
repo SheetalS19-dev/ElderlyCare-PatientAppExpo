@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
@@ -17,7 +17,17 @@ import {
   saveFamilyRelation,
 } from '../../services';
 import type { FamilyMemberModel, UserModel } from '../../types';
-import { isUserSelfMember, showToast, validateDob, validateName, validatePhone } from '../../utils';
+import {
+  isUserSelfMember,
+  showToast,
+  validateDob,
+  validateName,
+  validatePhone,
+} from '../../utils';
+import {
+  validateFamilyRelationDob,
+  validateFamilyRelationLimit,
+} from '../../validation';
 
 export const useFamilyMemberList = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -105,11 +115,11 @@ export const useFamilyMemberList = () => {
   const [relation, setRelation] = useState('');
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
 
-  const clearError = (field: string) => {
+  const clearError = useCallback((field: string) => {
     setErrors((prev) => ({ ...prev, [field]: undefined }));
-  };
+  }, []);
 
-  const openAddModal = () => {
+  const openAddModal = useCallback(() => {
     setEditingId(null);
     setFirstName('');
     setLastName('');
@@ -119,9 +129,9 @@ export const useFamilyMemberList = () => {
     setRelation('');
     setErrors({});
     setShowModal(true);
-  };
+  }, []);
 
-  const openEditModal = (item: FamilyMemberModel) => {
+  const openEditModal = useCallback((item: FamilyMemberModel) => {
     setEditingId(String(item.id));
     setFirstName(item.f_name || '');
     setLastName(item.l_name || '');
@@ -137,9 +147,9 @@ export const useFamilyMemberList = () => {
     setRelation(existingRelation);
     setErrors({});
     setShowModal(true);
-  };
+  }, [savedRelations]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     const nextErrors: Record<string, string> = {};
 
     // 1. First Name * (Mandatory)
@@ -154,22 +164,34 @@ export const useFamilyMemberList = () => {
     const phoneRes = validatePhone(phone, true);
     if (!phoneRes.isValid) nextErrors.phone = phoneRes.error || 'Valid 10-digit mobile number is required';
 
-    // 3. Date of Birth * (Mandatory)
-    if (!dob || !dob.trim()) {
-      nextErrors.dob = 'Date of birth is required';
-    } else {
-      const dobRes = validateDob(dob, true);
-      if (!dobRes.isValid) nextErrors.dob = dobRes.error || 'Invalid date of birth';
-    }
-
     // 4. Gender * (Mandatory)
     if (!gender || !gender.trim()) {
       nextErrors.gender = 'Please select a gender';
     }
 
-    // 5. Relation * (Mandatory)
-    if (!relation || !relation.trim()) {
+    // 5. Relation * (Mandatory) + Single-relation limit
+    const cleanRelation = relation.trim();
+    if (!cleanRelation) {
       nextErrors.relation = 'Please select a relation';
+    } else {
+      const limitRes = validateFamilyRelationLimit(cleanRelation, familyList, editingId);
+      if (!limitRes.isValid) {
+        nextErrors.relation = limitRes.error || 'This relation is already added';
+      }
+    }
+
+    // 6. Date of Birth * (Mandatory) + Relation-specific age validation
+    if (!dob || !dob.trim()) {
+      nextErrors.dob = 'Date of birth is required';
+    } else if (cleanRelation) {
+      const userDob = currentUser?.dob || authUser?.dob;
+      const relDobRes = validateFamilyRelationDob(dob, cleanRelation, userDob);
+      if (!relDobRes.isValid) {
+        nextErrors.dob = relDobRes.error || 'Invalid date of birth for this relation';
+      }
+    } else {
+      const dobRes = validateDob(dob, true);
+      if (!dobRes.isValid) nextErrors.dob = dobRes.error || 'Invalid date of birth';
     }
 
     setErrors(nextErrors);
@@ -194,8 +216,6 @@ export const useFamilyMemberList = () => {
           }
         }
       }
-
-      const cleanRelation = relation.trim();
 
       const payload: any = {
         user_id: uid,
@@ -245,11 +265,42 @@ export const useFamilyMemberList = () => {
       refetch();
     } catch (err: any) {
       const msg = err?.data?.message || err?.message || 'Could not save family member. Please try again.';
-      showToast(msg);
+      const lower = msg.toLowerCase();
+      if (lower.includes('phone') || lower.includes('mobile')) {
+        setErrors((prev) => ({ ...prev, phone: msg }));
+      } else if (lower.includes('first name') || lower.includes('f_name')) {
+        setErrors((prev) => ({ ...prev, firstName: msg }));
+      } else if (lower.includes('last name') || lower.includes('l_name')) {
+        setErrors((prev) => ({ ...prev, lastName: msg }));
+      } else if (lower.includes('dob') || lower.includes('birth')) {
+        setErrors((prev) => ({ ...prev, dob: msg }));
+      } else if (lower.includes('gender')) {
+        setErrors((prev) => ({ ...prev, gender: msg }));
+      } else if (lower.includes('relation')) {
+        setErrors((prev) => ({ ...prev, relation: msg }));
+      } else {
+        setErrors((prev) => ({ ...prev, general: msg }));
+      }
     }
-  };
+  }, [
+    firstName,
+    lastName,
+    phone,
+    gender,
+    relation,
+    dob,
+    familyList,
+    editingId,
+    currentUser?.dob,
+    authUser?.dob,
+    uid,
+    countryCode.dialCode,
+    updateFamilyMember,
+    addFamilyMember,
+    refetch,
+  ]);
 
-  const handleDelete = (idOrItem: FamilyMemberModel | string, name?: string) => {
+  const handleDelete = useCallback((idOrItem: FamilyMemberModel | string, name?: string) => {
     const memId = typeof idOrItem === 'string' ? idOrItem : String(idOrItem.id);
     const memName = typeof idOrItem === 'string' ? (name || 'this member') : (idOrItem.f_name || idOrItem.name || 'this member');
     Alert.alert(
@@ -285,7 +336,7 @@ export const useFamilyMemberList = () => {
         },
       ]
     );
-  };
+  }, [deleteFamilyMember, uid, refetch]);
 
   return {
     navigation,

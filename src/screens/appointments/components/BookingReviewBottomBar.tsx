@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppConstants, Colors } from '../../../constants';
@@ -12,7 +12,7 @@ interface Props {
   onPress: () => void;
 }
 
-export const BookingReviewBottomBar: React.FC<Props> = ({
+export const BookingReviewBottomBar: React.FC<Props> = memo(({
   canReview,
   total,
   onPress,
@@ -42,7 +42,7 @@ export const BookingReviewBottomBar: React.FC<Props> = ({
       </TouchableOpacity>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   reviewBar: {

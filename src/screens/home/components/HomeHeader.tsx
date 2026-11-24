@@ -4,6 +4,7 @@ import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'reac
 import { HeaderBackdrop } from '../../../components/common/ThemeBackdrop';
 import { Colors } from '../../../constants';
 import { fs, getImageUrl, hs, TYPOGRAPHY, ws } from '../../../utils';
+import { FIELD_LIMITS } from '../../../validation';
 
 interface HomeHeaderProps {
   userImage?: string;
@@ -110,6 +111,7 @@ export const HomeHeader = memo(({
           placeholderTextColor={Colors.inkSoft}
           returnKeyType="search"
           onSubmitEditing={onSubmitSearch}
+          maxLength={FIELD_LIMITS.SEARCH_MAX}
         />
       </View>
     </View>

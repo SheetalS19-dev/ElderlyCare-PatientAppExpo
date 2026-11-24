@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { Colors } from '../../constants';
 import { fs, hs, ws } from '../../utils/metrics';
@@ -11,7 +11,7 @@ interface ErrorStateProps {
   style?: ViewStyle;
 }
 
-export const ErrorState: React.FC<ErrorStateProps> = ({ message = 'Something went wrong', onRetry, style }) => {
+export const ErrorState: React.FC<ErrorStateProps> = memo(({ message = 'Something went wrong', onRetry, style }) => {
   return (
     <View style={[styles.container, style]}>
       <MaterialIcons name="error-outline" size={fs(48)} color={Colors.redColor || Colors.red_EE404C} />
@@ -23,7 +23,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({ message = 'Something wen
       )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

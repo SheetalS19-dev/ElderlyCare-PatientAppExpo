@@ -17,7 +17,7 @@ export interface HomeHeaderBarProps {
   unreadCount?: number;
 }
 
-export const HomeHeaderBar: React.FC<HomeHeaderBarProps> = ({
+export const HomeHeaderBar: React.FC<HomeHeaderBarProps> = React.memo(({
   user,
   activeCityName,
   isDetectingLocation,
@@ -64,7 +64,7 @@ export const HomeHeaderBar: React.FC<HomeHeaderBarProps> = ({
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   headerContainer: {

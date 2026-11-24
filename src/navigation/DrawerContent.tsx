@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
-import React, { memo } from 'react';
+import React, { memo, useCallback } from 'react';
 import {
   Image,
   ScrollView,
@@ -81,23 +81,24 @@ export const DrawerContent: React.FC<DrawerContentComponentProps> = memo((props)
   const fullName = getUserFullName(user) || 'User';
   const userPhone = user?.phone || user?.email || '';
 
-  const handlePress = (item: MenuItem) => {
+  const handlePress = useCallback((item: MenuItem) => {
     props.navigation.closeDrawer();
     if (item.requiresAuth && !isAuthenticated) {
       rootNavigation.navigate('Login' as never);
       return;
     }
     rootNavigation.navigate(item.navigateTo as never);
-  };
+  }, [props.navigation, isAuthenticated, rootNavigation]);
 
-  const handleAuthAction = () => {
+  const handleAuthAction = useCallback(() => {
     props.navigation.closeDrawer();
     if (isAuthenticated) {
       logout();
+      rootNavigation.reset({ index: 0, routes: [{ name: 'Login' }] });
     } else {
       rootNavigation.navigate('Login' as never);
     }
-  };
+  }, [props.navigation, isAuthenticated, logout, rootNavigation]);
 
   return (
     <View style={styles.container}>

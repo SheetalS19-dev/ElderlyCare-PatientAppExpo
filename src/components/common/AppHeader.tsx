@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import React from 'react';
+import React, { memo } from 'react';
 import { Platform, StatusBar, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants';
@@ -16,7 +16,7 @@ export interface AppHeaderProps {
   style?: ViewStyle;
 }
 
-export const AppHeader = (props: AppHeaderProps) => {
+export const AppHeader = memo((props: AppHeaderProps) => {
   const {
     title = '',
     onBackPress,
@@ -58,7 +58,7 @@ export const AppHeader = (props: AppHeaderProps) => {
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   headerContent: {

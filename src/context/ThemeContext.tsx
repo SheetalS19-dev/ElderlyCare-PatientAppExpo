@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback, useMemo } from 'react';
 import { Colors } from '../constants';
 
 interface ThemeContextType {
@@ -16,10 +16,15 @@ const ThemeContext = createContext<ThemeContextType>({
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
 
-  const toggleTheme = () => setIsDarkMode((prev) => !prev);
+  const toggleTheme = useCallback(() => setIsDarkMode((prev) => !prev), []);
+
+  const value = useMemo(
+    () => ({ isDarkMode, colors: Colors, toggleTheme }),
+    [isDarkMode, toggleTheme]
+  );
 
   return (
-    <ThemeContext.Provider value={{ isDarkMode, colors: Colors, toggleTheme }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

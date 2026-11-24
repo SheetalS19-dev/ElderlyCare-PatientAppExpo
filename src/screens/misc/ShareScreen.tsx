@@ -4,9 +4,10 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
-import { AppButton, AppCard, AppHeader, LoadingIndicator } from '../../components';
+import { AppCard, AppHeader, LoadingIndicator } from '../../components';
 import { AppConstants, Colors } from '../../constants';
 import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
 import { useShare } from './useShare';
@@ -39,7 +40,7 @@ export const ShareScreen: React.FC = () => {
             {/* Hero Banner Card */}
             <AppCard style={styles.heroCard}>
               <View style={styles.heroIconCircle}>
-                <MaterialIcons name="share" size={fs(36)} color={Colors.primaryColor} />
+                <MaterialIcons name="share" size={fs(32)} color={Colors.primaryColor} />
               </View>
               <Text style={styles.heroTitle}>Invite Family & Friends</Text>
               <Text style={styles.heroSubtitle}>
@@ -90,11 +91,14 @@ export const ShareScreen: React.FC = () => {
 
           {/* Sticky Bottom Bar */}
           <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom + hs(12), hs(16)) }]}>
-            <AppButton
-              title="Share Link Now"
-              height={hs(50)}
+            <TouchableOpacity
+              style={styles.shareButton}
               onPress={handleShare}
-            />
+              activeOpacity={0.85}
+            >
+              <MaterialIcons name="share" size={ws(19)} color={Colors.white} />
+              <Text style={styles.shareButtonText}>Share App Link</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -203,5 +207,24 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
+  },
+  shareButton: {
+    height: hs(48),
+    backgroundColor: Colors.primaryColor,
+    borderRadius: fs(12),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: ws(8),
+    shadowColor: Colors.primaryColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  shareButtonText: {
+    fontSize: fs(14.5),
+    ...TYPOGRAPHY.bold,
+    color: Colors.white,
   },
 });

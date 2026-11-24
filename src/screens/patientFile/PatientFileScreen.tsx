@@ -1,7 +1,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
   FlatList,
+  Keyboard,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -77,6 +78,34 @@ export const PatientFileScreen: React.FC = () => {
     getMemberRelationLabel,
   } = usePatientFile();
 
+  const keyExtractor = useCallback((item: any, index: number) => `pf-${item.id ?? index}`, []);
+
+  const renderFileItem = useCallback(
+    ({ item }: { item: any }) => (
+      <PatientFileCard
+        item={item}
+        patientInfo={formatPatientName(item)}
+        dateStr={formatFileDate(item)}
+        isDownloading={downloadingId === (item.id ?? (item as any).title)}
+        onOpen={() => handleOpenFile(item)}
+        onDownload={() => handleDownload(item)}
+      />
+    ),
+    [formatPatientName, formatFileDate, downloadingId, handleOpenFile, handleDownload]
+  );
+
+  useEffect(() => {
+    if (!uploadVisible) {
+      Keyboard.dismiss();
+      const t1 = setTimeout(() => Keyboard.dismiss(), 100);
+      const t2 = setTimeout(() => Keyboard.dismiss(), 350);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }
+  }, [uploadVisible]);
+
   return (
     <View style={styles.container}>
       <AppHeader title="Patient Files" onBackPress={() => navigation.goBack()} />
@@ -104,7 +133,7 @@ export const PatientFileScreen: React.FC = () => {
       ) : (
         <FlatList
           data={files}
-          keyExtractor={(item, index) => `pf-${item.id ?? index}`}
+          keyExtractor={keyExtractor}
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: hs(40) + Math.max(insets.bottom, hs(24)) },
@@ -131,16 +160,7 @@ export const PatientFileScreen: React.FC = () => {
               <EmptyState message="No files have been uploaded yet." />
             )
           }
-          renderItem={({ item }) => (
-            <PatientFileCard
-              item={item}
-              patientInfo={formatPatientName(item)}
-              dateStr={formatFileDate(item)}
-              isDownloading={downloadingId === (item.id ?? (item as any).title)}
-              onOpen={() => handleOpenFile(item)}
-              onDownload={() => handleDownload(item)}
-            />
-          )}
+          renderItem={renderFileItem}
         />
       )}
 

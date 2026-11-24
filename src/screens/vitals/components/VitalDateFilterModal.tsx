@@ -16,7 +16,7 @@ interface Props {
 
 const FILTER_OPTIONS: VitalFilterType[] = ['All', 'Today', '7 Days', '30 Days'];
 
-export const VitalDateFilterModal: React.FC<Props> = ({
+const VitalDateFilterModalComponent: React.FC<Props> = ({
   visible,
   activeFilter,
   onSelectFilter,
@@ -70,6 +70,8 @@ export const VitalDateFilterModal: React.FC<Props> = ({
     </Modal>
   );
 };
+
+export const VitalDateFilterModal = React.memo(VitalDateFilterModalComponent);
 
 const styles = StyleSheet.create({
   pickerModalBackdrop: {

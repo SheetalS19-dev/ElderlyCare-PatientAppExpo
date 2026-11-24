@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   FlatList,
   Image,
@@ -20,6 +20,7 @@ import {
 import { Colors } from '../../constants';
 import type { BlogModel } from '../../redux/apis/blogApi';
 import { DateTimeUtils, fs, getImageUrl, hs, TYPOGRAPHY, ws } from '../../utils';
+import { cleanMojibake } from './components';
 import { useBlogList } from './useBlogList';
 
 export const BlogListScreen: React.FC = () => {
@@ -46,9 +47,116 @@ export const BlogListScreen: React.FC = () => {
     stripHtml,
   } = useBlogList();
 
+  const handleBackPress = useCallback(() => navigation.goBack(), [navigation]);
+
+  const keyExtractor = useCallback((item: BlogModel, index: number) => `blog-${item.id ?? index}`, []);
+
+  const handlePressBlog = useCallback(
+    (id: string | number | undefined) => {
+      navigation.navigate('BlogDetail', { blogId: String(id) });
+    },
+    [navigation]
+  );
+
+  const renderBlogItem = useCallback(
+    ({ item }: { item: BlogModel }) => {
+      const categoryTitle =
+        item.category_name ||
+        (item.category ? categoryMap.get(String(item.category)) : null) ||
+        'Health Care';
+      const snippet = stripHtml(item.description);
+      const blogTags = item.tags
+        ? item.tags
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean)
+        : [];
+
+      return (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => handlePressBlog(item.id)}
+        >
+          <AppCard style={styles.blogCard}>
+            {/* Featured Image */}
+            {!!item.featured_image && (
+              <View style={styles.imageContainer}>
+                <Image
+                  source={{ uri: getImageUrl(item.featured_image) }}
+                  style={styles.featuredImage}
+                  resizeMode="cover"
+                />
+                {/* Category Pill Over Image */}
+                <View style={styles.categoryPill}>
+                  <Text style={styles.categoryPillText}>{categoryTitle}</Text>
+                </View>
+              </View>
+            )}
+
+            <View style={styles.cardBody}>
+              {!item.featured_image && (
+                <View style={styles.inlineCategoryPill}>
+                  <Text style={styles.inlineCategoryPillText}>{categoryTitle}</Text>
+                </View>
+              )}
+
+              {/* Blog Title */}
+              <Text style={styles.blogTitle} numberOfLines={2}>
+                {cleanMojibake(item.title)}
+              </Text>
+
+              {/* Excerpt */}
+              {!!snippet && (
+                <Text style={styles.blogExcerpt} numberOfLines={3}>
+                  {snippet}
+                </Text>
+              )}
+
+              {/* Tags row on card */}
+              {blogTags.length > 0 && (
+                <View style={styles.cardTagsRow}>
+                  {blogTags.slice(0, 3).map((tag, idx) => (
+                    <View key={`b-tag-${idx}`} style={styles.cardTagPill}>
+                      <Text style={styles.cardTagText}>#{formatTagLabel(tag)}</Text>
+                    </View>
+                  ))}
+                  {blogTags.length > 3 && (
+                    <Text style={styles.moreTagsText}>+{blogTags.length - 3} more</Text>
+                  )}
+                </View>
+              )}
+
+              {/* Footer metadata */}
+              <View style={styles.cardFooter}>
+                <View style={styles.authorRow}>
+                  <View style={styles.authorAvatar}>
+                    <MaterialIcons name="person" size={fs(14)} color={Colors.primaryColor} />
+                  </View>
+                  <Text style={styles.authorName} numberOfLines={1}>
+                    {item.author_name || 'Medical Specialist'}
+                  </Text>
+                </View>
+
+                {!!item.created_at && (
+                  <View style={styles.dateRow}>
+                    <MaterialIcons name="access-time" size={fs(12)} color={Colors.secondaryFontColor} />
+                    <Text style={styles.dateText}>
+                      {DateTimeUtils.getDataFormat(item.created_at)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          </AppCard>
+        </TouchableOpacity>
+      );
+    },
+    [categoryMap, stripHtml, formatTagLabel, handlePressBlog]
+  );
+
   return (
     <View style={styles.container}>
-      <AppHeader title="Health Blogs & Articles" onBackPress={() => navigation.goBack()} />
+      <AppHeader title="Health Blogs & Articles" onBackPress={handleBackPress} />
 
       {isBlogsLoading ? (
         <LoadingIndicator />
@@ -57,7 +165,8 @@ export const BlogListScreen: React.FC = () => {
       ) : (
         <FlatList
           data={filteredBlogs}
-          keyExtractor={(item: BlogModel, index: number) => `blog-${item.id ?? index}`}
+          keyExtractor={keyExtractor}
+          renderItem={renderBlogItem}
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: Math.max(insets.bottom + hs(20), hs(32)) },
@@ -72,14 +181,15 @@ export const BlogListScreen: React.FC = () => {
                 onChangeText={setSearchQuery}
                 placeholder="Search health articles, topics..."
                 containerStyle={styles.searchContainer}
+                showClearButton={false}
               />
 
               {/* Dynamic Categories Section */}
               <View style={styles.sectionHeaderRow}>
                 <Text style={styles.sectionTitle}>Categories</Text>
-                {selectedCategory !== null && (
-                  <TouchableOpacity onPress={() => setSelectedCategory(null)}>
-                    <Text style={styles.clearLink}>Clear</Text>
+                {(selectedCategory !== null || selectedTag !== null || !!searchQuery.trim()) && (
+                  <TouchableOpacity onPress={clearFilters} activeOpacity={0.7}>
+                    <Text style={styles.clearLink}>Reset Filters</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -133,11 +243,6 @@ export const BlogListScreen: React.FC = () => {
                 <>
                   <View style={styles.sectionHeaderRow}>
                     <Text style={styles.sectionTitle}>Popular Tags</Text>
-                    {selectedTag !== null && (
-                      <TouchableOpacity onPress={() => setSelectedTag(null)}>
-                        <Text style={styles.clearLink}>Clear</Text>
-                      </TouchableOpacity>
-                    )}
                   </View>
 
                   <ScrollView
@@ -199,105 +304,13 @@ export const BlogListScreen: React.FC = () => {
                     : 'No health articles published yet.'
                 }
               />
-              {(searchQuery || selectedCategory !== null || selectedTag !== null) && (
+              {/* {(searchQuery || selectedCategory !== null || selectedTag !== null) && (
                 <TouchableOpacity style={styles.clearFiltersBtn} activeOpacity={0.8} onPress={clearFilters}>
                   <Text style={styles.clearFiltersBtnText}>Reset All Filters</Text>
                 </TouchableOpacity>
-              )}
+              )} */}
             </View>
           }
-          renderItem={({ item }) => {
-            const categoryTitle =
-              item.category_name ||
-              (item.category ? categoryMap.get(String(item.category)) : null) ||
-              'Health Care';
-            const snippet = stripHtml(item.description);
-            const blogTags = item.tags
-              ? item.tags
-                  .split(',')
-                  .map((t) => t.trim())
-                  .filter(Boolean)
-              : [];
-
-            return (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => navigation.navigate('BlogDetail', { blogId: String(item.id) })}
-              >
-                <AppCard style={styles.blogCard}>
-                  {/* Featured Image */}
-                  {!!item.featured_image && (
-                    <View style={styles.imageContainer}>
-                      <Image
-                        source={{ uri: getImageUrl(item.featured_image) }}
-                        style={styles.featuredImage}
-                        resizeMode="cover"
-                      />
-                      {/* Category Pill Over Image */}
-                      <View style={styles.categoryPill}>
-                        <Text style={styles.categoryPillText}>{categoryTitle}</Text>
-                      </View>
-                    </View>
-                  )}
-
-                  <View style={styles.cardBody}>
-                    {!item.featured_image && (
-                      <View style={styles.inlineCategoryPill}>
-                        <Text style={styles.inlineCategoryPillText}>{categoryTitle}</Text>
-                      </View>
-                    )}
-
-                    {/* Blog Title */}
-                    <Text style={styles.blogTitle} numberOfLines={2}>
-                      {item.title}
-                    </Text>
-
-                    {/* Excerpt */}
-                    {!!snippet && (
-                      <Text style={styles.blogExcerpt} numberOfLines={3}>
-                        {snippet}
-                      </Text>
-                    )}
-
-                    {/* Tags row on card */}
-                    {blogTags.length > 0 && (
-                      <View style={styles.cardTagsRow}>
-                        {blogTags.slice(0, 3).map((tag, idx) => (
-                          <View key={`b-tag-${idx}`} style={styles.cardTagPill}>
-                            <Text style={styles.cardTagText}>#{formatTagLabel(tag)}</Text>
-                          </View>
-                        ))}
-                        {blogTags.length > 3 && (
-                          <Text style={styles.moreTagsText}>+{blogTags.length - 3} more</Text>
-                        )}
-                      </View>
-                    )}
-
-                    {/* Footer metadata */}
-                    <View style={styles.cardFooter}>
-                      <View style={styles.authorRow}>
-                        <View style={styles.authorAvatar}>
-                          <MaterialIcons name="person" size={fs(14)} color={Colors.primaryColor} />
-                        </View>
-                        <Text style={styles.authorName} numberOfLines={1}>
-                          {item.author_name || 'Medical Specialist'}
-                        </Text>
-                      </View>
-
-                      {!!item.created_at && (
-                        <View style={styles.dateRow}>
-                          <MaterialIcons name="access-time" size={fs(12)} color={Colors.secondaryFontColor} />
-                          <Text style={styles.dateText}>
-                            {DateTimeUtils.getDataFormat(item.created_at)}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                </AppCard>
-              </TouchableOpacity>
-            );
-          }}
         />
       )}
     </View>

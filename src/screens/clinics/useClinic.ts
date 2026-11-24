@@ -1,7 +1,7 @@
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Linking } from 'react-native';
 import type { RootStackParamList } from '../../navigation/types';
 import { useGetClinicByIdQuery } from '../../redux/apis/clinicApi';
@@ -84,7 +84,7 @@ export const useClinic = () => {
     }
   }, [clinic?.opening_hours]);
 
-  const handleOpenUrl = async (url: string) => {
+  const handleOpenUrl = useCallback(async (url: string) => {
     try {
       const supported = await Linking.canOpenURL(url);
       if (supported) {
@@ -93,16 +93,16 @@ export const useClinic = () => {
     } catch (e) {
       console.warn('Cannot open URL:', url, e);
     }
-  };
+  }, []);
 
-  const handleOpenDirections = () => {
+  const handleOpenDirections = useCallback(() => {
     if (clinic?.latitude && clinic?.longitude) {
       handleOpenUrl(`http://maps.google.com/maps?daddr=${clinic.latitude},${clinic.longitude}`);
     } else if (clinic?.address) {
       const query = encodeURIComponent(`${clinic.title || ''}, ${clinic.address}`);
       handleOpenUrl(`https://www.google.com/maps/search/?api=1&query=${query}`);
     }
-  };
+  }, [clinic?.latitude, clinic?.longitude, clinic?.address, clinic?.title, handleOpenUrl]);
 
   return {
     navigation,

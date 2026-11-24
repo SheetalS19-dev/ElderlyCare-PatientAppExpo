@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 import { Colors } from '../../constants';
 import { fs, hs, ws } from '../../utils/metrics';
@@ -10,7 +10,7 @@ interface AppTextFieldProps extends TextInputProps {
   containerStyle?: ViewStyle;
 }
 
-export const AppTextField: React.FC<AppTextFieldProps> = ({ label, error, containerStyle, style, ...props }) => {
+export const AppTextField: React.FC<AppTextFieldProps> = memo(({ label, error, containerStyle, style, ...props }) => {
   return (
     <View style={[styles.container, containerStyle]}>
       {label && <Text style={styles.label}>{label}</Text>}
@@ -22,7 +22,7 @@ export const AppTextField: React.FC<AppTextFieldProps> = ({ label, error, contai
       {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

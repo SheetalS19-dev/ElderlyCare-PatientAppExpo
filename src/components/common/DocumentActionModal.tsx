@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { memo } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -25,7 +25,7 @@ export interface DocumentActionModalProps {
   loadingMessage?: string;
 }
 
-export const DocumentActionModal: React.FC<DocumentActionModalProps> = ({
+export const DocumentActionModal: React.FC<DocumentActionModalProps> = memo(({
   visible,
   onClose,
   title,
@@ -130,7 +130,7 @@ export const DocumentActionModal: React.FC<DocumentActionModalProps> = ({
       </View>
     </Modal>
   );
-};
+});
 
 const styles = StyleSheet.create({
   backdrop: {

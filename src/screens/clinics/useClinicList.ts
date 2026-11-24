@@ -1,7 +1,7 @@
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../../navigation/types';
 import { useGetClinicsQuery } from '../../redux/apis/clinicApi';
@@ -108,17 +108,17 @@ export const useClinicList = () => {
     );
   }, [clinicsData, clinicSearch]);
 
-  const handleSelectCity = (city: CityModel) => {
+  const handleSelectCity = useCallback((city: CityModel) => {
     const cityTitle = formatCityDisplayName(city);
     setSelectedCity({ id: String(city.id ?? ''), title: cityTitle });
     setIsCityModalVisible(false);
-  };
+  }, []);
 
-  const handleClearCity = () => {
+  const handleClearCity = useCallback(() => {
     setSelectedCity({ id: '', title: '' });
-  };
+  }, []);
 
-  const handleCityModalSelect = async (cityObj: CityModel | undefined | null) => {
+  const handleCityModalSelect = useCallback(async (cityObj: CityModel | undefined | null) => {
     setIsCityModalVisible(false);
     if (cityObj === undefined) {
       setIsUsingCurrentLocation(true);
@@ -149,7 +149,7 @@ export const useClinicList = () => {
       setIsUsingCurrentLocation(false);
       setSelectedCity({ id: '', title: '' });
     }
-  };
+  }, [cities]);
 
   return {
     navigation,

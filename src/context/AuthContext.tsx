@@ -1,4 +1,4 @@
-import React, { createContext, ReactNode, useContext } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useMemo } from 'react';
 import { AppConstants } from '../constants';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { logout as logoutAction, setCredentials, updateUser as updateUserAction } from '../redux/slices/authSlice';
@@ -7,6 +7,7 @@ import { UserModel } from '../types';
 
 interface AuthContextType {
   isAuthenticated: boolean;
+  isLoading: boolean;
   user: UserModel | null;
   login: (user: UserModel, token: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -15,6 +16,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
+  isLoading: true,
   user: null,
   login: async () => { },
   logout: async () => { },
@@ -24,6 +26,7 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const dispatch = useAppDispatch();
   const { isAuthenticated, user } = useAppSelector((state: any) => state.auth);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
     const restoreSession = async () => {
@@ -50,12 +53,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       } catch (e) {
         console.log('Error restoring session:', e);
+      } finally {
+        setIsLoading(false);
       }
     };
     restoreSession();
   }, [dispatch]);
 
-  const login = async (userData: UserModel, token: string) => {
+  const login = useCallback(async (userData: UserModel, token: string) => {
     const effectiveToken =
       token ||
       (userData as any)?.api_token ||
@@ -70,22 +75,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await storageService.setItem(AppConstants.storageKeys.uid, uidValue);
     }
     dispatch(setCredentials({ user: userData, token: effectiveToken }));
-  };
+  }, [dispatch]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     await storageService.removeItem(AppConstants.storageKeys.token);
     await storageService.removeItem(AppConstants.storageKeys.userData);
     await storageService.removeItem(AppConstants.storageKeys.uid);
     dispatch(logoutAction());
-  };
+  }, [dispatch]);
 
-  const updateUser = async (userData: UserModel) => {
+  const updateUser = useCallback(async (userData: UserModel) => {
     await storageService.setItem(AppConstants.storageKeys.userData, userData);
     dispatch(updateUserAction(userData));
-  };
+  }, [dispatch]);
+
+  const value = useMemo(
+    () => ({ isAuthenticated, isLoading, user, login, logout, updateUser }),
+    [isAuthenticated, isLoading, user, login, logout, updateUser]
+  );
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, updateUser }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

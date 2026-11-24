@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Colors } from '../../constants';
@@ -13,7 +13,7 @@ interface StarRatingProps {
   onRatingChange?: (rating: number) => void;
 }
 
-export const StarRating: React.FC<StarRatingProps> = ({
+export const StarRating: React.FC<StarRatingProps> = memo(({
   rating = 0,
   maxStars = 5,
   size = 16,
@@ -54,7 +54,7 @@ export const StarRating: React.FC<StarRatingProps> = ({
   }
 
   return <View style={styles.container}>{stars}</View>;
-};
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -1,7 +1,7 @@
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking } from 'react-native';
 import { AppConstants } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
@@ -120,7 +120,7 @@ export const useDoctorDetails = () => {
     }
   }, [consultationModes, selectedMode]);
 
-  const handleOpenUrl = async (url: string) => {
+  const handleOpenUrl = useCallback(async (url: string) => {
     try {
       const supported = await Linking.canOpenURL(url);
       if (supported) {
@@ -131,12 +131,12 @@ export const useDoctorDetails = () => {
     } catch {
       showToast('Action could not be completed');
     }
-  };
+  }, []);
 
-  const handleOpenDirections = (addressQuery: string) => {
+  const handleOpenDirections = useCallback((addressQuery: string) => {
     const query = encodeURIComponent(addressQuery);
     handleOpenUrl(`https://www.google.com/maps/search/?api=1&query=${query}`);
-  };
+  }, [handleOpenUrl]);
 
   const fullName = doctor ? formatDoctorName(doctor.f_name, doctor.l_name) : '';
   const reviewCountText = `${rating > 0 ? rating.toFixed(1) : '0.0'} (${reviewCount} ${reviewCount === 1 ? 'Review' : 'Reviews'})`;
@@ -157,7 +157,7 @@ export const useDoctorDetails = () => {
   const expValue = doctor ? (doctor.ex_year ?? doctor.experience) : undefined;
   const patientsCount = doctor ? (doctor.total_appointment_done ?? (doctor as any).patients_served) : undefined;
 
-  const handleBookNow = () => {
+  const handleBookNow = useCallback(() => {
     if (!isAuthenticated) {
       showToast('Please log in to book a consultation');
       navigation.navigate('Login');
@@ -171,7 +171,7 @@ export const useDoctorDetails = () => {
       isReschedule,
       rescheduledFromAppId,
     });
-  };
+  }, [isAuthenticated, navigation, doctor, doctId, selectedMode, isReschedule, rescheduledFromAppId]);
 
   return {
     navigation,

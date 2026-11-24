@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../../constants';
 import { fs, hs, ws } from '../../../utils/metrics';
@@ -11,7 +11,7 @@ interface Props {
   onPress: () => void;
 }
 
-export const PatientSelectionCard: React.FC<Props> = ({
+export const PatientSelectionCard: React.FC<Props> = memo(({
   patientDisplayName,
   hasSelectedMember,
   onPress,
@@ -31,7 +31,7 @@ export const PatientSelectionCard: React.FC<Props> = ({
       <MaterialIcons name="chevron-right" size={ws(18)} color={Colors.slate_94A3B8} />
     </TouchableOpacity>
   );
-};
+});
 
 const styles = StyleSheet.create({
   patientSelectorCard: {

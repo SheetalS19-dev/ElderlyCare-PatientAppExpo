@@ -40,6 +40,7 @@ import {
   isWithinLast7Days,
   matchCityFromList,
   showToast,
+  sortAppointmentsDescending,
 } from '../../utils';
 import type { ActivePatientInfo } from './components/HomePatientDashboard';
 
@@ -285,10 +286,11 @@ export const useHome = () => {
   );
 
   const appointmentsList = useMemo(() => {
-    if (Array.isArray(rawAppointmentsData)) return rawAppointmentsData;
-    if (Array.isArray((rawAppointmentsData as any)?.data)) return (rawAppointmentsData as any).data;
-    if (Array.isArray((rawAppointmentsData as any)?.response)) return (rawAppointmentsData as any).response;
-    return [];
+    let list: any[] = [];
+    if (Array.isArray(rawAppointmentsData)) list = rawAppointmentsData;
+    else if (Array.isArray((rawAppointmentsData as any)?.data)) list = (rawAppointmentsData as any).data;
+    else if (Array.isArray((rawAppointmentsData as any)?.response)) list = (rawAppointmentsData as any).response;
+    return sortAppointmentsDescending(list);
   }, [rawAppointmentsData]);
 
   const patientAppointments = useMemo(() => {
@@ -431,10 +433,12 @@ export const useHome = () => {
   const [diastolic, setDiastolic] = useState('');
   const [value, setValue] = useState('');
   const [sugarRandom, setSugarRandom] = useState('');
+  const [editVitalErrors, setEditVitalErrors] = useState<Record<string, string>>({});
 
   const [updateVital, { isLoading: isUpdating }] = useUpdateVitalMutation();
 
   const openEditModal = (item: any, vitalType: string) => {
+    setEditVitalErrors({});
     setEditingVitalItem(item);
     setEditingVitalType(vitalType);
     const dateVal = item.date ? item.date.split('T')[0] : (item.created_at ? item.created_at.split('T')[0] : new Date().toISOString().split('T')[0]);
@@ -470,60 +474,71 @@ export const useHome = () => {
       time: selectedTime,
     };
 
+    const errors: Record<string, string> = {};
+
     if (editingVitalType === 'Blood Pressure') {
-      if (!systolic.trim() || !diastolic.trim()) {
-        showToast('Enter Systolic and Diastolic values');
-        return;
+      if (!systolic.trim()) {
+        errors.systolic = 'Systolic value is required';
       }
-      payload.bp_systolic = systolic;
-      payload.bp_diastolic = diastolic;
+      if (!diastolic.trim()) {
+        errors.diastolic = 'Diastolic value is required';
+      }
+      payload.bp_systolic = systolic.trim();
+      payload.bp_diastolic = diastolic.trim();
     } else if (editingVitalType === 'Sugar') {
       if (!value.trim()) {
-        showToast('Fasting sugar reading is required');
-        return;
-      }
-      const fastingNum = parseFloat(value.trim());
-      if (isNaN(fastingNum) || fastingNum < 20 || fastingNum > 1000) {
-        showToast('Fasting sugar must be between 20 and 1000 mg/dL');
-        return;
+        errors.value = 'Fasting sugar reading is required';
+      } else {
+        const fastingNum = parseFloat(value.trim());
+        if (isNaN(fastingNum) || fastingNum < 20 || fastingNum > 1000) {
+          errors.value = 'Fasting sugar must be between 20 and 1000 mg/dL';
+        }
       }
 
       if (!sugarRandom.trim()) {
-        showToast('Random sugar reading is required');
-        return;
-      }
-      const randomNum = parseFloat(sugarRandom.trim());
-      if (isNaN(randomNum) || randomNum < 20 || randomNum > 1000) {
-        showToast('Random sugar must be between 20 and 1000 mg/dL');
-        return;
+        errors.sugarRandom = 'Random sugar reading is required';
+      } else {
+        const randomNum = parseFloat(sugarRandom.trim());
+        if (isNaN(randomNum) || randomNum < 20 || randomNum > 1000) {
+          errors.sugarRandom = 'Random sugar must be between 20 and 1000 mg/dL';
+        }
       }
 
       payload.sugar_fasting = value.trim();
       payload.sugar_random = sugarRandom.trim();
     } else if (editingVitalType === 'Weight') {
       if (!value.trim()) {
-        showToast('Enter Weight reading');
-        return;
+        errors.value = 'Enter Weight reading';
       }
-      payload.weight = value;
+      payload.weight = value.trim();
     } else if (editingVitalType === 'Temperature') {
       if (!value.trim()) {
-        showToast('Enter Temperature reading');
-        return;
-      }
-      const t = parseFloat(value.trim());
-      if (isNaN(t) || t < 25.0 || t > 45.0) {
-        showToast('Temperature must be between 25.0 and 45.0 °C');
-        return;
+        errors.value = 'Enter Temperature reading';
+      } else {
+        const t = parseFloat(value.trim());
+        if (isNaN(t) || t < 25.0 || t > 45.0) {
+          errors.value = 'Temperature must be between 25.0 and 45.0 °C';
+        }
       }
       payload.temperature = value.trim();
     } else if (editingVitalType === 'SpO2') {
       if (!value.trim()) {
-        showToast('Enter SpO2 reading');
-        return;
+        errors.value = 'Enter SpO2 reading';
+      } else {
+        const s = parseFloat(value.trim());
+        if (isNaN(s) || s < 70 || s > 100) {
+          errors.value = 'SpO2 must be between 70% and 100%';
+        }
       }
-      payload.spo2 = value;
+      payload.spo2 = value.trim();
     }
+
+    if (Object.keys(errors).length > 0) {
+      setEditVitalErrors(errors);
+      return;
+    }
+
+    setEditVitalErrors({});
 
     try {
       const res = await updateVital(payload).unwrap();
@@ -536,10 +551,10 @@ export const useHome = () => {
         refetchSpo2();
         setShowEditModal(false);
       } else {
-        showToast(formatVitalErrorMessage(res?.message || 'Failed to update vital'));
+        setEditVitalErrors({ general: formatVitalErrorMessage(res?.message || 'Failed to update vital') });
       }
     } catch (err: any) {
-      showToast(formatVitalErrorMessage(err));
+      setEditVitalErrors({ general: formatVitalErrorMessage(err) });
     }
   };
 
@@ -866,5 +881,7 @@ export const useHome = () => {
     openEditModal,
     handleUpdateVitalSubmit,
     isUpdating,
+    editVitalErrors,
+    setEditVitalErrors,
   };
 };

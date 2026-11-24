@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import {
   ActivityIndicator,
   DimensionValue,
@@ -27,7 +27,7 @@ export interface AppButtonProps {
   textStyle?: TextStyle;
 }
 
-export const AppButton: React.FC<AppButtonProps> = ({
+export const AppButton: React.FC<AppButtonProps> = memo(({
   title,
   onPress,
   loading = false,
@@ -79,7 +79,7 @@ export const AppButton: React.FC<AppButtonProps> = ({
       )}
     </TouchableOpacity>
   );
-};
+});
 
 const styles = StyleSheet.create({
   button: {

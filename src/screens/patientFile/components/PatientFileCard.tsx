@@ -15,7 +15,7 @@ interface Props {
   onDownload: () => void;
 }
 
-export const PatientFileCard: React.FC<Props> = ({
+export const PatientFileCard: React.FC<Props> = React.memo(({
   item,
   patientInfo,
   dateStr,
@@ -81,7 +81,7 @@ export const PatientFileCard: React.FC<Props> = ({
       </View>
     </AppCard>
   );
-};
+});
 
 const styles = StyleSheet.create({
   fileCard: {

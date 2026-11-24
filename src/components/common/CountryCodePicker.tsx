@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React, { useMemo, useState } from 'react';
+import React, { memo, useMemo, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants';
 import { fs, hs, ws } from '../../utils/metrics';
 import { TYPOGRAPHY } from '../../utils/typography';
+import { FIELD_LIMITS } from '../../validation';
 
 export interface CountryCodeItem {
   name: string;
@@ -74,7 +75,7 @@ export interface CountryCodePickerProps {
   onClose: () => void;
 }
 
-export const CountryCodePicker: React.FC<CountryCodePickerProps> = ({
+export const CountryCodePicker: React.FC<CountryCodePickerProps> = memo(({
   visible,
   selectedDialCode = '+91',
   onSelect,
@@ -126,6 +127,7 @@ export const CountryCodePicker: React.FC<CountryCodePickerProps> = ({
               value={search}
               onChangeText={setSearch}
               autoCorrect={false}
+              maxLength={FIELD_LIMITS.SEARCH_MAX}
             />
             {search.length > 0 && (
               <TouchableOpacity onPress={() => setSearch('')}>
@@ -170,7 +172,7 @@ export const CountryCodePicker: React.FC<CountryCodePickerProps> = ({
       </KeyboardAvoidingView>
     </Modal>
   );
-};
+});
 
 const styles = StyleSheet.create({
   overlay: {

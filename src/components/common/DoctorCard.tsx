@@ -1,5 +1,5 @@
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { memo, useState } from 'react';
 import {
   Image,
   StyleSheet,
@@ -21,7 +21,7 @@ interface DoctorCardProps {
   onBookPress?: () => void;
 }
 
-export const DoctorCard: React.FC<DoctorCardProps> = ({
+export const DoctorCard: React.FC<DoctorCardProps> = memo(({
   doctor,
   variant = 'list',
   onPress,
@@ -233,7 +233,7 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
       </View>
     </TouchableOpacity>
   );
-};
+});
 
 const styles = StyleSheet.create({
   card: {

@@ -26,7 +26,7 @@ export const getVitalIconInfo = (vitalName: string): VitalIconInfo => {
     case 'Sugar':
       return { icon: 'opacity', color: Colors.purple_8B5CF6, bg: Colors.purple_EDE9FE };
     case 'Weight':
-      return { icon: 'fitness-center', color: Colors.primaryColor, bg: Colors.aquaSoft };
+      return { icon: 'fitness-center', color: Colors.green_10B981, bg: Colors.green_ECFDF5 };
     case 'Temperature':
       return { icon: 'thermostat', color: Colors.amber_D97706, bg: Colors.amber_FEF3C7 };
     case 'SpO2':
@@ -99,25 +99,25 @@ export const getVitalStatus = (vitalName: string, item?: VitalModel | null): Vit
         color: Colors.slate_64748B,
         bgColor: Colors.slate_F1F5F9,
         icon: 'info-outline',
-        normalRangeText: 'Normal range: 36.1 – 37.5 °C',
+        normalRangeText: 'Normal: 36.1 – 37.2 °C',
       };
     }
     if (temp < 36.1) {
       return {
-        label: 'Below Normal',
-        color: Colors.redColor,
-        bgColor: Colors.red_FEE2E2,
+        label: 'Low Temp',
+        color: Colors.amber_D97706,
+        bgColor: Colors.amber_FEF3C7,
         icon: 'error-outline',
-        normalRangeText: 'Normal range: 36.1 – 37.5 °C',
+        normalRangeText: 'Low: <36.1 °C (Normal: 36.1 – 37.2 °C)',
       };
     }
-    if (temp <= 37.5) {
+    if (temp <= 37.2) {
       return {
         label: 'Normal',
         color: Colors.green_059669,
         bgColor: Colors.green_ECFDF5,
         icon: 'check-circle-outline',
-        normalRangeText: 'Normal range: 36.1 – 37.5 °C',
+        normalRangeText: 'Normal: 36.1 – 37.2 °C',
       };
     }
     if (temp <= 38.0) {
@@ -126,7 +126,7 @@ export const getVitalStatus = (vitalName: string, item?: VitalModel | null): Vit
         color: Colors.amber_D97706,
         bgColor: Colors.amber_FEF3C7,
         icon: 'warning-amber',
-        normalRangeText: 'Normal range: 36.1 – 37.5 °C',
+        normalRangeText: 'Low Fever: 37.3 – 38.0 °C (Normal: 36.1 – 37.2 °C)',
       };
     }
     return {
@@ -134,7 +134,7 @@ export const getVitalStatus = (vitalName: string, item?: VitalModel | null): Vit
       color: Colors.redColor,
       bgColor: Colors.red_FEE2E2,
       icon: 'error-outline',
-      normalRangeText: 'Normal range: 36.1 – 37.5 °C',
+      normalRangeText: 'High Fever: >38.0 °C (Normal: 36.1 – 37.2 °C)',
     };
   }
 
@@ -147,7 +147,7 @@ export const getVitalStatus = (vitalName: string, item?: VitalModel | null): Vit
         color: Colors.slate_64748B,
         bgColor: Colors.slate_F1F5F9,
         icon: 'info-outline',
-        normalRangeText: 'Normal: <120 / <80 mmHg',
+        normalRangeText: 'Normal: 90–120 / 60–80 mmHg',
       };
     }
     if (sys < 90 || dia < 60) {
@@ -156,7 +156,7 @@ export const getVitalStatus = (vitalName: string, item?: VitalModel | null): Vit
         color: Colors.amber_D97706,
         bgColor: Colors.amber_FEF3C7,
         icon: 'warning-amber',
-        normalRangeText: 'Normal: <120 / <80 mmHg',
+        normalRangeText: 'Low BP: <90 / <60 mmHg (Normal: 90–120 / 60–80 mmHg)',
       };
     }
     if (sys < 120 && dia < 80) {
@@ -165,7 +165,7 @@ export const getVitalStatus = (vitalName: string, item?: VitalModel | null): Vit
         color: Colors.green_059669,
         bgColor: Colors.green_ECFDF5,
         icon: 'check-circle-outline',
-        normalRangeText: 'Normal: <120 / <80 mmHg',
+        normalRangeText: 'Normal: 90–120 / 60–80 mmHg',
       };
     }
     if (sys <= 129 && dia < 80) {
@@ -174,24 +174,33 @@ export const getVitalStatus = (vitalName: string, item?: VitalModel | null): Vit
         color: Colors.amber_D97706,
         bgColor: Colors.amber_FEF3C7,
         icon: 'warning-amber',
-        normalRangeText: 'Normal: <120 / <80 mmHg',
+        normalRangeText: 'Elevated: 120–129 / <80 mmHg (Normal: <120 / <80 mmHg)',
       };
     }
-    if (sys <= 139 || dia <= 89) {
+    if (sys >= 180 || dia >= 120) {
       return {
-        label: 'Stage 1 HTN',
-        color: Colors.orange_F96335,
-        bgColor: Colors.orange_FFE3D3,
-        icon: 'warning-amber',
-        normalRangeText: 'Normal: <120 / <80 mmHg',
+        label: 'Critical High BP',
+        color: Colors.redColor,
+        bgColor: Colors.red_FEE2E2,
+        icon: 'error-outline',
+        normalRangeText: 'Critical High BP: >180 / >120 mmHg (Normal: <120 / <80 mmHg)',
+      };
+    }
+    if (sys >= 140 || dia >= 90) {
+      return {
+        label: 'Stage 2 High BP',
+        color: Colors.redColor,
+        bgColor: Colors.red_FEE2E2,
+        icon: 'error-outline',
+        normalRangeText: 'Stage 2 High BP: ≥140 / ≥90 mmHg (Normal: <120 / <80 mmHg)',
       };
     }
     return {
-      label: 'Stage 2 HTN',
-      color: Colors.redColor,
-      bgColor: Colors.red_FEE2E2,
-      icon: 'error-outline',
-      normalRangeText: 'Normal: <120 / <80 mmHg',
+      label: 'Stage 1 High BP',
+      color: Colors.orange_F96335,
+      bgColor: Colors.orange_FFE3D3,
+      icon: 'warning-amber',
+      normalRangeText: 'Stage 1 High BP: 130–139 / 80–89 mmHg (Normal: <120 / <80 mmHg)',
     };
   }
 
@@ -212,11 +221,11 @@ export const getVitalStatus = (vitalName: string, item?: VitalModel | null): Vit
     }
     if (val < 70) {
       return {
-        label: 'Low (Hypo)',
+        label: 'Low Sugar',
         color: Colors.redColor,
         bgColor: Colors.red_FEE2E2,
         icon: 'error-outline',
-        normalRangeText: isFasting ? 'Fasting Normal Range: 70–99 mg/dL' : 'Random Normal Range: 70–140 mg/dL',
+        normalRangeText: isFasting ? 'Low Fasting: <70 mg/dL (Normal: 70–99 mg/dL)' : 'Low Random: <70 mg/dL (Normal: 70–140 mg/dL)',
       };
     }
     const normalMax = isFasting ? 99 : 140;
@@ -227,7 +236,7 @@ export const getVitalStatus = (vitalName: string, item?: VitalModel | null): Vit
         color: Colors.green_059669,
         bgColor: Colors.green_ECFDF5,
         icon: 'check-circle-outline',
-        normalRangeText: isFasting ? 'Fasting Normal Range: 70–99 mg/dL' : 'Random Normal Range: 70–140 mg/dL',
+        normalRangeText: isFasting ? 'Normal Fasting: 70–99 mg/dL' : 'Normal Random: 70–140 mg/dL',
       };
     }
     if (val <= preMax) {
@@ -236,15 +245,15 @@ export const getVitalStatus = (vitalName: string, item?: VitalModel | null): Vit
         color: Colors.amber_D97706,
         bgColor: Colors.amber_FEF3C7,
         icon: 'warning-amber',
-        normalRangeText: isFasting ? 'Fasting Normal Range: 70–99 mg/dL' : 'Random Normal Range: 70–140 mg/dL',
+        normalRangeText: isFasting ? 'Elevated Fasting: 100–125 mg/dL (Normal: 70–99 mg/dL)' : 'Elevated Random: 141–199 mg/dL (Normal: 70–140 mg/dL)',
       };
     }
     return {
-      label: 'High (Hyper)',
+      label: 'High Sugar',
       color: Colors.redColor,
       bgColor: Colors.red_FEE2E2,
       icon: 'error-outline',
-      normalRangeText: isFasting ? 'Fasting Normal Range: 70–99 mg/dL' : 'Random Normal Range: 70–140 mg/dL',
+      normalRangeText: isFasting ? 'High Fasting: ≥126 mg/dL (Normal: 70–99 mg/dL)' : 'High Random: ≥200 mg/dL (Normal: 70–140 mg/dL)',
     };
   }
 
@@ -270,19 +279,19 @@ export const getVitalStatus = (vitalName: string, item?: VitalModel | null): Vit
     }
     if (spo2 >= 90) {
       return {
-        label: 'Low',
+        label: 'Low Oxygen',
         color: Colors.amber_D97706,
         bgColor: Colors.amber_FEF3C7,
         icon: 'warning-amber',
-        normalRangeText: 'Normal: 95 – 100 %',
+        normalRangeText: 'Low Oxygen: 90 – 94 % (Normal: 95 – 100 %)',
       };
     }
     return {
-      label: 'Critical',
+      label: 'Critical Low',
       color: Colors.redColor,
       bgColor: Colors.red_FEE2E2,
       icon: 'error-outline',
-      normalRangeText: 'Normal: 95 – 100 %',
+      normalRangeText: 'Critical Low Oxygen: <90 % (Normal: 95 – 100 %)',
     };
   }
 

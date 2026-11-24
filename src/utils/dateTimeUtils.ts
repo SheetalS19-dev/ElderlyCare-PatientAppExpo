@@ -267,7 +267,117 @@ export class DateTimeUtils {
   static isWithinLast7Days(dateStr?: string | null): boolean {
     return isWithinLast7Days(dateStr);
   }
+
+  static getAppointmentCreatedTimestamp(item: any): number {
+    return getAppointmentCreatedTimestamp(item);
+  }
+
+  static sortAppointmentsDescending<T extends Record<string, any>>(list: T[]): T[] {
+    return sortAppointmentsDescending(list);
+  }
 }
+
+/**
+ * Safely parses any appointment created/event date string into epoch milliseconds.
+ * Supports "YYYY-MM-DD HH:mm:ss", ISO 8601 strings, and date parts.
+ */
+export const parseAppointmentCreatedDate = (raw?: string | null): number => {
+  if (!raw) return 0;
+  const str = String(raw).trim();
+  if (!str) return 0;
+
+  // 1. Direct parse attempt
+  let d = new Date(str);
+  if (!isNaN(d.getTime())) return d.getTime();
+
+  // 2. Replace space with 'T' (e.g. "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DDTHH:mm:ss")
+  if (str.includes(' ') && !str.includes('T')) {
+    d = new Date(str.replace(' ', 'T'));
+    if (!isNaN(d.getTime())) return d.getTime();
+  }
+
+  // 3. Try splitting "YYYY-MM-DD" or "DD/MM/YYYY" or "YYYY/MM/DD"
+  const clean = str.split('T')[0].split(' ')[0];
+  const sep = clean.includes('-') ? '-' : clean.includes('/') ? '/' : '';
+  if (sep) {
+    const parts = clean.split(sep);
+    if (parts.length === 3) {
+      if (parts[0].length === 4) {
+        // YYYY-MM-DD
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        d = new Date(y, m, day);
+        if (!isNaN(d.getTime())) return d.getTime();
+      } else if (parts[2].length === 4) {
+        // DD-MM-YYYY
+        const y = parseInt(parts[2], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[0], 10);
+        d = new Date(y, m, day);
+        if (!isNaN(d.getTime())) return d.getTime();
+      }
+    }
+  }
+
+  return 0;
+};
+
+/**
+ * Extracts a numeric timestamp for an appointment to sort by creation date descending.
+ * Uses created_at as primary, falling back to appointment date/time and numeric ID.
+ */
+export const getAppointmentCreatedTimestamp = (item: any): number => {
+  if (!item) return 0;
+
+  // 1. Primary: created_at / createdAt / created
+  const rawCreated = item.created_at || item.createdAt || item.created;
+  const createdTime = parseAppointmentCreatedDate(rawCreated);
+  if (createdTime > 0) return createdTime;
+
+  // 2. Fallback: appointment date (date / appointment_date / appointmentDate) + time slot
+  const rawDate = item.date || item.appointment_date || item.appointmentDate;
+  if (rawDate) {
+    const dateStr = item.time_slots ? `${rawDate} ${item.time_slots}` : rawDate;
+    const apptDateTime = parseAppointmentCreatedDate(dateStr) || parseAppointmentCreatedDate(rawDate);
+    if (apptDateTime > 0) return apptDateTime;
+  }
+
+  // 3. Fallback: updated_at / updatedAt
+  const rawUpdated = item.updated_at || item.updatedAt;
+  const updatedTime = parseAppointmentCreatedDate(rawUpdated);
+  if (updatedTime > 0) return updatedTime;
+
+  // 4. Fallback: Numeric ID (higher ID is created later)
+  const numId = Number(item.id);
+  if (!isNaN(numId) && numId > 0) return numId;
+
+  return 0;
+};
+
+/**
+ * Sorts appointments chronologically in descending order based on created date (newest first).
+ * Uses created_at with appointment date and numeric ID tie-breakers.
+ */
+export const sortAppointmentsDescending = <T extends Record<string, any>>(list: T[]): T[] => {
+  if (!Array.isArray(list)) return [];
+  return [...list].sort((a, b) => {
+    const tB = getAppointmentCreatedTimestamp(b);
+    const tA = getAppointmentCreatedTimestamp(a);
+    if (tB !== tA) {
+      return tB - tA;
+    }
+
+    // Secondary tie-breaker: numeric ID descending
+    const idB = Number(b?.id);
+    const idA = Number(a?.id);
+    if (!isNaN(idB) && !isNaN(idA) && idB !== idA) {
+      return idB - idA;
+    }
+
+    return String(b?.id ?? '').localeCompare(String(a?.id ?? ''), undefined, { numeric: true });
+  });
+};
 
 export const DateFormatUtils = DateTimeUtils;
 export const dateFormatUtil = DateTimeUtils;

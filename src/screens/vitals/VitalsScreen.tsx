@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -11,15 +11,55 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppHeader, GradientFill } from '../../components';
 import { Colors } from '../../constants';
 import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
+import type { VitalCategory } from './useVitals';
 import { useVitals } from './useVitals';
+
+const VitalCategoryCard = memo(({
+  item,
+  onPress,
+}: {
+  item: VitalCategory;
+  onPress: (name: string) => void;
+}) => (
+  <TouchableOpacity
+    activeOpacity={0.85}
+    style={styles.vitalCard}
+    onPress={() => onPress(item.name)}
+  >
+    <View style={[styles.iconBox, { backgroundColor: item.bgColor }]}>
+      <MaterialIcons name={item.icon} size={28} color={item.color} />
+    </View>
+
+    <View style={styles.vitalInfo}>
+      <View style={styles.vitalTopRow}>
+        <Text style={styles.vitalName}>{item.name}</Text>
+        <View style={[styles.unitPill, { backgroundColor: item.bgColor }]}>
+          <Text style={[styles.unitText, { color: item.color }]}>{item.unit}</Text>
+        </View>
+      </View>
+
+      <Text style={styles.vitalSubtitle}>{item.subtitle}</Text>
+
+      <View style={styles.idealRow}>
+        <MaterialIcons name="info-outline" size={12} color={Colors.secondaryFontColor} />
+        <Text style={styles.idealText}>Normal Range: {item.idealRange}</Text>
+      </View>
+    </View>
+
+    <View style={styles.arrowCircle}>
+      <MaterialIcons name="chevron-right" size={20} color={Colors.primaryColor} />
+    </View>
+  </TouchableOpacity>
+));
 
 export const VitalsScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { navigation, vitalCategories, handleVitalPress } = useVitals();
+  const handleBackPress = useCallback(() => navigation.goBack(), [navigation]);
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Health Vitals Tracker" onBackPress={() => navigation.goBack()} />
+      <AppHeader title="Health Vitals Tracker" onBackPress={handleBackPress} />
 
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 20, 30) }]}
@@ -49,36 +89,11 @@ export const VitalsScreen: React.FC = () => {
 
         {/* Vitals Grid / List */}
         {vitalCategories.map((item) => (
-          <TouchableOpacity
+          <VitalCategoryCard
             key={item.name}
-            activeOpacity={0.85}
-            style={styles.vitalCard}
-            onPress={() => handleVitalPress(item.name)}
-          >
-            <View style={[styles.iconBox, { backgroundColor: item.bgColor }]}>
-              <MaterialIcons name={item.icon} size={28} color={item.color} />
-            </View>
-
-            <View style={styles.vitalInfo}>
-              <View style={styles.vitalTopRow}>
-                <Text style={styles.vitalName}>{item.name}</Text>
-                <View style={[styles.unitPill, { backgroundColor: item.bgColor }]}>
-                  <Text style={[styles.unitText, { color: item.color }]}>{item.unit}</Text>
-                </View>
-              </View>
-
-              <Text style={styles.vitalSubtitle}>{item.subtitle}</Text>
-
-              <View style={styles.idealRow}>
-                <MaterialIcons name="info-outline" size={12} color={Colors.secondaryFontColor} />
-                <Text style={styles.idealText}>Normal Range: {item.idealRange}</Text>
-              </View>
-            </View>
-
-            <View style={styles.arrowCircle}>
-              <MaterialIcons name="chevron-right" size={20} color={Colors.primaryColor} />
-            </View>
-          </TouchableOpacity>
+            item={item}
+            onPress={handleVitalPress}
+          />
         ))}
       </ScrollView>
     </View>

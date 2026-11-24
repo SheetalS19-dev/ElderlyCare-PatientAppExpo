@@ -14,7 +14,7 @@ interface Props {
   onDelete: (vital: VitalModel) => void;
 }
 
-export const VitalHistoryRow: React.FC<Props> = ({
+const VitalHistoryRowComponent: React.FC<Props> = ({
   vital,
   vitalName,
   onEdit,
@@ -72,6 +72,8 @@ export const VitalHistoryRow: React.FC<Props> = ({
     </View>
   );
 };
+
+export const VitalHistoryRow = React.memo(VitalHistoryRowComponent);
 
 const styles = StyleSheet.create({
   card: {

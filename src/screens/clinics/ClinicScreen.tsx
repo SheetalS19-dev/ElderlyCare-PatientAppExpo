@@ -97,160 +97,209 @@ export const ClinicScreen: React.FC = () => {
                 </View>
               )} */}
               <Text style={styles.clinicTitle}>{clinic.title}</Text>
-              {!!clinic.address && (
-                <View style={styles.addressRow}>
-                  <MaterialIcons
-                    name="location-on"
-                    size={fs(14)}
-                    color={Colors.primaryColor}
-                    style={{ marginTop: hs(2) }}
-                  />
-                  <Text style={styles.clinicAddress}>{clinic.address}</Text>
-                </View>
-              )}
+              <View style={styles.addressRow}>
+                <MaterialIcons
+                  name="location-on"
+                  size={fs(14)}
+                  color={clinic.address ? Colors.primaryColor : Colors.secondaryFontColor}
+                  style={{ marginTop: hs(2) }}
+                />
+                <Text
+                  style={[
+                    styles.clinicAddress,
+                    !clinic.address && { color: Colors.secondaryFontColor, fontStyle: 'italic' },
+                  ]}
+                >
+                  {clinic.address || 'Address not available'}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
 
-        {/* Connect & Directions */}
-        {hasAnyContact && (
-          <View style={styles.card}>
-            <Text style={styles.sectionHeaderTitle}>Connect & Directions</Text>
-            <View style={styles.actionGridRow}>
-              {/* Call Button */}
-              {!!cleanPhone && (
-                <TouchableOpacity
-                  style={styles.actionGridItem}
-                  onPress={() => handleOpenUrl(`tel:${cleanPhone}`)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.iconCircle, { backgroundColor: Colors.aquaSoft }]}>
-                    <Ionicons name="call" size={fs(18)} color={Colors.primaryColor} />
-                  </View>
-                  <Text style={styles.actionLabel}>Call</Text>
-                  <Text style={styles.actionSubtext} numberOfLines={1}>
-                    {cleanPhone}
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {/* WhatsApp Button */}
-              {!!cleanWa && (
-                <TouchableOpacity
-                  style={styles.actionGridItem}
-                  onPress={() =>
-                    handleOpenUrl(
-                      `https://wa.me/${cleanWa}?text=Hello%20${encodeURIComponent(
-                        clinic.title || 'Hospital'
-                      )}`
-                    )
-                  }
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.iconCircle, { backgroundColor: Colors.green_ECFDF5 }]}>
-                    <Ionicons name="logo-whatsapp" size={fs(18)} color={Colors.green_10B981} />
-                  </View>
-                  <Text style={styles.actionLabel}>WhatsApp</Text>
-                  <Text style={styles.actionSubtext} numberOfLines={1}>
-                    Chat with us
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {/* Email Button */}
-              {!!cleanEmail && (
-                <TouchableOpacity
-                  style={styles.actionGridItem}
-                  onPress={() =>
-                    handleOpenUrl(
-                      `mailto:${cleanEmail}?subject=Inquiry%20regarding%20${encodeURIComponent(
-                        clinic.title || ''
-                      )}`
-                    )
-                  }
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.iconCircle, { backgroundColor: Colors.aquaSoft }]}>
-                    <Ionicons name="mail" size={fs(18)} color={Colors.primaryColor} />
-                  </View>
-                  <Text style={styles.actionLabel}>Email</Text>
-                  <Text style={styles.actionSubtext} numberOfLines={1}>
-                    Official Email
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {/* Get Directions Button */}
-              {hasDirections && (
-                <TouchableOpacity
-                  style={styles.actionGridItem}
-                  onPress={handleOpenDirections}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.iconCircle, { backgroundColor: Colors.purple_F3E8FF }]}>
-                    <Ionicons name="navigate" size={fs(18)} color={Colors.purple_9333EA} />
-                  </View>
-                  <Text style={styles.actionLabel}>Directions</Text>
-                  <Text style={styles.actionSubtext} numberOfLines={1}>
-                    Open in Maps
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        )}
-
-        {/* About Center with Read More Option */}
-        {!!clinic.description && (
-          <View style={styles.card}>
-            <View style={styles.aboutHeaderRow}>
-              <View style={styles.accordionTitleRow}>
-                <MaterialIcons name="info-outline" size={fs(18)} color={Colors.primaryColor} />
-                <Text style={styles.sectionHeaderTitleNoMargin}>About Center</Text>
-              </View>
-            </View>
-
-            <Text
-              style={styles.descriptionText}
-              numberOfLines={descReadMore ? undefined : 3}
-            >
-              {clinic.description}
-            </Text>
-
-            {clinic.description.length > 120 && (
+        {/* Connect & Directions - Always shown for layout consistency */}
+        <View style={styles.card}>
+          <Text style={styles.sectionHeaderTitle}>Connect & Directions</Text>
+          <View style={styles.actionGridRow}>
+            {/* Call Button */}
+            {cleanPhone ? (
               <TouchableOpacity
-                style={styles.readMoreBtn}
-                onPress={() => setDescReadMore((prev) => !prev)}
+                style={styles.actionGridItem}
+                onPress={() => handleOpenUrl(`tel:${cleanPhone}`)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.readMoreText}>
-                  {descReadMore ? 'Read Less' : 'Read More >'}
+                <View style={[styles.iconCircle, { backgroundColor: Colors.aquaSoft }]}>
+                  <Ionicons name="call" size={fs(18)} color={Colors.primaryColor} />
+                </View>
+                <Text style={styles.actionLabel}>Call</Text>
+                <Text style={styles.actionSubtext} numberOfLines={1}>
+                  {cleanPhone}
                 </Text>
               </TouchableOpacity>
+            ) : (
+              <View style={[styles.actionGridItem, { opacity: 0.55 }]}>
+                <View style={[styles.iconCircle, { backgroundColor: Colors.slate_F1F5F9 }]}>
+                  <Ionicons name="call-outline" size={fs(18)} color={Colors.slate_64748B} />
+                </View>
+                <Text style={styles.actionLabel}>Call</Text>
+                <Text style={styles.actionSubtext} numberOfLines={1}>
+                  Not available
+                </Text>
+              </View>
+            )}
+
+            {/* WhatsApp Button */}
+            {cleanWa ? (
+              <TouchableOpacity
+                style={styles.actionGridItem}
+                onPress={() =>
+                  handleOpenUrl(
+                    `https://wa.me/${cleanWa}?text=Hello%20${encodeURIComponent(
+                      clinic.title || 'Hospital'
+                    )}`
+                  )
+                }
+                activeOpacity={0.7}
+              >
+                <View style={[styles.iconCircle, { backgroundColor: Colors.green_ECFDF5 }]}>
+                  <Ionicons name="logo-whatsapp" size={fs(18)} color={Colors.green_10B981} />
+                </View>
+                <Text style={styles.actionLabel}>WhatsApp</Text>
+                <Text style={styles.actionSubtext} numberOfLines={1}>
+                  Chat with us
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={[styles.actionGridItem, { opacity: 0.55 }]}>
+                <View style={[styles.iconCircle, { backgroundColor: Colors.slate_F1F5F9 }]}>
+                  <Ionicons name="logo-whatsapp" size={fs(18)} color={Colors.slate_64748B} />
+                </View>
+                <Text style={styles.actionLabel}>WhatsApp</Text>
+                <Text style={styles.actionSubtext} numberOfLines={1}>
+                  Not available
+                </Text>
+              </View>
+            )}
+
+            {/* Email Button */}
+            {cleanEmail ? (
+              <TouchableOpacity
+                style={styles.actionGridItem}
+                onPress={() =>
+                  handleOpenUrl(
+                    `mailto:${cleanEmail}?subject=Inquiry%20regarding%20${encodeURIComponent(
+                      clinic.title || ''
+                    )}`
+                  )
+                }
+                activeOpacity={0.7}
+              >
+                <View style={[styles.iconCircle, { backgroundColor: Colors.aquaSoft }]}>
+                  <Ionicons name="mail" size={fs(18)} color={Colors.primaryColor} />
+                </View>
+                <Text style={styles.actionLabel}>Email</Text>
+                <Text style={styles.actionSubtext} numberOfLines={1}>
+                  Official Email
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={[styles.actionGridItem, { opacity: 0.55 }]}>
+                <View style={[styles.iconCircle, { backgroundColor: Colors.slate_F1F5F9 }]}>
+                  <Ionicons name="mail-outline" size={fs(18)} color={Colors.slate_64748B} />
+                </View>
+                <Text style={styles.actionLabel}>Email</Text>
+                <Text style={styles.actionSubtext} numberOfLines={1}>
+                  Not available
+                </Text>
+              </View>
+            )}
+
+            {/* Get Directions Button */}
+            {hasDirections ? (
+              <TouchableOpacity
+                style={styles.actionGridItem}
+                onPress={handleOpenDirections}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.iconCircle, { backgroundColor: Colors.purple_F3E8FF }]}>
+                  <Ionicons name="navigate" size={fs(18)} color={Colors.purple_9333EA} />
+                </View>
+                <Text style={styles.actionLabel}>Directions</Text>
+                <Text style={styles.actionSubtext} numberOfLines={1}>
+                  Open in Maps
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={[styles.actionGridItem, { opacity: 0.55 }]}>
+                <View style={[styles.iconCircle, { backgroundColor: Colors.slate_F1F5F9 }]}>
+                  <Ionicons name="navigate-outline" size={fs(18)} color={Colors.slate_64748B} />
+                </View>
+                <Text style={styles.actionLabel}>Directions</Text>
+                <Text style={styles.actionSubtext} numberOfLines={1}>
+                  Not available
+                </Text>
+              </View>
             )}
           </View>
-        )}
+        </View>
+
+        {/* About Center with Read More Option */}
+        <View style={styles.card}>
+          <View style={styles.aboutHeaderRow}>
+            <View style={styles.accordionTitleRow}>
+              <MaterialIcons name="info-outline" size={fs(18)} color={Colors.primaryColor} />
+              <Text style={styles.sectionHeaderTitleNoMargin}>About Center</Text>
+            </View>
+          </View>
+
+          {clinic.description ? (
+            <>
+              <Text
+                style={styles.descriptionText}
+                numberOfLines={descReadMore ? undefined : 3}
+              >
+                {clinic.description}
+              </Text>
+
+              {clinic.description.length > 120 && (
+                <TouchableOpacity
+                  style={styles.readMoreBtn}
+                  onPress={() => setDescReadMore((prev) => !prev)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.readMoreText}>
+                    {descReadMore ? 'Read Less' : 'Read More >'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
+          ) : (
+            <Text style={[styles.descriptionText, { color: Colors.secondaryFontColor, fontStyle: 'italic' }]}>
+              No description provided for this center.
+            </Text>
+          )}
+        </View>
 
         {/* Operating Hours */}
-        {openingHours.length > 0 && (
-          <View style={styles.card}>
-            <TouchableOpacity
-              style={styles.accordionHeader}
-              onPress={() => setHoursExpanded(!hoursExpanded)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.accordionTitleRow}>
-                <MaterialIcons name="access-time" size={fs(18)} color={Colors.primaryColor} />
-                <Text style={styles.sectionHeaderTitleNoMargin}>Operating Hours</Text>
-              </View>
-              <Ionicons
-                name={hoursExpanded ? 'chevron-up' : 'chevron-down'}
-                size={fs(18)}
-                color={Colors.secondaryFontColor}
-              />
-            </TouchableOpacity>
+        <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.accordionHeader}
+            onPress={() => setHoursExpanded(!hoursExpanded)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.accordionTitleRow}>
+              <MaterialIcons name="access-time" size={fs(18)} color={Colors.primaryColor} />
+              <Text style={styles.sectionHeaderTitleNoMargin}>Operating Hours</Text>
+            </View>
+            <Ionicons
+              name={hoursExpanded ? 'chevron-up' : 'chevron-down'}
+              size={fs(18)}
+              color={Colors.secondaryFontColor}
+            />
+          </TouchableOpacity>
 
-            {hoursExpanded && (
+          {hoursExpanded && (
+            openingHours.length > 0 ? (
               <View style={styles.hoursContainer}>
                 {openingHours.map((item, idx) => (
                   <View key={`hours-${idx}`} style={styles.hourRow}>
@@ -266,9 +315,13 @@ export const ClinicScreen: React.FC = () => {
                   </View>
                 ))}
               </View>
-            )}
-          </View>
-        )}
+            ) : (
+              <Text style={[styles.descriptionText, { color: Colors.secondaryFontColor, fontStyle: 'italic', marginTop: hs(10) }]}>
+                Operating hours not specified. Contact hospital directly for timings.
+              </Text>
+            )
+          )}
+        </View>
 
         {/* Specialist Doctors Section */}
         <View style={styles.card}>
@@ -362,7 +415,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  headerRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  headerRow: { flexDirection: 'row', alignItems: 'center' },
   clinicAvatar: {
     width: ws(64),
     height: ws(64),
@@ -378,7 +431,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: ws(12),
   },
-  headerInfo: { flex: 1 },
+  headerInfo: { flex: 1, justifyContent: 'center', minHeight: ws(64) },
   cityPill: {
     flexDirection: 'row',
     alignItems: 'center',

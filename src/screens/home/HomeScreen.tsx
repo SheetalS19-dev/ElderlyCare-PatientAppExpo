@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   FlatList,
   ScrollView,
@@ -107,7 +107,37 @@ export const HomeScreen: React.FC = () => {
     openEditModal,
     handleUpdateVitalSubmit,
     isUpdating,
+    editVitalErrors,
   } = useHome();
+
+  const handleToggleMemberDropdown = useCallback(() => setShowMemberDropdown((prev) => !prev), [setShowMemberDropdown]);
+  const handleSelectMember = useCallback((id: string) => {
+    setSelectedMemberId(id);
+    setShowMemberDropdown(false);
+  }, [setSelectedMemberId, setShowMemberDropdown]);
+  const handleManageMembers = useCallback(() => navigation.navigate('FamilyMemberList'), [navigation]);
+  const handleBookAppointment = useCallback(() => navigation.navigate('DoctorList', {}), [navigation]);
+  const handleViewAllVitals = useCallback(() => navigation.navigate('Vitals'), [navigation]);
+  const handleNavigateVitalDetails = useCallback((vitalName: string) => {
+    navigation.navigate('VitalDetails', { vitalName, familyMemberId: activeFamilyId });
+  }, [navigation, activeFamilyId]);
+  const handleViewAllAppointments = useCallback(() => navigation.navigate('MyBookings'), [navigation]);
+  const handleViewAllFiles = useCallback(() => navigation.navigate('PatientFile'), [navigation]);
+
+  const doctorKeyExtractor = useCallback((item: DoctorModel, index: number) => `doc-${item.user_id ?? item.id ?? index}`, []);
+  const renderDoctorSpotlight = useCallback(({ item }: { item: DoctorModel }) => (
+    <DoctorSpotlightCard doctor={item} onBook={() => handleDoctorClick(item)} />
+  ), [handleDoctorClick]);
+
+  const clinicKeyExtractor = useCallback((clinic: any, idx: number) => `clinic-${clinic.id ?? idx}`, []);
+  const handleClinicPress = useCallback((item: any) => {
+    navigation.navigate('Clinic', { clinicId: String(item.id) });
+  }, [navigation]);
+  const renderClinicFeature = useCallback(({ item }: { item: any }) => (
+    <ClinicFeatureCard clinic={item} onPress={() => handleClinicPress(item)} />
+  ), [handleClinicPress]);
+
+  const listSeparator = useCallback(() => <View style={{ width: ws(10) }} />, []);
 
   return (
     <View style={styles.screen}>
@@ -151,14 +181,11 @@ export const HomeScreen: React.FC = () => {
             selfFullName={selfFullName}
             filteredFamilyMembersList={filteredFamilyMembersList}
             showMemberDropdown={showMemberDropdown}
-            onToggleMemberDropdown={() => setShowMemberDropdown((prev) => !prev)}
-            onSelectMember={(id) => {
-              setSelectedMemberId(id);
-              setShowMemberDropdown(false);
-            }}
-            onManageMembers={() => navigation.navigate('FamilyMemberList')}
-            onBookAppointment={() => navigation.navigate('DoctorList', {})}
-            onViewAllVitals={() => navigation.navigate('Vitals')}
+            onToggleMemberDropdown={handleToggleMemberDropdown}
+            onSelectMember={handleSelectMember}
+            onManageMembers={handleManageMembers}
+            onBookAppointment={handleBookAppointment}
+            onViewAllVitals={handleViewAllVitals}
             rawBpVitals={rawBpVitals}
             rawSugarVitals={rawSugarVitals}
             rawWeightVitals={rawWeightVitals}
@@ -166,15 +193,13 @@ export const HomeScreen: React.FC = () => {
             rawSpo2Vitals={rawSpo2Vitals}
             getLatestVitalValue={getLatestVitalValue}
             activeFamilyId={activeFamilyId}
-            onNavigateVitalDetails={(vitalName) =>
-              navigation.navigate('VitalDetails', { vitalName, familyMemberId: activeFamilyId })
-            }
+            onNavigateVitalDetails={handleNavigateVitalDetails}
             onDeleteVitalRecord={handleDeleteVitalRecord}
             onEditVitalRecord={openEditModal}
             latestAppointments={latestAppointments}
-            onViewAllAppointments={() => navigation.navigate('MyBookings')}
+            onViewAllAppointments={handleViewAllAppointments}
             latestFiles={latestFiles}
-            onViewAllFiles={() => navigation.navigate('PatientFile')}
+            onViewAllFiles={handleViewAllFiles}
             downloadingFileId={downloadingFileId}
             setDownloadingFileId={setDownloadingFileId}
           />
@@ -270,19 +295,14 @@ export const HomeScreen: React.FC = () => {
             data={doctorList}
             horizontal
             showsHorizontalScrollIndicator={false}
-            keyExtractor={(item: DoctorModel, index: number) => `doc-${item.user_id ?? item.id ?? index}`}
+            keyExtractor={doctorKeyExtractor}
             contentContainerStyle={styles.doctorsListContainer}
-            ItemSeparatorComponent={() => <View style={{ width: ws(10) }} />}
-            renderItem={({ item }: { item: DoctorModel }) => (
-              <DoctorSpotlightCard doctor={item} onBook={() => handleDoctorClick(item)} />
-            )}
+            ItemSeparatorComponent={listSeparator}
+            renderItem={renderDoctorSpotlight}
           />
         )}
 
-        {/* Section 5: Emergency & 24/7 Care Hotline Banner */}
-        <EmergencySupportCard onContact={() => navigation.navigate('ContactUs')} />
-
-        {/* Section 6: Featured Clinics */}
+        {/* Section 5: Featured Clinics */}
         <View style={styles.sectionHeader}>
           <View style={{ flex: 1, marginRight: 8 }}>
             <Text style={styles.sectionHeading} adjustsFontSizeToFit numberOfLines={2}>
@@ -346,17 +366,15 @@ export const HomeScreen: React.FC = () => {
             data={clinicList}
             horizontal
             showsHorizontalScrollIndicator={false}
-            keyExtractor={(clinic: any, idx: number) => `clinic-${clinic.id ?? idx}`}
+            keyExtractor={clinicKeyExtractor}
             contentContainerStyle={styles.clinicsListContainer}
-            ItemSeparatorComponent={() => <View style={{ width: ws(10) }} />}
-            renderItem={({ item }: { item: any }) => (
-              <ClinicFeatureCard
-                clinic={item}
-                onPress={() => navigation.navigate('Clinic', { clinicId: String(item.id) })}
-              />
-            )}
+            ItemSeparatorComponent={listSeparator}
+            renderItem={renderClinicFeature}
           />
         )}
+
+        {/* Section 6: Emergency & 24/7 Care Hotline Banner */}
+        <EmergencySupportCard onContact={() => navigation.navigate('ContactUs')} />
 
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -401,6 +419,7 @@ export const HomeScreen: React.FC = () => {
         onChangeSugarRandom={setSugarRandom}
         onSubmit={handleUpdateVitalSubmit}
         isUpdating={isUpdating}
+        errors={editVitalErrors}
       />
 
       {/* Date & Time Picker Modals */}

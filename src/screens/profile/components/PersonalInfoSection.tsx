@@ -3,6 +3,7 @@ import React from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../../constants';
 import { DateTimeUtils, fs, hs, TYPOGRAPHY, ws } from '../../../utils';
+import { FIELD_LIMITS } from '../../../validation';
 
 interface Props {
   fName: string;
@@ -26,7 +27,7 @@ interface Props {
   errors?: Record<string, string | undefined>;
 }
 
-export const PersonalInfoSection: React.FC<Props> = ({
+const PersonalInfoSectionComponent: React.FC<Props> = ({
   fName,
   onChangeFName,
   lName,
@@ -64,6 +65,7 @@ export const PersonalInfoSection: React.FC<Props> = ({
             onChangeText={onChangeFName}
             placeholder="First name"
             placeholderTextColor={Colors.slate_94A3B8}
+            maxLength={FIELD_LIMITS.NAME_MAX}
           />
           {!!errors?.fName && <Text style={styles.errorText}>{errors.fName}</Text>}
         </View>
@@ -75,6 +77,7 @@ export const PersonalInfoSection: React.FC<Props> = ({
             onChangeText={onChangeLName}
             placeholder="Last name"
             placeholderTextColor={Colors.slate_94A3B8}
+            maxLength={FIELD_LIMITS.NAME_MAX}
           />
           {!!errors?.lName && <Text style={styles.errorText}>{errors.lName}</Text>}
         </View>
@@ -91,6 +94,7 @@ export const PersonalInfoSection: React.FC<Props> = ({
           placeholderTextColor={Colors.slate_94A3B8}
           keyboardType="email-address"
           autoCapitalize="none"
+          maxLength={FIELD_LIMITS.EMAIL_MAX}
         />
         {!!errors?.email && <Text style={styles.errorText}>{errors.email}</Text>}
       </View>
@@ -105,7 +109,7 @@ export const PersonalInfoSection: React.FC<Props> = ({
           placeholder="Enter 10-digit mobile number"
           placeholderTextColor={Colors.slate_94A3B8}
           keyboardType="phone-pad"
-          maxLength={10}
+          maxLength={FIELD_LIMITS.PHONE_MAX}
         />
         {!!errors?.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
       </View>
@@ -192,6 +196,8 @@ export const PersonalInfoSection: React.FC<Props> = ({
     </View>
   );
 };
+
+export const PersonalInfoSection = React.memo(PersonalInfoSectionComponent);
 
 const styles = StyleSheet.create({
   sectionCard: {

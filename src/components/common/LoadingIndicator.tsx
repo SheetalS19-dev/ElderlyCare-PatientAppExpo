@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Colors } from '../../constants';
-import { ws, hs, fs } from '../../utils/metrics';
+import { fs, ws } from '../../utils/metrics';
 import { SkeletonCard, SkeletonDetail, SkeletonList } from './SkeletonLoader';
 
 export interface LoadingIndicatorProps {
@@ -11,7 +11,7 @@ export interface LoadingIndicatorProps {
   count?: number;
 }
 
-export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
+export const LoadingIndicator: React.FC<LoadingIndicatorProps> = memo(({
   fullScreen = false,
   variant = 'list',
   count = 3,
@@ -39,7 +39,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   }
 
   return <SkeletonList count={count} />;
-};
+});
 
 const styles = StyleSheet.create({
   fullScreenOverlay: {

@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { memo, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -24,7 +24,14 @@ import {
 import { saveFamilyRelation } from '../../../services';
 import type { FamilyMemberModel } from '../../../types';
 import { DateTimeUtils, fs, hs, isUserSelfMember, showToast, TYPOGRAPHY, ws } from '../../../utils';
-import { validateDob, validateName, validatePhone } from '../../../validation/authValidation';
+import {
+  FIELD_LIMITS,
+  validateDob,
+  validateFamilyRelationDob,
+  validateFamilyRelationLimit,
+  validateName,
+  validatePhone,
+} from '../../../validation';
 import { RELATION_OPTIONS } from '../../family/components/AddEditFamilyMemberModal';
 
 export interface FamilyMemberSheetProps {
@@ -34,7 +41,7 @@ export interface FamilyMemberSheetProps {
   selectedMemberId?: string | number;
 }
 
-export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
+export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = memo(({
   visible,
   onClose,
   onSelect,
@@ -156,6 +163,14 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
 
     if (!relation || !relation.trim()) {
       nextErrors.relation = 'Please select a relation';
+    } else {
+      const limitRes = validateFamilyRelationLimit(relation, familyList);
+      if (!limitRes.isValid) nextErrors.relation = limitRes.error;
+    }
+
+    if (!nextErrors.dob && !nextErrors.relation && dob && relation) {
+      const relDobRes = validateFamilyRelationDob(dob, relation, user?.dob);
+      if (!relDobRes.isValid) nextErrors.dob = relDobRes.error;
     }
 
     setErrors(nextErrors);
@@ -246,7 +261,23 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
       onSelect(savedMember);
       onClose();
     } catch (e: any) {
-      showToast(e?.data?.message || e?.message || 'Could not add patient, please try again');
+      const msg = e?.data?.message || e?.message || 'Could not add patient, please try again';
+      const lower = msg.toLowerCase();
+      if (lower.includes('phone') || lower.includes('mobile')) {
+        setErrors((prev) => ({ ...prev, phone: msg }));
+      } else if (lower.includes('first name') || lower.includes('f_name')) {
+        setErrors((prev) => ({ ...prev, firstName: msg }));
+      } else if (lower.includes('last name') || lower.includes('l_name')) {
+        setErrors((prev) => ({ ...prev, lastName: msg }));
+      } else if (lower.includes('dob') || lower.includes('birth')) {
+        setErrors((prev) => ({ ...prev, dob: msg }));
+      } else if (lower.includes('gender')) {
+        setErrors((prev) => ({ ...prev, gender: msg }));
+      } else if (lower.includes('relation')) {
+        setErrors((prev) => ({ ...prev, relation: msg }));
+      } else {
+        setErrors((prev) => ({ ...prev, general: msg }));
+      }
     }
   };
 
@@ -296,7 +327,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                 <View style={styles.col}>
                   <Text style={[styles.inputLabel, styles.firstInputLabel]}>First Name *</Text>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, !!errors.firstName && styles.inputError]}
                     placeholder="Enter first name"
                     placeholderTextColor={Colors.slate_94A3B8}
                     value={firstName}
@@ -305,6 +336,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                       clearError('firstName');
                     }}
                     autoCapitalize="words"
+                    maxLength={FIELD_LIMITS.NAME_MAX}
                   />
                   {!!errors.firstName && <Text style={styles.errorText}>{errors.firstName}</Text>}
                 </View>
@@ -312,7 +344,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                 <View style={styles.col}>
                   <Text style={[styles.inputLabel, styles.firstInputLabel]}>Last Name</Text>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, !!errors.lastName && styles.inputError]}
                     placeholder="Enter last name"
                     placeholderTextColor={Colors.slate_94A3B8}
                     value={lastName}
@@ -321,6 +353,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                       clearError('lastName');
                     }}
                     autoCapitalize="words"
+                    maxLength={FIELD_LIMITS.NAME_MAX}
                   />
                   {!!errors.lastName && <Text style={styles.errorText}>{errors.lastName}</Text>}
                 </View>
@@ -328,13 +361,13 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
 
               {/* Mobile Number */}
               <Text style={styles.inputLabel}>Mobile Number *</Text>
-              <View style={styles.phoneInputRow}>
+              <View style={[styles.phoneInputRow, !!errors.phone && styles.inputError]}>
                 <TextInput
                   style={styles.phoneInput}
                   placeholder="Enter 10-digit mobile number"
                   placeholderTextColor={Colors.slate_94A3B8}
                   keyboardType="phone-pad"
-                  maxLength={10}
+                  maxLength={FIELD_LIMITS.PHONE_MAX}
                   value={phone}
                   onChangeText={(v) => {
                     setPhone(v.replace(/[^0-9]/g, ''));
@@ -347,7 +380,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
               {/* Date of Birth Selection Tile */}
               <Text style={styles.inputLabel}>Date of Birth *</Text>
               <TouchableOpacity
-                style={styles.dateSelectorTile}
+                style={[styles.dateSelectorTile, !!errors.dob && styles.inputError]}
                 onPress={() => setShowDatePicker(true)}
                 activeOpacity={0.7}
               >
@@ -390,6 +423,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                 style={[
                   styles.dateSelectorTile,
                   showRelationList && styles.selectorTileActive,
+                  !!errors.relation && styles.inputError,
                 ]}
                 onPress={() => {
                   setShowRelationList((v) => {
@@ -428,6 +462,24 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                     {RELATION_OPTIONS.map((opt, index) => {
                       const isSelected = relation === opt;
                       const isLast = index === RELATION_OPTIONS.length - 1;
+
+                      const UNIQUE_MAP: Record<string, string> = {
+                        father: 'Father',
+                        mother: 'Mother',
+                        husband: 'Spouse',
+                        wife: 'Spouse',
+                        spouse: 'Spouse',
+                        grandfather: 'Grandfather',
+                        grandmother: 'Grandmother',
+                      };
+                      const uniqueGroup = UNIQUE_MAP[opt.toLowerCase()];
+                      const isTaken =
+                        Boolean(uniqueGroup) &&
+                        familyList.some(
+                          (m) =>
+                            UNIQUE_MAP[(m.relation || m.relationship || '').trim().toLowerCase()] === uniqueGroup
+                        );
+
                       return (
                         <TouchableOpacity
                           key={opt}
@@ -435,8 +487,11 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                             styles.relationOptionItem,
                             isSelected && styles.relationOptionItemSelected,
                             isLast && styles.relationOptionItemLast,
+                            isTaken && { opacity: 0.45, backgroundColor: Colors.slate_F8FAFC },
                           ]}
+                          disabled={isTaken}
                           onPress={() => {
+                            if (isTaken) return;
                             setRelation(opt);
                             setShowRelationList(false);
                             clearError('relation');
@@ -447,17 +502,29 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
                             style={[
                               styles.relationOptionText,
                               isSelected && styles.relationOptionTextSelected,
+                              isTaken && { color: Colors.slate_94A3B8 },
                             ]}
                           >
-                            {opt}
+                            {opt}{isTaken ? ' (Already added)' : ''}
                           </Text>
                           {isSelected && (
                             <MaterialIcons name="check" size={ws(18)} color={Colors.primaryColor} />
+                          )}
+                          {isTaken && !isSelected && (
+                            <MaterialIcons name="block" size={ws(16)} color={Colors.slate_94A3B8} />
                           )}
                         </TouchableOpacity>
                       );
                     })}
                   </ScrollView>
+                </View>
+              )}
+
+              {/* General Error Banner */}
+              {!!errors.general && (
+                <View style={styles.generalErrorBox}>
+                  <MaterialIcons name="error-outline" size={16} color={Colors.redColor} />
+                  <Text style={styles.generalErrorText}>{errors.general}</Text>
                 </View>
               )}
 
@@ -611,7 +678,7 @@ export const FamilyMemberSheet: React.FC<FamilyMemberSheetProps> = ({
       />
     </Modal>
   );
-};
+});
 
 const styles = StyleSheet.create({
   overlay: {
@@ -916,6 +983,29 @@ const styles = StyleSheet.create({
     color: Colors.redColor,
     marginTop: hs(2),
     ...TYPOGRAPHY.regular,
+  },
+  inputError: {
+    borderColor: Colors.redColor,
+    backgroundColor: Colors.red_FFF5F5,
+  },
+  generalErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.red_FFF5F5,
+    borderRadius: fs(8),
+    borderWidth: 1,
+    borderColor: Colors.redColor,
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(8),
+    marginTop: hs(8),
+    marginBottom: hs(4),
+    gap: ws(6),
+  },
+  generalErrorText: {
+    flex: 1,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
+    color: Colors.redColor,
   },
   modalActionRow: {
     flexDirection: 'row',

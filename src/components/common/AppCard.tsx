@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { Colors } from '../../constants';
 import { ws, hs, fs } from '../../utils/metrics';
@@ -10,7 +10,7 @@ interface AppCardProps {
   activeOpacity?: number;
 }
 
-export const AppCard: React.FC<AppCardProps> = ({ children, style, onPress, activeOpacity = 0.7 }) => {
+export const AppCard: React.FC<AppCardProps> = memo(({ children, style, onPress, activeOpacity = 0.7 }) => {
   if (onPress) {
     return (
       <TouchableOpacity style={[styles.card, style]} onPress={onPress} activeOpacity={activeOpacity}>
@@ -19,7 +19,7 @@ export const AppCard: React.FC<AppCardProps> = ({ children, style, onPress, acti
     );
   }
   return <View style={[styles.card, style]}>{children}</View>;
-};
+});
 
 const styles = StyleSheet.create({
   card: {

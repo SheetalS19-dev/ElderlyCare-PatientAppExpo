@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { useCallback } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import {
   AppCard,
@@ -36,6 +36,70 @@ export const PrescriptionListScreen: React.FC = () => {
     handleShare,
   } = usePrescriptionList();
 
+  const keyExtractor = useCallback((item: any, index: number) => `rx-${item.id ?? index}`, []);
+
+  const renderPrescriptionItem = useCallback(
+    ({ item }: { item: any }) => {
+      const displayId = item.id ? `#${item.id}` : (item as any).prescription_id ? `#${(item as any).prescription_id}` : '';
+      const doctName =
+        formatDoctorName(item.doctor_f_name, item.doctor_l_name) ||
+        (item as any).doctor_name ||
+        '';
+
+      const formattedDateTime = formatRxDateTime(item.created_at || (item as any).date);
+
+      return (
+        <AppCard style={styles.card}>
+          <TouchableOpacity
+            style={styles.cardTouchable}
+            activeOpacity={0.85}
+            onPress={() => handleOpenActionModal(item)}
+          >
+            {/* Prescription Info */}
+            <View style={styles.info}>
+              <Text style={styles.cardTitle} numberOfLines={1}>
+                Prescription {displayId}
+              </Text>
+              <Text style={styles.cardMetaText} numberOfLines={1}>
+                Doctor: {doctName}
+              </Text>
+              <Text style={styles.cardMetaText} numberOfLines={1}>
+                Date: {formattedDateTime}
+              </Text>
+            </View>
+
+            {/* Quick Actions */}
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={styles.actionBtnBlue}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => handleView(item)}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="visibility" size={18} color={Colors.primaryColor} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.actionBtnOrange}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => handleDownload(item)}
+                activeOpacity={0.8}
+                disabled={downloadingId === item.id}
+              >
+                {downloadingId === item.id ? (
+                  <ActivityIndicator size="small" color={Colors.primaryColor} />
+                ) : (
+                  <MaterialIcons name="file-download" size={18} color={Colors.primaryColor} />
+                )}
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </AppCard>
+      );
+    },
+    [handleOpenActionModal, handleView, handleDownload, downloadingId]
+  );
+
   return (
     <View style={styles.container}>
       <AppHeader title="Digital Prescriptions" onBackPress={() => navigation.goBack()} />
@@ -56,7 +120,7 @@ export const PrescriptionListScreen: React.FC = () => {
       ) : (
         <FlatList
           data={prescriptions}
-          keyExtractor={(item, index) => `rx-${item.id ?? index}`}
+          keyExtractor={keyExtractor}
           contentContainerStyle={[
             styles.listContent,
             { flexGrow: 1, paddingBottom: Math.max(insets.bottom + 20, 40) },
@@ -67,64 +131,7 @@ export const PrescriptionListScreen: React.FC = () => {
               subtitle={search.trim() ? 'Try searching with a different keyword or doctor name' : 'Doctor issued prescriptions will appear here'}
             />
           }
-          renderItem={({ item }) => {
-            const displayId = item.id ? `#${item.id}` : (item as any).prescription_id ? `#${(item as any).prescription_id}` : '';
-            const doctName =
-              formatDoctorName(item.doctor_f_name, item.doctor_l_name) ||
-              (item as any).doctor_name ||
-              '';
-
-            const formattedDateTime = formatRxDateTime(item.created_at || (item as any).date);
-
-            return (
-              <AppCard style={styles.card}>
-                <TouchableOpacity
-                  style={styles.cardTouchable}
-                  activeOpacity={0.85}
-                  onPress={() => handleOpenActionModal(item)}
-                >
-                  {/* Prescription Info */}
-                  <View style={styles.info}>
-                    <Text style={styles.cardTitle} numberOfLines={1}>
-                      Prescription {displayId}
-                    </Text>
-                    <Text style={styles.cardMetaText} numberOfLines={1}>
-                      Doctor: {doctName}
-                    </Text>
-                    <Text style={styles.cardMetaText} numberOfLines={1}>
-                      Date: {formattedDateTime}
-                    </Text>
-                  </View>
-
-                  {/* Quick Actions */}
-                  <View style={styles.actionRow}>
-                    <TouchableOpacity
-                      style={styles.actionBtnBlue}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      onPress={() => handleView(item)}
-                      activeOpacity={0.8}
-                    >
-                      <MaterialIcons name="visibility" size={18} color={Colors.primaryColor} />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.actionBtnOrange}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      onPress={() => handleDownload(item)}
-                      activeOpacity={0.8}
-                      disabled={downloadingId === item.id}
-                    >
-                      {downloadingId === item.id ? (
-                        <ActivityIndicator size="small" color={Colors.primaryColor} />
-                      ) : (
-                        <MaterialIcons name="file-download" size={18} color={Colors.primaryColor} />
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
-              </AppCard>
-            );
-          }}
+          renderItem={renderPrescriptionItem}
         />
       )}
 

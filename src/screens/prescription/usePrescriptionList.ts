@@ -1,7 +1,7 @@
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiEndpoints } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
@@ -186,12 +186,12 @@ export const usePrescriptionList = () => {
     return { prescription, info };
   };
 
-  const handleOpenActionModal = (item: PrescriptionModel) => {
+  const handleOpenActionModal = useCallback((item: PrescriptionModel) => {
     setSelectedPrescriptionItem(item);
     setIsActionModalVisible(true);
-  };
+  }, []);
 
-  const handleView = async (item?: PrescriptionModel | null) => {
+  const handleView = useCallback(async (item?: PrescriptionModel | null) => {
     const target = item || selectedPrescriptionItem;
     if (!target) return;
 
@@ -207,9 +207,9 @@ export const usePrescriptionList = () => {
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [selectedPrescriptionItem]);
 
-  const handleDownload = async (item?: PrescriptionModel | null) => {
+  const handleDownload = useCallback(async (item?: PrescriptionModel | null) => {
     const target = item || selectedPrescriptionItem;
     if (!target) return;
 
@@ -232,9 +232,9 @@ export const usePrescriptionList = () => {
       setIsProcessing(false);
       setDownloadingId(null);
     }
-  };
+  }, [selectedPrescriptionItem]);
 
-  const handleShare = async (item?: PrescriptionModel | null) => {
+  const handleShare = useCallback(async (item?: PrescriptionModel | null) => {
     const target = item || selectedPrescriptionItem;
     if (!target) return;
 
@@ -250,7 +250,7 @@ export const usePrescriptionList = () => {
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [selectedPrescriptionItem]);
 
   return {
     navigation,

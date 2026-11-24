@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { memo } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../constants';
 import type { AppointmentModel } from '../../types';
@@ -79,7 +79,7 @@ const getStatusBadge = (status?: string) => {
   return { bg: Colors.slate_F1F5F9, color: Colors.slate_64748B, label: status || 'Scheduled' };
 };
 
-export const AppointmentCard: React.FC<AppointmentCardProps> = ({
+export const AppointmentCard: React.FC<AppointmentCardProps> = memo(({
   appointment,
   onPress,
   onRebook,
@@ -238,7 +238,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
       </View>
     </TouchableOpacity>
   );
-};
+});
 
 const styles = StyleSheet.create({
   cardContainer: {

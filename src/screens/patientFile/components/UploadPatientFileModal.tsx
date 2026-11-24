@@ -1,7 +1,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -16,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants';
 import type { FamilyMemberModel } from '../../../types';
 import { fs, hs, TYPOGRAPHY, ws } from '../../../utils';
+import { FIELD_LIMITS } from '../../../validation';
 
 export type PickedFile = { uri: string; name: string; mimeType: string; size?: number };
 
@@ -45,7 +47,7 @@ interface Props {
   onUpload: () => void;
 }
 
-export const UploadPatientFileModal: React.FC<Props> = ({
+export const UploadPatientFileModal: React.FC<Props> = React.memo(({
   visible,
   onClose,
   uploadMemberName,
@@ -71,6 +73,49 @@ export const UploadPatientFileModal: React.FC<Props> = ({
   onUpload,
 }) => {
   const insets = useSafeAreaInsets();
+  const titleInputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    if (pickedFile) {
+      titleInputRef.current?.blur();
+      Keyboard.dismiss();
+      const t = setTimeout(() => {
+        titleInputRef.current?.blur();
+        Keyboard.dismiss();
+      }, 100);
+      return () => clearTimeout(t);
+    }
+  }, [pickedFile]);
+
+  const handleClose = () => {
+    titleInputRef.current?.blur();
+    Keyboard.dismiss();
+    onClose();
+  };
+
+  const handlePickCamera = () => {
+    titleInputRef.current?.blur();
+    Keyboard.dismiss();
+    onPickFromCamera();
+  };
+
+  const handlePickGallery = () => {
+    titleInputRef.current?.blur();
+    Keyboard.dismiss();
+    onPickFromGallery();
+  };
+
+  const handlePickDoc = () => {
+    titleInputRef.current?.blur();
+    Keyboard.dismiss();
+    onPickDocument?.();
+  };
+
+  const handleUploadPress = () => {
+    titleInputRef.current?.blur();
+    Keyboard.dismiss();
+    onUpload();
+  };
 
   const isTitleErr = Boolean(
     titleError ||
@@ -89,17 +134,23 @@ export const UploadPatientFileModal: React.FC<Props> = ({
   );
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={handleClose}
+      onDismiss={() => Keyboard.dismiss()}
+    >
       <KeyboardAvoidingView
         style={styles.sheetBackdrop}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={handleClose} />
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom + hs(16), hs(24)) }]}>
           <View style={styles.sheetHandle} />
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Upload File</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <MaterialIcons name="close" size={ws(22)} color={Colors.primaryFontColor} />
             </TouchableOpacity>
           </View>
@@ -107,6 +158,7 @@ export const UploadPatientFileModal: React.FC<Props> = ({
           <ScrollView
             contentContainerStyle={{ flexGrow: 1, paddingBottom: hs(24) }}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
           >
             <Text style={styles.sheetLabel}>Patient <Text style={styles.asterisk}>*</Text></Text>
@@ -149,17 +201,17 @@ export const UploadPatientFileModal: React.FC<Props> = ({
                             relation.toLowerCase() !== 'family member' &&
                             relation.toLowerCase() !== 'patient' &&
                             relation.toLowerCase() !== 'self' && (
-                            <View style={[styles.relationBadgeSmall, active && styles.relationBadgeSmallActive]}>
-                              <Text
-                                style={[
-                                  styles.relationBadgeSmallText,
-                                  active && styles.relationBadgeSmallTextActive,
-                                ]}
-                              >
-                                {relation}
-                              </Text>
-                            </View>
-                          )}
+                              <View style={[styles.relationBadgeSmall, active && styles.relationBadgeSmallActive]}>
+                                <Text
+                                  style={[
+                                    styles.relationBadgeSmallText,
+                                    active && styles.relationBadgeSmallTextActive,
+                                  ]}
+                                >
+                                  {relation}
+                                </Text>
+                              </View>
+                            )}
                         </View>
                         {active && <MaterialIcons name="check" size={ws(18)} color={Colors.white} />}
                       </TouchableOpacity>
@@ -171,12 +223,19 @@ export const UploadPatientFileModal: React.FC<Props> = ({
 
             <Text style={styles.sheetLabel}>File Title <Text style={styles.asterisk}>*</Text></Text>
             <TextInput
+              ref={titleInputRef}
               style={[styles.sheetInput, Boolean(titleErrMessage) && styles.sheetInputError]}
               value={uploadTitle}
               onChangeText={onChangeUploadTitle}
               placeholder="Enter file title (e.g. Blood Test Report)"
               placeholderTextColor={Colors.slate_94A3B8}
-              maxLength={60}
+              maxLength={FIELD_LIMITS.FILE_TITLE_MAX}
+              blurOnSubmit={true}
+              returnKeyType="done"
+              onSubmitEditing={() => {
+                titleInputRef.current?.blur();
+                Keyboard.dismiss();
+              }}
             />
             {!!titleErrMessage && <Text style={styles.fieldErrorText}>{titleErrMessage}</Text>}
 
@@ -213,24 +272,21 @@ export const UploadPatientFileModal: React.FC<Props> = ({
             ) : (
               <>
                 <View style={styles.pickRow}>
-                  <TouchableOpacity style={styles.pickOption} onPress={onPickFromCamera} activeOpacity={0.85}>
+                  <TouchableOpacity style={styles.pickOption} onPress={handlePickCamera} activeOpacity={0.85}>
                     <MaterialIcons name="photo-camera" size={ws(22)} color={Colors.primaryColor} />
                     <Text style={styles.pickOptionText}>Camera</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.pickOption} onPress={onPickFromGallery} activeOpacity={0.85}>
+                  <TouchableOpacity style={styles.pickOption} onPress={handlePickGallery} activeOpacity={0.85}>
                     <MaterialIcons name="photo-library" size={ws(22)} color={Colors.primaryColor} />
                     <Text style={styles.pickOptionText}>Gallery</Text>
                   </TouchableOpacity>
                   {hasDocumentPicker && onPickDocument && (
-                    <TouchableOpacity style={styles.pickOption} onPress={onPickDocument} activeOpacity={0.85}>
+                    <TouchableOpacity style={styles.pickOption} onPress={handlePickDoc} activeOpacity={0.85}>
                       <MaterialIcons name="description" size={ws(22)} color={Colors.primaryColor} />
                       <Text style={styles.pickOptionText}>Document</Text>
                     </TouchableOpacity>
                   )}
                 </View>
-                <Text style={styles.fileHintText}>
-                  Supported: PDF, Images (JPG, PNG, WEBP), DOC (Max 5 MB)
-                </Text>
               </>
             )}
             {!!fileErrMessage && <Text style={styles.fieldErrorText}>{fileErrMessage}</Text>}
@@ -240,7 +296,7 @@ export const UploadPatientFileModal: React.FC<Props> = ({
             <View style={styles.sheetActions}>
               <TouchableOpacity
                 style={styles.sheetCancelBtn}
-                onPress={onClose}
+                onPress={handleClose}
                 disabled={isUploading}
                 activeOpacity={0.85}
               >
@@ -248,7 +304,7 @@ export const UploadPatientFileModal: React.FC<Props> = ({
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.sheetSubmitBtn, isUploading && { opacity: 0.7 }]}
-                onPress={onUpload}
+                onPress={handleUploadPress}
                 disabled={isUploading}
                 activeOpacity={0.85}
               >
@@ -264,7 +320,7 @@ export const UploadPatientFileModal: React.FC<Props> = ({
       </KeyboardAvoidingView>
     </Modal>
   );
-};
+});
 
 const styles = StyleSheet.create({
   sheetBackdrop: {

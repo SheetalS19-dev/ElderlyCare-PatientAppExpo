@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { AppCard } from '../../../components';
 import { AppConstants, Colors } from '../../../constants';
@@ -16,7 +16,7 @@ interface Props {
   total: number;
 }
 
-export const PriceBreakdownCard: React.FC<Props> = ({
+export const PriceBreakdownCard: React.FC<Props> = memo(({
   consultationTypeLabel,
   consultationTypeSubtext,
   isOnlineConsult,
@@ -77,7 +77,7 @@ export const PriceBreakdownCard: React.FC<Props> = ({
       </View>
     </AppCard>
   );
-};
+});
 
 const styles = StyleSheet.create({
   priceBreakdownCard: {

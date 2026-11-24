@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { memo, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -36,7 +36,7 @@ export interface DateTimeSheetProps {
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTH_NAMES = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
-export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
+export const DateTimeSheet: React.FC<DateTimeSheetProps> = memo(({
   visible,
   onClose,
   doctId,
@@ -508,7 +508,7 @@ export const DateTimeSheet: React.FC<DateTimeSheetProps> = ({
       </View>
     </Modal>
   );
-};
+});
 
 const styles = StyleSheet.create({
   overlay: {

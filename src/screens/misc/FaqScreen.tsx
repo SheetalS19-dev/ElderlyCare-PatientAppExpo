@@ -123,29 +123,6 @@ export const FaqScreen: React.FC = () => {
             );
           })
         )}
-
-        {/* Still Have Questions Box */}
-        <View style={styles.contactCard}>
-          <View style={styles.contactRow}>
-            <View style={styles.contactIconCircle}>
-              <MaterialIcons name="support-agent" size={fs(24)} color={Colors.primaryColor} />
-            </View>
-            <View style={styles.contactTextCol}>
-              <Text style={styles.contactTitle}>Still have questions?</Text>
-              <Text style={styles.contactDesc}>
-                Can't find the answer you're looking for? Reach out to our 24/7 care team.
-              </Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={styles.contactBtn}
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate('ContactUs')}
-          >
-            <Text style={styles.contactBtnText}>Contact Support</Text>
-            <MaterialIcons name="arrow-forward" size={fs(14)} color={Colors.white} />
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </View>
   );

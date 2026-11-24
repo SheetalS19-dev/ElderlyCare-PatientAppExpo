@@ -13,7 +13,7 @@ interface Props {
   onPress: (blog: BlogModel) => void;
 }
 
-export const BlogCard: React.FC<Props> = ({ blog, categoryName, onPress }) => {
+export const BlogCard: React.FC<Props> = React.memo(({ blog, categoryName, onPress }) => {
   const imageUrl = (blog as any)?.image ? getImageUrl((blog as any).image) : '';
   const cleanExcerpt = blog.description
     ? blog.description.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()
@@ -66,7 +66,7 @@ export const BlogCard: React.FC<Props> = ({ blog, categoryName, onPress }) => {
       </View>
     </TouchableOpacity>
   );
-};
+});
 
 const styles = StyleSheet.create({
   card: {

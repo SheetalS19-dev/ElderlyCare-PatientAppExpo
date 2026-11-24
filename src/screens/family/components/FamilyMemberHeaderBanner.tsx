@@ -8,7 +8,7 @@ interface FamilyMemberHeaderBannerProps {
   memberCount: number;
 }
 
-export const FamilyMemberHeaderBanner: React.FC<FamilyMemberHeaderBannerProps> = ({ memberCount }) => {
+export const FamilyMemberHeaderBanner: React.FC<FamilyMemberHeaderBannerProps> = React.memo(({ memberCount }) => {
   return (
     <View style={styles.listHeaderBanner}>
       <View style={styles.listHeaderIconWrap}>
@@ -29,7 +29,7 @@ export const FamilyMemberHeaderBanner: React.FC<FamilyMemberHeaderBannerProps> =
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   listHeaderBanner: {

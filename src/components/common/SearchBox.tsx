@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { memo } from 'react';
 import {
   Platform,
   StyleProp,
@@ -13,6 +13,7 @@ import {
 import { Colors } from '../../constants';
 import { fs, hs, ws } from '../../utils/metrics';
 import { TYPOGRAPHY } from '../../utils/typography';
+import { FIELD_LIMITS } from '../../validation';
 
 export interface SearchBoxProps {
   value: string;
@@ -24,9 +25,10 @@ export interface SearchBoxProps {
   containerStyle?: StyleProp<ViewStyle>;
   inputStyle?: StyleProp<TextStyle>;
   onClear?: () => void;
+  showClearButton?: boolean;
 }
 
-export const SearchBox: React.FC<SearchBoxProps> = ({
+export const SearchBox: React.FC<SearchBoxProps> = memo(({
   value,
   onChangeText,
   placeholder = 'Search doctors, clinics, services...',
@@ -36,22 +38,34 @@ export const SearchBox: React.FC<SearchBoxProps> = ({
   containerStyle,
   inputStyle,
   onClear,
+  showClearButton = true,
 }) => {
+  const textInputRef = React.useRef<TextInput>(null);
+
   const handleClear = () => {
     onChangeText('');
     if (onClear) onClear();
   };
 
+  const handleContainerPress = () => {
+    if (onTap) {
+      onTap();
+    } else {
+      textInputRef.current?.focus();
+    }
+  };
+
   return (
     <TouchableOpacity
       activeOpacity={onTap ? 0.75 : 1}
-      onPress={onTap}
+      onPress={handleContainerPress}
       style={[styles.container, containerStyle]}
     >
       <View style={styles.iconContainer}>
         <MaterialIcons name="search" size={fs(20)} color={Colors.primaryColor} />
       </View>
       <TextInput
+        ref={textInputRef}
         style={[styles.input, inputStyle]}
         value={value}
         onChangeText={onChangeText}
@@ -61,8 +75,10 @@ export const SearchBox: React.FC<SearchBoxProps> = ({
         onSubmitEditing={onSubmit}
         returnKeyType="search"
         pointerEvents={onTap ? 'none' : 'auto'}
+        maxLength={FIELD_LIMITS.SEARCH_MAX}
+        autoFocus={false}
       />
-      {value.length > 0 && !readOnly && !onTap && (
+      {showClearButton && value.length > 0 && !readOnly && !onTap && (
         <TouchableOpacity
           onPress={handleClear}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -73,7 +89,7 @@ export const SearchBox: React.FC<SearchBoxProps> = ({
       )}
     </TouchableOpacity>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiEndpoints, AppConstants, Colors } from '../../constants';
@@ -72,7 +72,7 @@ export const useNotification = () => {
     };
   }, [userId, isLoading, notifications.length]);
 
-  const handleNotificationPress = async (item: NotificationModel) => {
+  const handleNotificationPress = useCallback(async (item: NotificationModel) => {
     if (item.file_id) {
       navigation.navigate('PatientFile');
     } else if (item.prescription_id) {
@@ -86,9 +86,9 @@ export const useNotification = () => {
     } else if (item.image || item.id) {
       navigation.navigate('NotificationDetails', { notificationId: String(item.id) });
     }
-  };
+  }, [navigation]);
 
-  const getNotificationIconInfo = (item: NotificationModel) => {
+  const getNotificationIconInfo = useCallback((item: NotificationModel) => {
     if (item.appointment_id) {
       return { icon: 'event', color: Colors.primaryColor, bg: Colors.aquaSoft };
     }
@@ -102,7 +102,7 @@ export const useNotification = () => {
       return { icon: 'folder', color: Colors.purple_8B5CF6, bg: Colors.purple_EDE9FE };
     }
     return { icon: 'notifications', color: Colors.primaryColor, bg: Colors.aquaSoft };
-  };
+  }, []);
 
   return {
     navigation,

@@ -67,16 +67,13 @@ export const VitalHistoryItemCard = memo(({
         <View
           style={[
             styles.itemIconCircle,
-            {
-              backgroundColor:
-                vitalName === 'Weight' ? itemWeightBg : iconInfo.bg,
-            },
+            { backgroundColor: iconInfo.bg },
           ]}
         >
           <MaterialIcons
-            name={(vitalName === 'Weight' ? itemWeightIcon : iconInfo.icon) as any}
+            name={iconInfo.icon as any}
             size={18}
-            color={vitalName === 'Weight' ? itemWeightColor : iconInfo.color}
+            color={iconInfo.color}
           />
         </View>
 

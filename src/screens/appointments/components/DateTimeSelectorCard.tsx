@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../../constants';
 import { DateTimeUtils, fs, hs, TYPOGRAPHY, ws } from '../../../utils';
@@ -10,7 +10,7 @@ interface Props {
   onPress: () => void;
 }
 
-export const DateTimeSelectorCard: React.FC<Props> = ({
+export const DateTimeSelectorCard: React.FC<Props> = memo(({
   selectedDate,
   selectedTimeStart,
   onPress,
@@ -52,7 +52,7 @@ export const DateTimeSelectorCard: React.FC<Props> = ({
       </TouchableOpacity>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   dateTimeRow: {

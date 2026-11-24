@@ -88,17 +88,44 @@ export const formatCityDisplayName = (city: CityModel): string => {
 
 const UNION_TERRITORIES = new Set([
   'andaman and nicobar islands',
+  'andaman & nicobar islands',
+  'andaman and nicobar',
   'chandigarh',
   'dadra and nagar haveli and daman and diu',
+  'dadra & nagar haveli and daman & diu',
+  'dadra and nagar haveli',
+  'daman and diu',
   'delhi',
+  'nct of delhi',
+  'national capital territory of delhi',
   'jammu and kashmir',
+  'jammu & kashmir',
   'ladakh',
   'lakshadweep',
   'puducherry',
+  'pondicherry',
 ]);
 
 export const isUnionTerritory = (stateTitle?: string | null): boolean => {
   if (!stateTitle) return false;
-  return UNION_TERRITORIES.has(String(stateTitle).trim().toLowerCase());
+  const raw = String(stateTitle).trim().toLowerCase();
+  if (/\b(ut|u\.t\.?|union territory)\b/i.test(raw)) return true;
+  const clean = raw.replace(/\s*\((state|ut|u\.t\.?|union territory)\)/gi, '').trim();
+  if (UNION_TERRITORIES.has(clean) || UNION_TERRITORIES.has(raw)) return true;
+  return (
+    clean.includes('andaman') ||
+    clean.includes('nicobar') ||
+    clean.includes('chandigarh') ||
+    clean.includes('dadra') ||
+    clean.includes('daman') ||
+    clean.includes('diu') ||
+    clean.includes('delhi') ||
+    clean.includes('jammu') ||
+    clean.includes('kashmir') ||
+    clean.includes('ladakh') ||
+    clean.includes('lakshadweep') ||
+    clean.includes('puducherry') ||
+    clean.includes('pondicherry')
+  );
 };
 

@@ -1,12 +1,12 @@
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
 import { useGetAppointmentsQuery } from '../../redux/apis/appointmentApi';
 import type { AppointmentModel } from '../../types';
-import { loadRescheduledAppointmentIds } from '../../utils';
+import { loadRescheduledAppointmentIds, sortAppointmentsDescending } from '../../utils';
 
 export type TabKey = 'upcoming' | 'closed';
 const PAGE_SIZE = 15;
@@ -63,7 +63,7 @@ export const useMyBookings = () => {
       list = (rawData as any).response;
     }
 
-    return list.map((item) => {
+    const mapped = list.map((item) => {
       const idStr = String(item.id ?? '').trim();
       const isLocalRescheduled = rescheduledIds.has(idStr);
       const serverStatus = (item.status || '').trim().toLowerCase();
@@ -75,6 +75,8 @@ export const useMyBookings = () => {
       }
       return item;
     });
+
+    return sortAppointmentsDescending(mapped);
   }, [rawData, rescheduledIds]);
 
   const upcomingAppointments = useMemo(() => {
@@ -176,25 +178,25 @@ export const useMyBookings = () => {
     return filteredList.slice(0, displayedLimit);
   }, [filteredList, displayedLimit]);
 
-  const handleLoadMore = () => {
+  const handleLoadMore = useCallback(() => {
     if (loadingMore || isFetching || displayedLimit >= filteredList.length) return;
     setLoadingMore(true);
     setTimeout(() => {
       setDisplayedLimit((prev) => prev + PAGE_SIZE);
       setLoadingMore(false);
     }, 500);
-  };
+  }, [loadingMore, isFetching, displayedLimit, filteredList.length]);
 
-  const handleTabChange = (newTab: TabKey) => {
+  const handleTabChange = useCallback((newTab: TabKey) => {
     setTab(newTab);
     setSubFilter('all');
     setDisplayedLimit(PAGE_SIZE);
-  };
+  }, []);
 
-  const handleSearchChange = (text: string) => {
+  const handleSearchChange = useCallback((text: string) => {
     setSearchQuery(text);
     setDisplayedLimit(PAGE_SIZE);
-  };
+  }, []);
 
   return {
     navigation,

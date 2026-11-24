@@ -1,7 +1,7 @@
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { CountryCodeItem } from '../../components';
 import { AppConstants } from '../../constants';
@@ -137,7 +137,7 @@ export const useLogin = () => {
     }, 1000);
   };
 
-  const resetRegisterForm = () => {
+  const resetRegisterForm = useCallback(() => {
     setFirstName('');
     setLastName('');
     setEmail('');
@@ -149,16 +149,16 @@ export const useLogin = () => {
     setShowRegPassword(false);
     setShowRegConfirmPassword(false);
     setRegErrors({});
-  };
+  }, []);
 
-  const handleSwitchToRegister = () => {
+  const handleSwitchToRegister = useCallback(() => {
     resetRegisterForm();
     setPhoneError(undefined);
     setPasswordError(undefined);
     setStep('register');
-  };
+  }, [resetRegisterForm]);
 
-  const handleSwitchToLogin = async () => {
+  const handleSwitchToLogin = useCallback(async () => {
     setRegErrors({});
     setPhoneError(undefined);
     setPasswordError(undefined);
@@ -176,9 +176,9 @@ export const useLogin = () => {
         // ignore
       }
     }
-  };
+  }, [phone]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (step === 'otp_verify') {
       if (timerRef.current) clearInterval(timerRef.current);
       setStep('form');
@@ -190,10 +190,12 @@ export const useLogin = () => {
       handleSwitchToLogin();
       return;
     }
-    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
-  };
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    }
+  }, [step, handleSwitchToLogin, navigation]);
 
-  const saveOrClearRememberMe = async (cleanPhone: string, cleanPassword: string) => {
+  const saveOrClearRememberMe = useCallback(async (cleanPhone: string, cleanPassword: string) => {
     try {
       if (rememberMe) {
         await storageService.setItem(REMEMBER_ME_KEY, 'true');
@@ -207,9 +209,9 @@ export const useLogin = () => {
     } catch {
       // ignore storage errors
     }
-  };
+  }, [rememberMe]);
 
-  const handleSuccessLogin = async (token: string, userData: any) => {
+  const handleSuccessLogin = useCallback(async (token: string, userData: any) => {
     await login(userData, token);
     const redirectTo = route.params?.redirectTo;
     const redirectParams = route.params?.redirectParams;
@@ -225,19 +227,42 @@ export const useLogin = () => {
     } else {
       navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
     }
-  };
+  }, [login, route.params?.redirectTo, route.params?.redirectParams, navigation]);
 
-  const applyLoginErrorMessage = (msg: string) => {
+  const applyLoginErrorMessage = useCallback((msg: string) => {
     const normalized = msg.toLowerCase();
     if (normalized.includes('password')) {
       setPasswordError(msg);
     } else {
       setPhoneError(msg);
     }
-    showToast(msg);
-  };
+  }, []);
 
-  const handlePasswordLogin = async () => {
+  const applyRegisterErrorMessage = useCallback((msg: string) => {
+    const normalized = (msg || '').toLowerCase();
+    const nextErrors: Record<string, string> = {};
+
+    if (normalized.includes('email')) {
+      nextErrors.email = msg;
+    } else if (normalized.includes('phone') || normalized.includes('mobile') || normalized.includes('number')) {
+      nextErrors.phone = msg;
+    } else if (normalized.includes('first name') || normalized.includes('f_name')) {
+      nextErrors.firstName = msg;
+    } else if (normalized.includes('last name') || normalized.includes('l_name')) {
+      nextErrors.lastName = msg;
+    } else if (normalized.includes('password')) {
+      nextErrors.password = msg;
+    } else if (normalized.includes('dob') || normalized.includes('birth') || normalized.includes('date')) {
+      nextErrors.dob = msg;
+    } else if (normalized.includes('gender')) {
+      nextErrors.gender = msg;
+    } else {
+      nextErrors.general = msg;
+    }
+    setRegErrors((prev) => ({ ...prev, ...nextErrors }));
+  }, []);
+
+  const handlePasswordLogin = useCallback(async () => {
     const identifierValid = validatePhoneOrEmail(phone);
     if (!identifierValid.isValid) {
       setPhoneError(identifierValid.error);
@@ -274,9 +299,9 @@ export const useLogin = () => {
       const msg = e?.data?.message || e?.error || e?.message || 'Login failed. Please try again.';
       applyLoginErrorMessage(msg);
     }
-  };
+  }, [phone, password, loginWithPhone, saveOrClearRememberMe, handleSuccessLogin, applyLoginErrorMessage]);
 
-  const handleSendOtp = async () => {
+  const handleSendOtp = useCallback(async () => {
     setIsBusy(true);
     const otpResult = await sendOtp(fullPhoneNumber);
     setIsBusy(false);
@@ -290,14 +315,14 @@ export const useLogin = () => {
     } else {
       showToast(otpResult.error || 'Failed to send OTP');
     }
-  };
+  }, [fullPhoneNumber]);
 
-  const handleResendOtp = async () => {
+  const handleResendOtp = useCallback(async () => {
     if (resendSeconds > 0) return;
     await handleSendOtp();
-  };
+  }, [resendSeconds, handleSendOtp]);
 
-  const handleSubmitOtp = async () => {
+  const handleSubmitOtp = useCallback(async () => {
     if (!otp || otp.trim().length < 6) {
       setOtpError('Please enter a valid 6-digit OTP');
       return;
@@ -321,7 +346,7 @@ export const useLogin = () => {
       } else if (isNotExistsMessage(res?.message)) {
         setStep('register');
       } else {
-        showToast(res?.message || 'Login failed');
+        setOtpError(res?.message || 'Login failed');
       }
     } catch (e: any) {
       setIsBusy(false);
@@ -329,12 +354,12 @@ export const useLogin = () => {
       if (msg === 'Not Exists' || String(msg).toLowerCase().includes('not exist')) {
         setStep('register');
       } else {
-        showToast(msg || 'Authentication failed');
+        setOtpError(msg || 'Authentication failed');
       }
     }
-  };
+  }, [otp, phone, loginWithPhone, handleSuccessLogin]);
 
-  const handleSubmitRegister = async () => {
+  const handleSubmitRegister = useCallback(async () => {
     const errors: Record<string, string> = {};
     const cleanPhone = regPhone.replace(/\D/g, '');
     const cleanPassword = regPassword.trim();
@@ -371,7 +396,6 @@ export const useLogin = () => {
 
     setRegErrors(errors);
     if (Object.keys(errors).length > 0) {
-      showToast('Please fix the errors before continuing');
       return;
     }
 
@@ -397,7 +421,7 @@ export const useLogin = () => {
 
       if (res?.status === false || String(res?.status) === '0') {
         setIsBusy(false);
-        showToast(res?.message || 'Registration failed');
+        applyRegisterErrorMessage(res?.message || 'Registration failed');
         return;
       }
 
@@ -411,11 +435,11 @@ export const useLogin = () => {
       showToast('Account created successfully! Please sign in.');
     } catch (e: any) {
       setIsBusy(false);
-      showToast(e?.data?.message || e?.message || 'Registration failed');
+      applyRegisterErrorMessage(e?.data?.message || e?.message || 'Registration failed');
     }
-  };
+  }, [regPhone, regPassword, regConfirmPassword, firstName, lastName, email, gender, dob, countryCode.dialCode, registerUser, resetRegisterForm, applyRegisterErrorMessage]);
 
-  const handleSendResetLink = async () => {
+  const handleSendResetLink = useCallback(async () => {
     const emailRes = validateEmail(forgotEmail, true);
     if (!emailRes.isValid) {
       setForgotEmailError(emailRes.error || 'Please enter a valid email address');
@@ -430,12 +454,12 @@ export const useLogin = () => {
         setShowForgotModal(false);
         setForgotEmail('');
       } else {
-        showToast(res?.message || 'Could not send reset link. Please check your email.');
+        setForgotEmailError(res?.message || 'Could not send reset link. Please check your email.');
       }
     } catch (e: any) {
-      showToast(e?.data?.message || e?.message || 'Could not send reset link. Please try again.');
+      setForgotEmailError(e?.data?.message || e?.message || 'Could not send reset link. Please try again.');
     }
-  };
+  }, [forgotEmail, forgetPassword]);
 
   return {
     navigation,

@@ -1,7 +1,7 @@
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Keyboard } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { useAuth } from '../../context/AuthContext';
@@ -197,7 +197,7 @@ export const useVitalDetails = () => {
     return foundActive || selfMember;
   }, [deduplicatedFamilyList, selectedFamilyId, selfMember, uid, activeFamilyId]);
 
-  const getMemberDisplayName = (mem?: FamilyMemberModel | null): string => {
+  const getMemberDisplayName = useCallback((mem?: FamilyMemberModel | null): string => {
     if (!mem) return `${userFullName} (Self)`;
     const isSelf = isUserSelfMember(mem, currentUser || authUser);
     if (isSelf) return `${userFullName} (Self)`;
@@ -212,14 +212,14 @@ export const useVitalDetails = () => {
       return `${memName || 'Family Member'} (${rel})`;
     }
     return memName || 'Family Member';
-  };
+  }, [userFullName, currentUser, authUser]);
 
   const selectedMemberDisplayName = useMemo(() => {
     return getMemberDisplayName(activeMemberObj);
   }, [activeMemberObj, userFullName, currentUser, authUser]);
 
   // Date Filter State
-  const [activeFilter, setActiveFilter] = useState<VitalFilterType>('7 Days');
+  const [activeFilter, setActiveFilter] = useState<VitalFilterType>('All');
   const [customFilterDate, setCustomFilterDate] = useState<string>('');
   const [showFilterPickerModal, setShowFilterPickerModal] = useState<boolean>(false);
   const [showCalendarFilterModal, setShowCalendarFilterModal] = useState<boolean>(false);
@@ -308,7 +308,7 @@ export const useVitalDetails = () => {
   const [sugarRandom, setSugarRandom] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const openAddModal = () => {
+  const openAddModal = useCallback(() => {
     setSelectedDate(new Date().toISOString().split('T')[0]);
     setSelectedTime(new Date().toTimeString().slice(0, 5));
     setSystolic('');
@@ -317,9 +317,9 @@ export const useVitalDetails = () => {
     setSugarRandom('');
     setFieldErrors({});
     setShowModal(true);
-  };
+  }, []);
 
-  const ensureValidFamilyMemberId = async (): Promise<string> => {
+  const ensureValidFamilyMemberId = useCallback(async (): Promise<string> => {
     // 1. Check if activeFamilyId matches a real member in rawFamilyList
     const activeMember = rawFamilyList.find((m) => String(m.id) === String(activeFamilyId));
     if (activeMember && activeMember.id) {
@@ -373,9 +373,9 @@ export const useVitalDetails = () => {
     }
 
     throw new Error('Please select or add a family member before logging vitals.');
-  };
+  }, [rawFamilyList, activeFamilyId, selectedFamilyId, existingSelfMemberInDb, addFamilyMember, uid, currentUser, authUser, refetchFamily]);
 
-  const handleModalSubmit = async () => {
+  const handleModalSubmit = useCallback(async () => {
     Keyboard.dismiss();
     const errors: Record<string, string> = {};
 
@@ -503,9 +503,23 @@ export const useVitalDetails = () => {
         general: friendlyMsg,
       });
     }
-  };
+  }, [
+    selectedDate,
+    selectedTime,
+    vitalName,
+    systolic,
+    diastolic,
+    value,
+    sugarRandom,
+    ensureValidFamilyMemberId,
+    uid,
+    addVital,
+    dispatch,
+    refetch,
+    refetchFamily,
+  ]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     try {
       await deleteVital({ id }).unwrap();
       showToast('Record deleted');
@@ -514,7 +528,7 @@ export const useVitalDetails = () => {
     } catch (e: any) {
       showToast(formatVitalErrorMessage(e) || 'Could not delete record');
     }
-  };
+  }, [deleteVital, dispatch, refetch]);
 
   const iconInfo = getVitalIconInfo(vitalName);
   const latestStatus = getVitalStatus(vitalName, latestVital);

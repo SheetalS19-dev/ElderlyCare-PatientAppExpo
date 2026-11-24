@@ -1,7 +1,7 @@
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useDebounce } from '../../hooks';
@@ -145,7 +145,7 @@ export const useSearch = () => {
     return list;
   }, [rawClinicsData]);
 
-  const handleSelectDepartment = (dept?: DepartmentModel) => {
+  const handleSelectDepartment = useCallback((dept?: DepartmentModel) => {
     if (!dept) {
       setSelectedDeptId(undefined);
       setSelectedDeptTitle(undefined);
@@ -153,9 +153,9 @@ export const useSearch = () => {
       setSelectedDeptId(String(dept.id));
       setSelectedDeptTitle(dept.title || (dept as any).name || (dept as any).dept_name || '');
     }
-  };
+  }, []);
 
-  const handleSelectCity = async (city: CityModel | null | undefined) => {
+  const handleSelectCity = useCallback(async (city: CityModel | null | undefined) => {
     setIsCityModalVisible(false);
     if (city === undefined) {
       setIsUsingCurrentLocation(true);
@@ -186,19 +186,19 @@ export const useSearch = () => {
       setIsUsingCurrentLocation(false);
       setSelectedCity({ id: String(city.id ?? ''), title: formatCityDisplayName(city) });
     }
-  };
+  }, [cities]);
 
   const hasCityFilter = Boolean(selectedCity.id);
   const hasDeptFilter = Boolean(selectedDeptId || selectedDeptTitle);
   const hasActiveFilters = hasCityFilter || hasDeptFilter || Boolean(debouncedSearch.trim());
 
-  const handleResetFilters = () => {
+  const handleResetFilters = useCallback(() => {
     setSearch('');
     setSelectedCity({ id: '', title: '' });
     handleSelectDepartment(undefined);
-  };
+  }, [handleSelectDepartment]);
 
-  const handleDoctorBookPress = (doc: DoctorModel) => {
+  const handleDoctorBookPress = useCallback((doc: DoctorModel) => {
     if (!isAuthenticated) {
       navigation.navigate('Login');
       return;
@@ -206,7 +206,7 @@ export const useSearch = () => {
     navigation.navigate('BookAppointment', {
       doctId: String(doc.user_id || doc.id),
     });
-  };
+  }, [isAuthenticated, navigation]);
 
   return {
     navigation,

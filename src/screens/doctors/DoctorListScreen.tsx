@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   FlatList,
   StyleSheet,
@@ -42,6 +42,32 @@ export const DoctorListScreen: React.FC = () => {
     handleSelectDepartment,
     handleBookDoctor,
   } = useDoctorList();
+
+  const keyExtractor = useCallback(
+    (item: DoctorModel, index: number) => `doc-${item.user_id ?? item.id ?? index}`,
+    []
+  );
+
+  const handlePressDoctor = useCallback(
+    (item: DoctorModel) => {
+      navigation.navigate('DoctorDetails', {
+        doctId: String(item.user_id || item.id),
+      });
+    },
+    [navigation]
+  );
+
+  const renderDoctorItem = useCallback(
+    ({ item }: { item: DoctorModel }) => (
+      <DoctorCard
+        doctor={item}
+        variant="list"
+        onPress={() => handlePressDoctor(item)}
+        onBookPress={() => handleBookDoctor(item)}
+      />
+    ),
+    [handlePressDoctor, handleBookDoctor]
+  );
 
   return (
     <View style={styles.container}>
@@ -93,9 +119,7 @@ export const DoctorListScreen: React.FC = () => {
       ) : (
         <FlatList
           data={doctorsList}
-          keyExtractor={(item: DoctorModel, index: number) =>
-            `doc-${item.user_id ?? item.id ?? index}`
-          }
+          keyExtractor={keyExtractor}
           contentContainerStyle={[styles.listContent, { paddingBottom: hs(80) + Math.max(insets.bottom, hs(24)) }]}
           refreshing={isFetching}
           onRefresh={refetch}
@@ -109,18 +133,7 @@ export const DoctorListScreen: React.FC = () => {
               }
             />
           }
-          renderItem={({ item }: { item: DoctorModel }) => (
-            <DoctorCard
-              doctor={item}
-              variant="list"
-              onPress={() =>
-                navigation.navigate('DoctorDetails', {
-                  doctId: String(item.user_id || item.id),
-                })
-              }
-              onBookPress={() => handleBookDoctor(item)}
-            />
-          )}
+          renderItem={renderDoctorItem}
         />
       )}
 

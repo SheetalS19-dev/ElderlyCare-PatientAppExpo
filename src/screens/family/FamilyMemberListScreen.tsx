@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   FlatList,
   StyleSheet,
@@ -55,6 +55,19 @@ export const FamilyMemberListScreen: React.FC = () => {
     handleDelete,
   } = useFamilyMemberList();
 
+  const keyExtractor = useCallback((item: any, index: number) => `fam-${item.id ?? index}`, []);
+
+  const renderMemberItem = useCallback(
+    ({ item }: { item: any }) => (
+      <FamilyMemberCard
+        item={item}
+        onEdit={openEditModal}
+        onDelete={handleDelete}
+      />
+    ),
+    [openEditModal, handleDelete]
+  );
+
   return (
     <View style={styles.container}>
       <AppHeader title="Family Members" onBackPress={() => navigation.goBack()} />
@@ -66,7 +79,7 @@ export const FamilyMemberListScreen: React.FC = () => {
       ) : (
         <FlatList
           data={familyList}
-          keyExtractor={(item, index) => `fam-${item.id ?? index}`}
+          keyExtractor={keyExtractor}
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: hs(140) + Math.max(insets.bottom, hs(24)) },
@@ -80,13 +93,7 @@ export const FamilyMemberListScreen: React.FC = () => {
           ListEmptyComponent={
             <EmptyState message="No family members found. Tap + to add one." />
           }
-          renderItem={({ item }) => (
-            <FamilyMemberCard
-              item={item}
-              onEdit={openEditModal}
-              onDelete={handleDelete}
-            />
-          )}
+          renderItem={renderMemberItem}
         />
       )}
 
@@ -121,6 +128,7 @@ export const FamilyMemberListScreen: React.FC = () => {
         clearError={clearError}
         onSave={handleSave}
         isSubmitting={isSubmitting}
+        existingMembers={familyList}
       />
     </View>
   );

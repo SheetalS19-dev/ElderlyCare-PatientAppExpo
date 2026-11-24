@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -22,7 +22,7 @@ interface Props {
   email: string;
 }
 
-export const ProfileHeaderAvatar: React.FC<Props> = ({
+const ProfileHeaderAvatarComponent: React.FC<Props> = ({
   selectedImageUri,
   remoteImage,
   isUploadingPhoto,
@@ -30,11 +30,13 @@ export const ProfileHeaderAvatar: React.FC<Props> = ({
   fullName,
   email,
 }) => {
-  const avatarSource = selectedImageUri
-    ? { uri: selectedImageUri }
-    : remoteImage
-    ? { uri: getImageUrl(remoteImage) }
-    : null;
+  const avatarSource = useMemo(() => {
+    return selectedImageUri
+      ? { uri: selectedImageUri }
+      : remoteImage
+      ? { uri: getImageUrl(remoteImage) }
+      : null;
+  }, [selectedImageUri, remoteImage]);
 
   return (
     <View style={styles.headerCard}>
@@ -65,11 +67,19 @@ export const ProfileHeaderAvatar: React.FC<Props> = ({
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.profileName}>{fullName || 'Patient'}</Text>
-      {!!email && <Text style={styles.profileEmail}>{email}</Text>}
+      <Text style={styles.profileName} numberOfLines={2} ellipsizeMode="tail">
+        {fullName || 'Patient'}
+      </Text>
+      {!!email && (
+        <Text style={styles.profileEmail} numberOfLines={1} ellipsizeMode="tail">
+          {email}
+        </Text>
+      )}
     </View>
   );
 };
+
+export const ProfileHeaderAvatar = React.memo(ProfileHeaderAvatarComponent);
 
 const styles = StyleSheet.create({
   headerCard: {

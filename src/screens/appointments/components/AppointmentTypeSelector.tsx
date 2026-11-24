@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppConstants, Colors } from '../../../constants';
 import { fs, hs, ws } from '../../../utils/metrics';
@@ -21,7 +21,7 @@ interface Props {
   onSelect: (option: AppointmentTypeOption) => void;
 }
 
-export const AppointmentTypeSelector: React.FC<Props> = ({
+export const AppointmentTypeSelector: React.FC<Props> = memo(({
   options,
   selectedType,
   onSelect,
@@ -92,7 +92,7 @@ export const AppointmentTypeSelector: React.FC<Props> = ({
       })}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   feeCardsRow: {

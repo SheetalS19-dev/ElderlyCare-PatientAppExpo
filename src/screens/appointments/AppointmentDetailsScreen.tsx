@@ -56,7 +56,7 @@ export const AppointmentDetailsScreen: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <AppHeader title="Appointment Details" onBackPress={() => navigation.goBack()} />
+        <AppHeader title="Appointment Details" onBackPress={navigation.goBack} />
         <LoadingIndicator />
       </View>
     );
@@ -65,7 +65,7 @@ export const AppointmentDetailsScreen: React.FC = () => {
   if (isError || !appointment) {
     return (
       <View style={styles.container}>
-        <AppHeader title="Appointment Details" onBackPress={() => navigation.goBack()} />
+        <AppHeader title="Appointment Details" onBackPress={navigation.goBack} />
         <ErrorState message="Couldn't load this appointment" onRetry={refetch} />
       </View>
     );
@@ -73,7 +73,7 @@ export const AppointmentDetailsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <AppHeader title={`Appointment #${appointment.id ?? ''}`} onBackPress={() => navigation.goBack()} />
+      <AppHeader title={`Appointment #${appointment.id ?? ''}`} onBackPress={navigation.goBack} />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Status & ID Header Bar */}
         <View style={styles.headerStatusCard}>

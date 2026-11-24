@@ -11,6 +11,7 @@ import {
 import { Colors } from '../../../constants';
 import { DateTimeUtils, fs, hs, ws } from '../../../utils';
 import { TYPOGRAPHY } from '../../../utils/typography';
+import { FIELD_LIMITS } from '../../../validation';
 
 export interface CommentItem {
   id: string;
@@ -27,7 +28,7 @@ interface Props {
   isPosting: boolean;
 }
 
-export const BlogCommentsSection: React.FC<Props> = ({
+export const BlogCommentsSection: React.FC<Props> = React.memo(({
   comments,
   commentText,
   onChangeCommentText,
@@ -47,6 +48,7 @@ export const BlogCommentsSection: React.FC<Props> = ({
           placeholder="Write a comment..."
           placeholderTextColor={Colors.slate_94A3B8}
           multiline
+          maxLength={FIELD_LIMITS.COMMENT_MAX}
         />
         <TouchableOpacity
           style={[styles.sendBtn, !commentText.trim() && styles.sendBtnDisabled]}
@@ -60,6 +62,16 @@ export const BlogCommentsSection: React.FC<Props> = ({
             <MaterialIcons name="send" size={ws(18)} color={Colors.white} />
           )}
         </TouchableOpacity>
+      </View>
+      <View style={styles.counterRow}>
+        <Text
+          style={[
+            styles.counterText,
+            commentText.length >= FIELD_LIMITS.COMMENT_MAX && styles.counterTextExceeded,
+          ]}
+        >
+          {commentText.length}/{FIELD_LIMITS.COMMENT_MAX}
+        </Text>
       </View>
 
       {/* Comments List */}
@@ -81,7 +93,7 @@ export const BlogCommentsSection: React.FC<Props> = ({
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -106,7 +118,23 @@ const styles = StyleSheet.create({
     paddingLeft: ws(12),
     paddingRight: ws(6),
     paddingVertical: hs(4),
-    marginBottom: hs(16),
+    marginBottom: hs(4),
+  },
+  counterRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginBottom: hs(12),
+    paddingHorizontal: ws(4),
+  },
+  counterText: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
+    color: Colors.secondaryFontColor,
+  },
+  counterTextExceeded: {
+    color: Colors.redColor,
+    ...TYPOGRAPHY.bold,
   },
   textInput: {
     flex: 1,

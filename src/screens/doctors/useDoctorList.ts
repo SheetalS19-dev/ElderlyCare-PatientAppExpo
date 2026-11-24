@@ -1,7 +1,7 @@
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useDebounce } from '../../hooks';
 import type { RootStackParamList } from '../../navigation/types';
@@ -91,7 +91,7 @@ export const useDoctorList = () => {
     return list;
   }, [rawDoctorsData, selectedDeptId, selectedDeptTitle, debouncedSearch, departments]);
 
-  const handleSelectDepartment = (dept?: DepartmentModel) => {
+  const handleSelectDepartment = useCallback((dept?: DepartmentModel) => {
     if (!dept) {
       setSelectedDeptId(undefined);
       setSelectedDeptTitle(undefined);
@@ -100,14 +100,14 @@ export const useDoctorList = () => {
       setSelectedDeptTitle(dept.title);
     }
     setIsDeptModalVisible(false);
-  };
+  }, []);
 
-  const handleClearDepartment = () => {
+  const handleClearDepartment = useCallback(() => {
     setSelectedDeptId(undefined);
     setSelectedDeptTitle(undefined);
-  };
+  }, []);
 
-  const handleBookDoctor = (doc: DoctorModel) => {
+  const handleBookDoctor = useCallback((doc: DoctorModel) => {
     if (!isAuthenticated) {
       showToast('Please log in to book a consultation');
       navigation.navigate('Login');
@@ -118,7 +118,7 @@ export const useDoctorList = () => {
       doctId: targetId,
       clinicId: doc.clinic_id,
     });
-  };
+  }, [isAuthenticated, navigation]);
 
   return {
     navigation,

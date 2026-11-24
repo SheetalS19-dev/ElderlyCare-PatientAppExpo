@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React, { useState } from 'react';
+import React, { memo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -36,7 +36,7 @@ export interface PaymentSheetProps {
   onSubmit: (choice: PaymentMethodChoice) => void;
 }
 
-export const PaymentSheet: React.FC<PaymentSheetProps> = ({
+export const PaymentSheet: React.FC<PaymentSheetProps> = memo(({
   visible,
   onClose,
   doctorName = '--',
@@ -278,7 +278,7 @@ export const PaymentSheet: React.FC<PaymentSheetProps> = ({
       </View>
     </Modal>
   );
-};
+});
 
 const styles = StyleSheet.create({
   overlay: {

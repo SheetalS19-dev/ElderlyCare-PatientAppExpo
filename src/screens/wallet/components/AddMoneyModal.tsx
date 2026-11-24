@@ -16,6 +16,7 @@ import { AppTextField } from '../../../components';
 import { AppConstants, Colors } from '../../../constants';
 import { fs, hs, ws } from '../../../utils/metrics';
 import { TYPOGRAPHY } from '../../../utils/typography';
+import { FIELD_LIMITS } from '../../../validation';
 
 export type PaymentMethodOption = 'Net Banking' | 'UPI / GPay / PhonePe' | 'Card' | 'Wallet';
 
@@ -41,7 +42,7 @@ export interface AddMoneyModalProps {
   onProcess: () => void;
 }
 
-export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
+const AddMoneyModalComponent: React.FC<AddMoneyModalProps> = ({
   visible,
   onClose,
   walletBalance,
@@ -130,6 +131,7 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
               onChangeText={(v) => onAmountChange(v.replace(/[^0-9.]/g, ''))}
               error={amountError}
               containerStyle={styles.amountFieldContainer}
+              maxLength={FIELD_LIMITS.AMOUNT_MAX_CHARS}
             />
 
             <Text style={styles.quickAmountLabel}>Quick Select</Text>
@@ -179,6 +181,8 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({
     </Modal>
   );
 };
+
+export const AddMoneyModal = React.memo(AddMoneyModalComponent);
 
 const styles = StyleSheet.create({
   sheetOverlay: {

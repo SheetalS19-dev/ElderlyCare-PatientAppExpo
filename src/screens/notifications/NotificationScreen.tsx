@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   FlatList,
   Image,
@@ -32,6 +32,49 @@ export const NotificationScreen: React.FC = () => {
     getNotificationIconInfo,
   } = useNotification();
 
+  const keyExtractor = useCallback((item: any, index: number) => `notify-${item.id ?? index}`, []);
+
+  const renderNotificationItem = useCallback(
+    ({ item }: { item: any }) => {
+      const iconInfo = getNotificationIconInfo(item);
+      return (
+        <TouchableOpacity
+          style={styles.notificationCard}
+          activeOpacity={0.85}
+          onPress={() => handleNotificationPress(item)}
+        >
+          {item.image ? (
+            <Image
+              source={{ uri: `${ApiEndpoints.imageUrl}/${item.image}` }}
+              style={styles.notificationImage}
+            />
+          ) : (
+            <View style={[styles.iconPlaceholder, { backgroundColor: iconInfo.bg }]}>
+              <MaterialIcons name={iconInfo.icon as any} size={22} color={iconInfo.color} />
+            </View>
+          )}
+
+          <View style={styles.contentWrapper}>
+            <Text style={styles.title}>{item.title}</Text>
+            <Text style={styles.body} numberOfLines={3}>
+              {item.body}
+            </Text>
+            {!!item.created_at && (
+              <Text style={styles.date}>
+                {DateTimeUtils.getDataFormat(item.created_at)}
+              </Text>
+            )}
+          </View>
+
+          <View style={styles.chevronCircle}>
+            <Ionicons name="chevron-forward" size={16} color={Colors.primaryColor} />
+          </View>
+        </TouchableOpacity>
+      );
+    },
+    [getNotificationIconInfo, handleNotificationPress]
+  );
+
   return (
     <View style={styles.container}>
       <AppHeader title="Notifications" onBackPress={() => navigation.goBack()} />
@@ -43,7 +86,7 @@ export const NotificationScreen: React.FC = () => {
       ) : (
         <FlatList
           data={notifications}
-          keyExtractor={(item, index) => `notify-${item.id ?? index}`}
+          keyExtractor={keyExtractor}
           contentContainerStyle={[
             styles.listContainer,
             { paddingBottom: Math.max(insets.bottom + hs(20), hs(30)) },
@@ -52,43 +95,7 @@ export const NotificationScreen: React.FC = () => {
           refreshing={isFetching}
           onRefresh={refetch}
           ListEmptyComponent={<EmptyState message="You haven't received any notification yet." />}
-          renderItem={({ item }) => {
-            const iconInfo = getNotificationIconInfo(item);
-            return (
-              <TouchableOpacity
-                style={styles.notificationCard}
-                activeOpacity={0.85}
-                onPress={() => handleNotificationPress(item)}
-              >
-                {item.image ? (
-                  <Image
-                    source={{ uri: `${ApiEndpoints.imageUrl}/${item.image}` }}
-                    style={styles.notificationImage}
-                  />
-                ) : (
-                  <View style={[styles.iconPlaceholder, { backgroundColor: iconInfo.bg }]}>
-                    <MaterialIcons name={iconInfo.icon as any} size={22} color={iconInfo.color} />
-                  </View>
-                )}
-
-                <View style={styles.contentWrapper}>
-                  <Text style={styles.title}>{item.title}</Text>
-                  <Text style={styles.body} numberOfLines={3}>
-                    {item.body}
-                  </Text>
-                  {!!item.created_at && (
-                    <Text style={styles.date}>
-                      {DateTimeUtils.getDataFormat(item.created_at)}
-                    </Text>
-                  )}
-                </View>
-
-                <View style={styles.chevronCircle}>
-                  <Ionicons name="chevron-forward" size={16} color={Colors.primaryColor} />
-                </View>
-              </TouchableOpacity>
-            );
-          }}
+          renderItem={renderNotificationItem}
         />
       )}
     </View>

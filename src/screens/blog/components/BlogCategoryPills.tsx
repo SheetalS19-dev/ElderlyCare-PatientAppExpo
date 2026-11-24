@@ -11,7 +11,7 @@ interface Props {
   onSelectCategory: (id: string | number | null) => void;
 }
 
-export const BlogCategoryPills: React.FC<Props> = ({
+export const BlogCategoryPills: React.FC<Props> = React.memo(({
   categories,
   selectedCategory,
   onSelectCategory,
@@ -49,7 +49,7 @@ export const BlogCategoryPills: React.FC<Props> = ({
       })}
     </ScrollView>
   );
-};
+});
 
 const styles = StyleSheet.create({
   scrollContent: {

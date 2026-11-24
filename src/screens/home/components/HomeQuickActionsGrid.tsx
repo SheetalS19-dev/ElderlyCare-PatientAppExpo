@@ -29,7 +29,7 @@ export interface HomeQuickActionsGridProps {
   onActionPress: (item: QuickActionItem) => void;
 }
 
-export const HomeQuickActionsGrid: React.FC<HomeQuickActionsGridProps> = ({ onActionPress }) => {
+export const HomeQuickActionsGrid: React.FC<HomeQuickActionsGridProps> = React.memo(({ onActionPress }) => {
   const tileWidth = (getScreenWidth() - ws(24) - ws(16)) / 3;
 
   return (
@@ -51,7 +51,7 @@ export const HomeQuickActionsGrid: React.FC<HomeQuickActionsGridProps> = ({ onAc
       ))}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   gridContainer: {

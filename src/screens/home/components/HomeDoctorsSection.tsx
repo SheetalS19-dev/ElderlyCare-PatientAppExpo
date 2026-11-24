@@ -12,7 +12,7 @@ export interface HomeDoctorsSectionProps {
   onDoctorPress: (doctor: DoctorModel) => void;
 }
 
-export const HomeDoctorsSection: React.FC<HomeDoctorsSectionProps> = ({
+export const HomeDoctorsSection: React.FC<HomeDoctorsSectionProps> = React.memo(({
   doctors,
   onViewAll,
   onDoctorPress,
@@ -37,7 +37,7 @@ export const HomeDoctorsSection: React.FC<HomeDoctorsSectionProps> = ({
       ))}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   sectionContainer: {

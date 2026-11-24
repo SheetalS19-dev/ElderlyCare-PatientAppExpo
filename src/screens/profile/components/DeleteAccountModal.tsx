@@ -12,7 +12,7 @@ interface Props {
   isDeleting: boolean;
 }
 
-export const DeleteAccountModal: React.FC<Props> = ({
+const DeleteAccountModalComponent: React.FC<Props> = ({
   visible,
   onClose,
   onConfirmDelete,
@@ -59,6 +59,8 @@ export const DeleteAccountModal: React.FC<Props> = ({
     </Modal>
   );
 };
+
+export const DeleteAccountModal = React.memo(DeleteAccountModalComponent);
 
 const styles = StyleSheet.create({
   modalBackdrop: {

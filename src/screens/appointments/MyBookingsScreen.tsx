@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -46,6 +46,70 @@ export const MyBookingsScreen: React.FC = () => {
     handleTabChange,
     handleSearchChange,
   } = useMyBookings();
+
+  const handleRefresh = useCallback(async () => {
+    setDisplayedLimit(15);
+    await refetch();
+  }, [refetch, setDisplayedLimit]);
+
+  const keyExtractor = useCallback((item: AppointmentModel, index: number) => `appt-${item.id ?? index}`, []);
+
+  const handlePressAppt = useCallback((item: AppointmentModel) => {
+    navigation.navigate('AppointmentDetails', { appId: String(item.id) });
+  }, [navigation]);
+
+  const handleRebookAppt = useCallback((item: AppointmentModel) => {
+    const docId = item.doct_id || (item as any)?.doctor_id || (item as any)?.doctorId;
+    const isUpcoming = ['pending', 'confirmed', 'rescheduled', 'scheduled', 'booked', 'active', 'approved', 'paid', 'in-process'].includes(
+      (item.status || '').trim().toLowerCase()
+    );
+    if (docId) {
+      const mode = item.type === 'Video Consultant' ? 'video' : item.type === 'Emergency' ? 'emergency' : 'clinic';
+      navigation.navigate('BookAppointment', {
+        doctId: String(docId),
+        clinicId: item.clinic_id,
+        initialMode: mode,
+        initialMemberId: item.patient_id,
+        isReschedule: isUpcoming,
+        rescheduledFromAppId: isUpcoming ? item.id : undefined,
+      });
+    } else {
+      navigation.navigate('Search');
+    }
+  }, [navigation]);
+
+  const renderItem = useCallback(({ item }: { item: AppointmentModel }) => {
+    return (
+      <AppointmentCard
+        appointment={item}
+        onPress={() => handlePressAppt(item)}
+        onRebook={() => handleRebookAppt(item)}
+      />
+    );
+  }, [handlePressAppt, handleRebookAppt]);
+
+  const listFooterComponent = useMemo(() => {
+    return loadingMore ? (
+      <View style={styles.footerLoaderContainer}>
+        <ActivityIndicator size="small" color={Colors.primaryColor} />
+        <Text style={styles.footerLoaderText}>Loading more appointments...</Text>
+      </View>
+    ) : (
+      <View style={{ height: hs(24) }} />
+    );
+  }, [loadingMore]);
+
+  const listEmptyComponent = useMemo(() => (
+    <View style={styles.emptyContainer}>
+      <EmptyState
+        message={
+          searchQuery.trim().length > 0
+            ? `No appointments found matching "${searchQuery}"`
+            : 'No appointments found'
+        }
+      />
+    </View>
+  ), [searchQuery]);
 
   if (!isAuthenticated) {
     return (
@@ -148,72 +212,18 @@ export const MyBookingsScreen: React.FC = () => {
       ) : (
         <FlatList
           data={paginatedList}
-          keyExtractor={(item: AppointmentModel, index: number) => `appt-${item.id ?? index}`}
+          keyExtractor={keyExtractor}
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: hs(60) + insets.bottom },
           ]}
           refreshing={isFetching}
-          onRefresh={async () => {
-            setDisplayedLimit(15);
-            await refetch();
-          }}
+          onRefresh={handleRefresh}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.4}
-          ListFooterComponent={
-            loadingMore ? (
-              <View style={styles.footerLoaderContainer}>
-                <ActivityIndicator size="small" color={Colors.primaryColor} />
-                <Text style={styles.footerLoaderText}>Loading more appointments...</Text>
-              </View>
-            ) : (
-              <View style={{ height: hs(24) }} />
-            )
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <EmptyState
-                message={
-                  searchQuery.trim().length > 0
-                    ? `No appointments found matching "${searchQuery}"`
-                    : tab === 'upcoming'
-                      ? 'You have no upcoming consultations scheduled.'
-                      : 'No past appointment history found.'
-                }
-              />
-            </View>
-          }
-          renderItem={({ item }: { item: AppointmentModel }) => {
-            const docId =
-              item.doct_id ||
-              (item as any)?.doctor_id ||
-              (item as any)?.doctorId;
-            const isUpcoming = ['pending', 'confirmed', 'rescheduled', 'scheduled', 'booked', 'active', 'approved', 'paid', 'in-process'].includes(
-              (item.status || '').trim().toLowerCase()
-            );
-
-            return (
-              <AppointmentCard
-                appointment={item}
-                onPress={() => navigation.navigate('AppointmentDetails', { appId: String(item.id) })}
-                onRebook={() => {
-                  if (docId) {
-                    const mode = item.type === 'Video Consultant' ? 'video' : item.type === 'Emergency' ? 'emergency' : 'clinic';
-                    navigation.navigate('BookAppointment', {
-                      doctId: String(docId),
-                      clinicId: item.clinic_id,
-                      initialMode: mode,
-                      initialMemberId: item.patient_id,
-                      isReschedule: isUpcoming,
-                      rescheduledFromAppId: isUpcoming ? item.id : undefined,
-                    });
-                  } else {
-                    navigation.navigate('Search');
-                  }
-                }}
-              />
-            );
-          }}
+          ListFooterComponent={listFooterComponent}
+          ListEmptyComponent={listEmptyComponent}
+          renderItem={renderItem}
         />
       )}
     </View>

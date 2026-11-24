@@ -1,7 +1,7 @@
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
@@ -175,7 +175,7 @@ export const useDoctorReviews = () => {
     });
   }, [allReviews, selectedFilter, searchQuery]);
 
-  const handleBookNow = () => {
+  const handleBookNow = useCallback(() => {
     if (!isAuthenticated) {
       navigation.navigate('Login');
       return;
@@ -184,7 +184,7 @@ export const useDoctorReviews = () => {
       doctId: doctorId,
       doctorId: doctorId,
     });
-  };
+  }, [isAuthenticated, navigation, doctorId]);
 
   return {
     navigation,

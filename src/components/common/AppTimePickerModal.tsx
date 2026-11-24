@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React, { useEffect, useState } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import {
   Modal,
   StyleSheet,
@@ -69,7 +69,7 @@ function parseTimeString(timeStr?: string): { hour: number; minute: number; peri
   return { hour: h, minute: m, period };
 }
 
-export const AppTimePickerModal: React.FC<AppTimePickerModalProps> = ({
+export const AppTimePickerModal: React.FC<AppTimePickerModalProps> = memo(({
   visible,
   onClose,
   onSelectTime,
@@ -306,7 +306,7 @@ export const AppTimePickerModal: React.FC<AppTimePickerModalProps> = ({
       {content}
     </Modal>
   );
-};
+});
 
 const styles = StyleSheet.create({
   overlay: {

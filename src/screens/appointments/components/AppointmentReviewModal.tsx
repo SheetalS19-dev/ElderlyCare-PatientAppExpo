@@ -11,8 +11,9 @@ import {
 import { AppTextField, StarRating } from '../../../components';
 import { Colors } from '../../../constants';
 import { fs, hs, TYPOGRAPHY, ws } from '../../../utils';
+import { FIELD_LIMITS, validateReviewText } from '../../../validation';
 
-const MAX_REVIEW_WORDS = 300;
+const MAX_REVIEW_WORDS = FIELD_LIMITS.REVIEW_MAX_WORDS;
 
 const countWords = (text: string): number => {
   const trimmed = text.trim();
@@ -69,8 +70,9 @@ export const AppointmentReviewModal = memo(({
       setErrorMsg('Please select a star rating (1–5 stars)');
       return;
     }
-    if (!reviewText.trim()) {
-      setErrorMsg('Please share your experience with the doctor');
+    const reviewResult = validateReviewText(reviewText, true);
+    if (!reviewResult.isValid) {
+      setErrorMsg(reviewResult.error || 'Please share your experience with the doctor');
       return;
     }
     if (wordCount > MAX_REVIEW_WORDS) {
@@ -109,6 +111,7 @@ export const AppointmentReviewModal = memo(({
             multiline
             numberOfLines={4}
             style={styles.reviewInput}
+            maxLength={FIELD_LIMITS.REVIEW_MAX_CHARS}
           />
           <View style={styles.counterRow}>
             {errorMsg ? (
@@ -121,10 +124,10 @@ export const AppointmentReviewModal = memo(({
             <Text
               style={[
                 styles.wordCounterText,
-                isOverLimit && styles.wordCounterExceeded,
+                (isOverLimit || reviewText.length >= FIELD_LIMITS.REVIEW_MAX_CHARS) && styles.wordCounterExceeded,
               ]}
             >
-              {wordCount} / {MAX_REVIEW_WORDS} words
+              {reviewText.length}/{FIELD_LIMITS.REVIEW_MAX_CHARS} ({wordCount}/{MAX_REVIEW_WORDS} words)
             </Text>
           </View>
           <View style={styles.dialogActions}>

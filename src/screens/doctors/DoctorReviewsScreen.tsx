@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   FlatList,
   Image,
@@ -52,6 +52,84 @@ export const DoctorReviewsScreen: React.FC = () => {
     { key: 'with_comments', label: 'With Feedback' },
   ];
 
+  const keyExtractor = useCallback(
+    (item: DoctorReviewModel, index: number) => `review-${item.id ?? index}`,
+    []
+  );
+
+  const renderReviewItem = useCallback(
+    ({ item }: { item: DoctorReviewModel }) => {
+      const reviewerName =
+        [item.f_name, item.l_name].filter(Boolean).join(' ').trim() ||
+        [(item as any).user_f_name, (item as any).user_l_name].filter(Boolean).join(' ').trim() ||
+        item.user_name ||
+        (item as any).patient_name ||
+        (item as any).name ||
+        'Patient';
+
+      const rawReviewDate =
+        item.created_at ||
+        (item as any).updated_at ||
+        (item as any).date ||
+        (item as any).created_date ||
+        '';
+      const reviewDate = rawReviewDate
+        ? DateTimeUtils.getDataFormat(rawReviewDate) || rawReviewDate
+        : 'Recently';
+      const reviewPts = Number(item.points ?? item.rating ?? 5);
+      const reviewComment = (item.description || item.comment || (item as any).feedback || '').trim();
+      const serviceReason = (item as any).service || (item as any).reason || 'Doctor Consultation';
+
+      return (
+        <AppCard style={styles.reviewCard}>
+          <View style={styles.reviewTopRow}>
+            {/* Avatar Initial */}
+            <View style={styles.reviewerAvatar}>
+              <Text style={styles.reviewerInitial}>
+                {reviewerName.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+
+            {/* Reviewer Meta */}
+            <View style={styles.reviewerMeta}>
+              <View style={styles.reviewerNameRow}>
+                <Text style={styles.reviewerName} numberOfLines={1}>
+                  {reviewerName}
+                </Text>
+                <View style={styles.verifiedBadge}>
+                  <MaterialIcons name="check-circle" size={fs(12)} color={Colors.green_10B981} />
+                  <Text style={styles.verifiedBadgeText}>Verified Patient</Text>
+                </View>
+              </View>
+
+              <View style={styles.serviceAndDateRow}>
+                <Text style={styles.serviceText} numberOfLines={1}>
+                  {serviceReason}
+                </Text>
+                <Text style={styles.dateDot}>•</Text>
+                <Text style={styles.reviewDate}>{reviewDate}</Text>
+              </View>
+
+              {/* Star Rating */}
+              <View style={styles.starsRow}>
+                <StarRating rating={reviewPts} starSize={13} />
+                <Text style={styles.scoreText}>{reviewPts.toFixed(1)}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Comment Body */}
+          {!!reviewComment && (
+            <View style={styles.commentBox}>
+              <Text style={styles.commentText}>{reviewComment}</Text>
+            </View>
+          )}
+        </AppCard>
+      );
+    },
+    []
+  );
+
   return (
     <View style={styles.container}>
       <AppHeader title="Patient Reviews" onBackPress={() => navigation.goBack()} />
@@ -63,7 +141,7 @@ export const DoctorReviewsScreen: React.FC = () => {
       ) : (
         <FlatList
           data={filteredReviews}
-          keyExtractor={(item, index) => `review-${item.id ?? index}`}
+          keyExtractor={keyExtractor}
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: Math.max(insets.bottom + hs(16), hs(24)) },
@@ -186,75 +264,7 @@ export const DoctorReviewsScreen: React.FC = () => {
               subtitle="Be the first patient to share your consultation experience!"
             />
           }
-          renderItem={({ item }) => {
-            const reviewerName =
-              [item.f_name, item.l_name].filter(Boolean).join(' ').trim() ||
-              [(item as any).user_f_name, (item as any).user_l_name].filter(Boolean).join(' ').trim() ||
-              item.user_name ||
-              (item as any).patient_name ||
-              (item as any).name ||
-              'Patient';
-
-            const rawReviewDate =
-              item.created_at ||
-              (item as any).updated_at ||
-              (item as any).date ||
-              (item as any).created_date ||
-              '';
-            const reviewDate = rawReviewDate
-              ? DateTimeUtils.getDataFormat(rawReviewDate) || rawReviewDate
-              : 'Recently';
-            const reviewPts = Number(item.points ?? item.rating ?? 5);
-            const reviewComment = (item.description || item.comment || (item as any).feedback || '').trim();
-            const serviceReason = (item as any).service || (item as any).reason || 'Doctor Consultation';
-
-            return (
-              <AppCard style={styles.reviewCard}>
-                <View style={styles.reviewTopRow}>
-                  {/* Avatar Initial */}
-                  <View style={styles.reviewerAvatar}>
-                    <Text style={styles.reviewerInitial}>
-                      {reviewerName.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-
-                  {/* Reviewer Meta */}
-                  <View style={styles.reviewerMeta}>
-                    <View style={styles.reviewerNameRow}>
-                      <Text style={styles.reviewerName} numberOfLines={1}>
-                        {reviewerName}
-                      </Text>
-                      <View style={styles.verifiedBadge}>
-                        <MaterialIcons name="check-circle" size={fs(12)} color={Colors.green_10B981} />
-                        <Text style={styles.verifiedBadgeText}>Verified Patient</Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.serviceAndDateRow}>
-                      <Text style={styles.serviceText} numberOfLines={1}>
-                        {serviceReason}
-                      </Text>
-                      <Text style={styles.dateDot}>•</Text>
-                      <Text style={styles.reviewDate}>{reviewDate}</Text>
-                    </View>
-
-                    {/* Star Rating */}
-                    <View style={styles.starsRow}>
-                      <StarRating rating={reviewPts} starSize={13} />
-                      <Text style={styles.scoreText}>{reviewPts.toFixed(1)}</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Comment Body */}
-                {!!reviewComment && (
-                  <View style={styles.commentBox}>
-                    <Text style={styles.commentText}>{reviewComment}</Text>
-                  </View>
-                )}
-              </AppCard>
-            );
-          }}
+          renderItem={renderReviewItem}
         />
       )}
     </View>

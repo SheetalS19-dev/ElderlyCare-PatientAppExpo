@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextStyle, TouchableOpacity, ViewStyle } from 'react-native';
 import { Colors } from '../../constants';
 import { fs, hs, ws } from '../../utils/metrics';
@@ -14,7 +14,7 @@ interface PrimaryButtonProps {
   textStyle?: TextStyle;
 }
 
-export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
+export const PrimaryButton: React.FC<PrimaryButtonProps> = memo(({
   title,
   onPress,
   loading = false,
@@ -38,7 +38,7 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
       )}
     </TouchableOpacity>
   );
-};
+});
 
 const styles = StyleSheet.create({
   button: {

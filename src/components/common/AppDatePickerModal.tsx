@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React, { useMemo, useState } from 'react';
+import React, { memo, useMemo, useState } from 'react';
 import {
   Modal,
   ScrollView,
@@ -30,7 +30,7 @@ const MONTH_NAMES = [
 
 const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
-export const AppDatePickerModal: React.FC<AppDatePickerModalProps> = ({
+export const AppDatePickerModal: React.FC<AppDatePickerModalProps> = memo(({
   visible,
   onClose,
   onSelectDate,
@@ -275,7 +275,7 @@ export const AppDatePickerModal: React.FC<AppDatePickerModalProps> = ({
       {content}
     </Modal>
   );
-};
+});
 
 const styles = StyleSheet.create({
   overlay: {

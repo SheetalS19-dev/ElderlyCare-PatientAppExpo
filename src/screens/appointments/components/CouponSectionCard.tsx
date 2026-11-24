@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { memo } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -12,6 +12,7 @@ import { Colors } from '../../../constants';
 import type { CouponModel } from '../../../types';
 import { fs, hs, ws } from '../../../utils/metrics';
 import { TYPOGRAPHY } from '../../../utils/typography';
+import { FIELD_LIMITS } from '../../../validation';
 
 interface Props {
   couponCode: string;
@@ -23,7 +24,7 @@ interface Props {
   onRemove: () => void;
 }
 
-export const CouponSectionCard: React.FC<Props> = ({
+export const CouponSectionCard: React.FC<Props> = memo(({
   couponCode,
   onChangeCouponCode,
   appliedCoupon,
@@ -49,6 +50,7 @@ export const CouponSectionCard: React.FC<Props> = ({
           onChangeText={onChangeCouponCode}
           autoCapitalize="characters"
           editable={!appliedCoupon}
+          maxLength={FIELD_LIMITS.COUPON_MAX}
         />
         <TouchableOpacity
           style={[
@@ -80,7 +82,7 @@ export const CouponSectionCard: React.FC<Props> = ({
       )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   couponContainer: {

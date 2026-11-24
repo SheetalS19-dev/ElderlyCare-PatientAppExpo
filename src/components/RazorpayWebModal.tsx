@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React, { useRef } from 'react';
+import React, { memo, useRef } from 'react';
 import { Linking, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
@@ -34,7 +34,7 @@ export interface RazorpayWebModalProps {
 // Fallback test key ID if no key is provided by backend
 const TEST_KEY_ID = 'rzp_test_R6kmrnO91ID9yH';
 
-export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
+export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = memo(({
   visible,
   onClose,
   onSuccess,
@@ -370,7 +370,7 @@ export const RazorpayWebModal: React.FC<RazorpayWebModalProps> = ({
       </View>
     </Modal>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

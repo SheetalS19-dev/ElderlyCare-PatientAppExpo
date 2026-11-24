@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   FlatList,
   Keyboard,
@@ -30,6 +30,7 @@ import {
 import {
   AddEditVitalModal,
   VitalDateFilterModal,
+  VitalFilterType,
   VitalHistoryItemCard,
   VitalLatestSummaryCard,
   VitalMemberSelector,
@@ -97,20 +98,148 @@ export const VitalDetailsScreen: React.FC = () => {
     activeFamilyId,
   } = useVitalDetails();
 
+  const handleBackPress = useCallback(() => navigation.goBack(), [navigation]);
+  const handleToggleMemberDropdown = useCallback(() => setShowMemberDropdown((prev) => !prev), [setShowMemberDropdown]);
+  const handleSelectMember = useCallback((id: string) => {
+    setSelectedFamilyId(id);
+    setShowMemberDropdown(false);
+  }, [setSelectedFamilyId, setShowMemberDropdown]);
+
+  const handleOpenFilterPicker = useCallback(() => setShowFilterPickerModal(true), [setShowFilterPickerModal]);
+  const handleCloseFilterPicker = useCallback(() => setShowFilterPickerModal(false), [setShowFilterPickerModal]);
+  const handleSelectFilter = useCallback((f: VitalFilterType) => {
+    setActiveFilter(f);
+    setCustomFilterDate('');
+  }, [setActiveFilter, setCustomFilterDate]);
+
+  const handleOpenCalendar = useCallback(() => setShowCalendarFilterModal(true), [setShowCalendarFilterModal]);
+  const handleCloseCalendar = useCallback(() => setShowCalendarFilterModal(false), [setShowCalendarFilterModal]);
+  const handleSelectCalendarDate = useCallback((dateStr: string) => {
+    setCustomFilterDate(dateStr);
+    setActiveFilter('Custom');
+    setShowCalendarFilterModal(false);
+  }, [setCustomFilterDate, setActiveFilter, setShowCalendarFilterModal]);
+
+  const handleResetFilters = useCallback(() => {
+    setActiveFilter('All');
+    setCustomFilterDate('');
+  }, [setActiveFilter, setCustomFilterDate]);
+
+  const handleCloseAddModal = useCallback(() => setShowModal(false), [setShowModal]);
+  const handleOpenDatePicker = useCallback(() => {
+    Keyboard.dismiss();
+    setShowDatePicker(true);
+  }, [setShowDatePicker]);
+  const handleCloseDatePicker = useCallback(() => setShowDatePicker(false), [setShowDatePicker]);
+  const handleOpenTimePicker = useCallback(() => {
+    Keyboard.dismiss();
+    setShowTimePicker(true);
+  }, [setShowTimePicker]);
+  const handleCloseTimePicker = useCallback(() => setShowTimePicker(false), [setShowTimePicker]);
+
+  const renderVitalItemValue = useCallback(
+    (it: VitalModel) => renderVitalValue(vitalName, it),
+    [vitalName]
+  );
+
+  const keyExtractor = useCallback((item: VitalModel, index: number) => `v-${item.id ?? index}`, []);
+
+  const renderHistoryItem = useCallback(
+    ({ item }: { item: VitalModel }) => {
+      const itemStatus = getVitalStatus(vitalName, item);
+      let prevEntry: VitalModel | undefined;
+      if (vitalName === 'Weight') {
+        const itemTime = new Date(item.date || item.created_at || 0).getTime();
+        prevEntry = historyVitals.find((v) => {
+          const t = new Date(v.date || v.created_at || 0).getTime();
+          return t < itemTime && (v.weight || (v as any)?.value);
+        });
+      }
+
+      return (
+        <VitalHistoryItemCard
+          item={item}
+          vitalName={vitalName}
+          iconInfo={iconInfo}
+          itemStatus={itemStatus}
+          prevEntry={prevEntry}
+          onDelete={handleDelete}
+          renderVitalValue={renderVitalItemValue}
+        />
+      );
+    },
+    [vitalName, historyVitals, iconInfo, handleDelete, renderVitalItemValue]
+  );
+
+  const listHeader = useMemo(() => (
+    <View>
+      {latestVital && (
+        <VitalLatestSummaryCard
+          latestVital={latestVital}
+          vitalName={vitalName}
+          iconInfo={iconInfo}
+          latestStatus={latestStatus}
+          heroWeightTrend={heroWeightTrend}
+          onDelete={handleDelete}
+          renderVitalValue={renderVitalItemValue}
+        />
+      )}
+
+      {vitalName === 'Weight' && (
+        <VitalTrendChart
+          records={filteredVitals.length > 0 ? filteredVitals : vitals}
+          chartPoints={chartPoints}
+          yTicks={yTicks}
+          chartW={chartW}
+          chartH={chartH}
+        />
+      )}
+
+      {historyVitals.length > 0 && (
+        <View style={styles.historySectionHeaderRow}>
+          <Text style={styles.historySectionTitle}>
+            {vitalName === 'Temperature'
+              ? 'Temperature History'
+              : vitalName === 'Weight'
+                ? `Recent Entries (${historyVitals.length} Entries)`
+                : `${vitalName} History`}
+          </Text>
+        </View>
+      )}
+    </View>
+  ), [
+    latestVital,
+    vitalName,
+    iconInfo,
+    latestStatus,
+    heroWeightTrend,
+    handleDelete,
+    renderVitalItemValue,
+    filteredVitals,
+    vitals,
+    chartPoints,
+    yTicks,
+    chartW,
+    chartH,
+    historyVitals.length,
+  ]);
+
+  const listEmpty = useMemo(() => {
+    if (latestVital) return null;
+    return <EmptyState message={`No ${vitalName} records found.`} />;
+  }, [latestVital, vitalName]);
+
   return (
     <View style={styles.container}>
-      <AppHeader title={`${vitalName} Tracker`} onBackPress={() => navigation.goBack()} />
+      <AppHeader title={`${vitalName} Tracker`} onBackPress={handleBackPress} />
 
       <VitalMemberSelector
         familyList={deduplicatedFamilyList}
         activeFamilyId={activeFamilyId || selectedFamilyId}
         selectedMemberDisplayName={selectedMemberDisplayName}
         showMemberDropdown={showMemberDropdown}
-        onToggleDropdown={() => setShowMemberDropdown((prev) => !prev)}
-        onSelectMember={(id) => {
-          setSelectedFamilyId(id);
-          setShowMemberDropdown(false);
-        }}
+        onToggleDropdown={handleToggleMemberDropdown}
+        onSelectMember={handleSelectMember}
         getMemberDisplayName={getMemberDisplayName}
       />
 
@@ -118,7 +247,7 @@ export const VitalDetailsScreen: React.FC = () => {
       <View style={styles.dateFilterRow}>
         <TouchableOpacity
           style={styles.filterDropdownBtn}
-          onPress={() => setShowFilterPickerModal(true)}
+          onPress={handleOpenFilterPicker}
           activeOpacity={0.8}
         >
           <MaterialIcons name="calendar-today" size={ws(15)} color={Colors.primaryColor} />
@@ -138,7 +267,7 @@ export const VitalDetailsScreen: React.FC = () => {
 
         <TouchableOpacity
           style={styles.filterCalendarBtn}
-          onPress={() => setShowCalendarFilterModal(true)}
+          onPress={handleOpenCalendar}
           activeOpacity={0.8}
         >
           <MaterialIcons name="event" size={ws(16)} color={Colors.secondaryFontColor} />
@@ -148,10 +277,7 @@ export const VitalDetailsScreen: React.FC = () => {
         {(activeFilter !== 'All' || !!customFilterDate) && (
           <TouchableOpacity
             style={styles.filterResetQuickBtn}
-            onPress={() => {
-              setActiveFilter('All');
-              setCustomFilterDate('');
-            }}
+            onPress={handleResetFilters}
             activeOpacity={0.8}
           >
             <MaterialIcons name="restart-alt" size={ws(14)} color={Colors.primaryColor} />
@@ -167,76 +293,14 @@ export const VitalDetailsScreen: React.FC = () => {
       ) : (
         <FlatList
           data={historyVitals}
-          keyExtractor={(item, index) => `v-${item.id ?? index}`}
+          keyExtractor={keyExtractor}
           contentContainerStyle={[
             styles.listContent,
             { flexGrow: 1, paddingBottom: hs(140) + Math.max(insets.bottom, hs(24)) },
           ]}
-          ListHeaderComponent={
-            <View>
-              {latestVital && (
-                <VitalLatestSummaryCard
-                  latestVital={latestVital}
-                  vitalName={vitalName}
-                  iconInfo={iconInfo}
-                  latestStatus={latestStatus}
-                  heroWeightTrend={heroWeightTrend}
-                  onDelete={handleDelete}
-                  renderVitalValue={(it) => renderVitalValue(vitalName, it)}
-                />
-              )}
-
-              {vitalName === 'Weight' && (
-                <VitalTrendChart
-                  records={filteredVitals.length > 0 ? filteredVitals : vitals}
-                  chartPoints={chartPoints}
-                  yTicks={yTicks}
-                  chartW={chartW}
-                  chartH={chartH}
-                />
-              )}
-
-              {historyVitals.length > 0 && (
-                <View style={styles.historySectionHeaderRow}>
-                  <Text style={styles.historySectionTitle}>
-                    {vitalName === 'Temperature'
-                      ? 'Temperature History'
-                      : vitalName === 'Weight'
-                        ? `Recent Entries (${historyVitals.length} Entries)`
-                        : `${vitalName} History`}
-                  </Text>
-                </View>
-              )}
-            </View>
-          }
-          ListEmptyComponent={
-            latestVital ? null : (
-              <EmptyState message={`No ${vitalName} records found.`} />
-            )
-          }
-          renderItem={({ item }) => {
-            const itemStatus = getVitalStatus(vitalName, item);
-            let prevEntry: VitalModel | undefined;
-            if (vitalName === 'Weight') {
-              const itemTime = new Date(item.date || item.created_at || 0).getTime();
-              prevEntry = historyVitals.find((v) => {
-                const t = new Date(v.date || v.created_at || 0).getTime();
-                return t < itemTime && (v.weight || (v as any)?.value);
-              });
-            }
-
-            return (
-              <VitalHistoryItemCard
-                item={item}
-                vitalName={vitalName}
-                iconInfo={iconInfo}
-                itemStatus={itemStatus}
-                prevEntry={prevEntry}
-                onDelete={handleDelete}
-                renderVitalValue={(it) => renderVitalValue(vitalName, it)}
-              />
-            );
-          }}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={listEmpty}
+          renderItem={renderHistoryItem}
         />
       )}
 
@@ -255,75 +319,46 @@ export const VitalDetailsScreen: React.FC = () => {
         vitalName={vitalName}
         selectedMemberDisplayName={selectedMemberDisplayName}
         selectedDate={selectedDate}
-        onDateChange={(t) => {
-          setSelectedDate(t);
-        }}
-        onOpenDatePicker={() => {
-          Keyboard.dismiss();
-          setShowDatePicker(true);
-        }}
+        onDateChange={setSelectedDate}
+        onOpenDatePicker={handleOpenDatePicker}
         selectedTime={selectedTime}
-        onTimeChange={(t) => {
-          setSelectedTime(t);
-        }}
-        onOpenTimePicker={() => {
-          Keyboard.dismiss();
-          setShowTimePicker(true);
-        }}
+        onTimeChange={setSelectedTime}
+        onOpenTimePicker={handleOpenTimePicker}
         systolic={systolic}
-        onChangeSystolic={(t) => {
-          setSystolic(t);
-        }}
+        onChangeSystolic={setSystolic}
         diastolic={diastolic}
-        onChangeDiastolic={(t) => {
-          setDiastolic(t);
-        }}
+        onChangeDiastolic={setDiastolic}
         value={value}
-        onChangeValue={(t) => {
-          setValue(t);
-        }}
+        onChangeValue={setValue}
         sugarRandom={sugarRandom}
-        onChangeSugarRandom={(t) => {
-          setSugarRandom(t);
-        }}
+        onChangeSugarRandom={setSugarRandom}
         fieldErrors={fieldErrors}
         onSubmit={handleModalSubmit}
-        onClose={() => setShowModal(false)}
+        onClose={handleCloseAddModal}
         isSubmitting={isAdding}
         showDatePicker={showDatePicker}
-        onCloseDatePicker={() => setShowDatePicker(false)}
-        onSelectDate={(d) => {
-          setSelectedDate(d);
-        }}
+        onCloseDatePicker={handleCloseDatePicker}
+        onSelectDate={setSelectedDate}
         showTimePicker={showTimePicker}
-        onCloseTimePicker={() => setShowTimePicker(false)}
-        onSelectTime={(t) => {
-          setSelectedTime(t);
-        }}
+        onCloseTimePicker={handleCloseTimePicker}
+        onSelectTime={setSelectedTime}
       />
 
       {/* Date Filter Menu Modal */}
       <VitalDateFilterModal
         visible={showFilterPickerModal}
         activeFilter={activeFilter}
-        onSelectFilter={(f) => {
-          setActiveFilter(f);
-          setCustomFilterDate('');
-        }}
-        onClose={() => setShowFilterPickerModal(false)}
+        onSelectFilter={handleSelectFilter}
+        onClose={handleCloseFilterPicker}
       />
 
       {/* Calendar Filter Modal */}
       <AppDatePickerModal
         visible={showCalendarFilterModal}
-        onClose={() => setShowCalendarFilterModal(false)}
+        onClose={handleCloseCalendar}
         initialDate={customFilterDate || new Date().toISOString().split('T')[0]}
         maxDate={new Date()}
-        onSelectDate={(dateStr) => {
-          setCustomFilterDate(dateStr);
-          setActiveFilter('Custom');
-          setShowCalendarFilterModal(false);
-        }}
+        onSelectDate={handleSelectCalendarDate}
         title="Filter Records by Date"
       />
     </View>

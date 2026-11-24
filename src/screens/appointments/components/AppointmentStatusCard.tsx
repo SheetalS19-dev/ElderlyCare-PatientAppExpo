@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Colors } from '../../../constants';
 import type { AppointmentModel } from '../../../types';
@@ -11,7 +11,7 @@ interface Props {
   appointment: AppointmentModel;
 }
 
-export const AppointmentStatusCard: React.FC<Props> = ({ appointment }) => {
+export const AppointmentStatusCard: React.FC<Props> = memo(({ appointment }) => {
   const statusStr = (appointment.status || (appointment as any)?.appointment_status || 'Pending').toLowerCase();
   const isApproved = statusStr === 'approved' || statusStr === 'confirmed' || statusStr === '1';
   const isCancelled = statusStr === 'cancelled' || statusStr === 'canceled' || statusStr === '2';
@@ -20,26 +20,26 @@ export const AppointmentStatusCard: React.FC<Props> = ({ appointment }) => {
   const statusColor = isCompleted
     ? Colors.green_10B981
     : isApproved
-    ? Colors.blue_3B82F6
-    : isCancelled
-    ? Colors.red_EF4444
-    : Colors.amber_F59E0B;
+      ? Colors.blue_3B82F6
+      : isCancelled
+        ? Colors.red_EF4444
+        : Colors.amber_F59E0B;
 
   const statusBg = isCompleted
     ? Colors.green_ECFDF5
     : isApproved
-    ? Colors.aquaSoft
-    : isCancelled
-    ? Colors.red_FEF2F2
-    : Colors.yellow_FFFBEB;
+      ? Colors.aquaSoft
+      : isCancelled
+        ? Colors.red_FEF2F2
+        : Colors.yellow_FFFBEB;
 
   const statusLabel = isCompleted
     ? 'Completed'
     : isApproved
-    ? 'Confirmed'
-    : isCancelled
-    ? 'Cancelled'
-    : 'Pending Approval';
+      ? 'Confirmed'
+      : isCancelled
+        ? 'Cancelled'
+        : 'Pending Approval';
 
   const dateFormatted = DateTimeUtils.getDataFormat(appointment.date) || appointment.date || '--';
   const timeFormatted = (appointment as any)?.time || (appointment as any)?.start_time || '--';
@@ -82,7 +82,7 @@ export const AppointmentStatusCard: React.FC<Props> = ({ appointment }) => {
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   card: {

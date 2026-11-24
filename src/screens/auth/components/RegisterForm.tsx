@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Colors } from '../../../constants';
 import { DateTimeUtils, fs, hs, TYPOGRAPHY, ws } from '../../../utils';
+import { FIELD_LIMITS } from '../../../validation';
 
 export interface RegisterFormProps {
   firstName: string;
@@ -79,6 +80,7 @@ export const RegisterForm = memo(({
           value={firstName}
           onChangeText={onFirstNameChange}
           autoCapitalize="words"
+          maxLength={FIELD_LIMITS.NAME_MAX}
         />
         {!!regErrors.firstName && <Text style={styles.fieldErrorText}>{regErrors.firstName}</Text>}
       </View>
@@ -93,6 +95,7 @@ export const RegisterForm = memo(({
           value={lastName}
           onChangeText={onLastNameChange}
           autoCapitalize="words"
+          maxLength={FIELD_LIMITS.NAME_MAX}
         />
         {!!regErrors.lastName && <Text style={styles.fieldErrorText}>{regErrors.lastName}</Text>}
       </View>
@@ -110,6 +113,7 @@ export const RegisterForm = memo(({
           onChangeText={onEmailChange}
           keyboardType="email-address"
           autoCapitalize="none"
+          maxLength={FIELD_LIMITS.EMAIL_MAX}
         />
         {!!regErrors.email && <Text style={styles.fieldErrorText}>{regErrors.email}</Text>}
       </View>
@@ -126,7 +130,7 @@ export const RegisterForm = memo(({
           value={phone}
           onChangeText={(text) => onPhoneChange(text.replace(/[^0-9]/g, ''))}
           keyboardType="phone-pad"
-          maxLength={10}
+          maxLength={FIELD_LIMITS.PHONE_MAX}
         />
         {!!regErrors.phone && <Text style={styles.fieldErrorText}>{regErrors.phone}</Text>}
       </View>
@@ -183,6 +187,7 @@ export const RegisterForm = memo(({
             autoComplete="password"
             value={password}
             onChangeText={onPasswordChange}
+            maxLength={FIELD_LIMITS.PASSWORD_MAX}
           />
           <TouchableOpacity
             style={styles.eyeIconBtn}
@@ -215,6 +220,7 @@ export const RegisterForm = memo(({
             autoComplete="password"
             value={confirmPassword}
             onChangeText={onConfirmPasswordChange}
+            maxLength={FIELD_LIMITS.PASSWORD_MAX}
           />
           <TouchableOpacity
             style={styles.eyeIconBtn}
@@ -230,6 +236,14 @@ export const RegisterForm = memo(({
         </View>
         {!!regErrors.confirmPassword && <Text style={styles.fieldErrorText}>{regErrors.confirmPassword}</Text>}
       </View>
+
+      {/* General / Server Error */}
+      {!!regErrors.general && (
+        <View style={styles.generalErrorBox}>
+          <MaterialIcons name="error-outline" size={16} color={Colors.redColor} />
+          <Text style={styles.generalErrorText}>{regErrors.general}</Text>
+        </View>
+      )}
 
       {/* Submit Register Button */}
       <TouchableOpacity
@@ -335,6 +349,24 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.medium,
     color: Colors.redColor,
     marginTop: hs(2),
+  },
+  generalErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.red_FFF5F5,
+    borderRadius: fs(8),
+    borderWidth: 1,
+    borderColor: Colors.redColor,
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(8),
+    marginTop: hs(12),
+    gap: ws(6),
+  },
+  generalErrorText: {
+    flex: 1,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
+    color: Colors.redColor,
   },
   submitButton: {
     backgroundColor: Colors.navy,

@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -19,8 +19,7 @@ import {
   DoctorAboutCard,
   DoctorClinicContactCard,
   DoctorConsultationModes,
-  DoctorHeaderProfileCard,
-  DoctorReviewsSection,
+  DoctorHeaderProfileCard
 } from './components';
 import { useDoctorDetails, type ConsultationMode } from './useDoctorDetails';
 
@@ -74,7 +73,7 @@ export const DoctorDetailsScreen: React.FC = () => {
     );
   }
 
-  const handleOpenReviews = () => {
+  const handleOpenReviews = useCallback(() => {
     const targetDocId = String((doctor as any)?.user_id || (doctor as any)?.doct_id || doctor?.id || doctId);
     navigation.navigate('DoctorReviews', {
       doctorId: targetDocId,
@@ -85,7 +84,18 @@ export const DoctorDetailsScreen: React.FC = () => {
       rating,
       reviewCount,
     });
-  };
+  }, [doctor, doctId, navigation, fullName, rating, reviewCount]);
+
+  const handleSelectMode = useCallback((id: string) => {
+    setSelectedMode(id as ConsultationMode);
+  }, [setSelectedMode]);
+
+  const handlePressClinicHeader = useCallback(() => {
+    const cId = (doctor as any).clinic_id || (doctor as any).clinics_id;
+    if (cId) {
+      navigation.navigate('Clinic', { clinicId: String(cId) });
+    }
+  }, [doctor, navigation]);
 
   return (
     <View style={styles.container}>
@@ -107,14 +117,14 @@ export const DoctorDetailsScreen: React.FC = () => {
           reviewCountText={reviewCountText}
           expValue={expValue}
           patientsCount={patientsCount}
-          // onPressReviews={handleOpenReviews}
+        // onPressReviews={handleOpenReviews}
         />
 
         {/* Consultation Modes & Fees Section */}
         <DoctorConsultationModes
           consultationModes={consultationModes}
           selectedMode={selectedMode}
-          onSelectMode={(id) => setSelectedMode(id as ConsultationMode)}
+          onSelectMode={handleSelectMode}
         />
 
         {/* About Section */}
@@ -129,12 +139,7 @@ export const DoctorDetailsScreen: React.FC = () => {
           clinicWhatsapp={clinicWhatsapp}
           clinicEmail={clinicEmail}
           clinicAddress={clinicAddress}
-          onPressClinicHeader={() => {
-            const cId = (doctor as any).clinic_id || (doctor as any).clinics_id;
-            if (cId) {
-              navigation.navigate('Clinic', { clinicId: String(cId) });
-            }
-          }}
+          onPressClinicHeader={handlePressClinicHeader}
           onOpenUrl={handleOpenUrl}
           onOpenDirections={handleOpenDirections}
         />

@@ -1,6 +1,9 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import React from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Colors } from '../constants';
+import { useAuth } from '../context/AuthContext';
 import {
   AboutUsScreen,
   AppointmentDetailsScreen,
@@ -46,11 +49,25 @@ const screenOptions = {
 };
 
 export const AppNavigator = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primaryColor} />
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer>
-      <Stack.Navigator id="RootStack" initialRouteName="Main" screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Main" component={DrawerNavigator} />
+      <Stack.Navigator
+        id="RootStack"
+        initialRouteName={isAuthenticated ? 'Main' : 'Login'}
+        screenOptions={{ headerShown: false }}
+      >
         <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Main" component={DrawerNavigator} />
 
         <Stack.Group screenOptions={screenOptions}>
           <Stack.Screen name="DoctorList" component={DoctorListScreen} />
@@ -86,4 +103,13 @@ export const AppNavigator = () => {
     </NavigationContainer>
   );
 };
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.bgColor,
+  },
+});
 

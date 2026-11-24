@@ -1,7 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { memo, useEffect, useRef } from 'react';
 import { Animated, DimensionValue, StyleSheet, View, ViewStyle } from 'react-native';
 import { Colors } from '../../constants';
-import { ws, hs, fs } from '../../utils/metrics';
+import { fs, hs, ws } from '../../utils/metrics';
 
 export interface SkeletonProps {
   width?: DimensionValue;
@@ -10,7 +10,7 @@ export interface SkeletonProps {
   style?: ViewStyle;
 }
 
-export const Skeleton: React.FC<SkeletonProps> = ({
+export const Skeleton: React.FC<SkeletonProps> = memo(({
   width = '100%',
   height,
   borderRadius,
@@ -54,9 +54,9 @@ export const Skeleton: React.FC<SkeletonProps> = ({
       ]}
     />
   );
-};
+});
 
-export const SkeletonCard: React.FC<{ style?: ViewStyle }> = ({ style }) => {
+export const SkeletonCard: React.FC<{ style?: ViewStyle }> = memo(({ style }) => {
   return (
     <View style={[styles.cardContainer, style]}>
       <View style={styles.cardHeader}>
@@ -72,9 +72,9 @@ export const SkeletonCard: React.FC<{ style?: ViewStyle }> = ({ style }) => {
       </View>
     </View>
   );
-};
+});
 
-export const SkeletonList: React.FC<{ count?: number }> = ({ count = 4 }) => {
+export const SkeletonList: React.FC<{ count?: number }> = memo(({ count = 4 }) => {
   return (
     <View style={styles.listContainer}>
       {Array.from({ length: count }).map((_, index) => (
@@ -82,9 +82,9 @@ export const SkeletonList: React.FC<{ count?: number }> = ({ count = 4 }) => {
       ))}
     </View>
   );
-};
+});
 
-export const SkeletonDetail: React.FC = () => {
+export const SkeletonDetail: React.FC = memo(() => {
   return (
     <View style={styles.detailContainer}>
       <View style={styles.detailHero}>
@@ -102,7 +102,7 @@ export const SkeletonDetail: React.FC = () => {
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   skeleton: {

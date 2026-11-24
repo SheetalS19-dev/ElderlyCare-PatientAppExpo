@@ -48,26 +48,13 @@ export const VitalLatestSummaryCard = memo(({
         <View
           style={[
             styles.heroIconCircle,
-            {
-              backgroundColor:
-                vitalName === 'Weight' && heroWeightTrend
-                  ? heroWeightTrend.bgColor
-                  : iconInfo.bg,
-            },
+            { backgroundColor: iconInfo.bg },
           ]}
         >
           <MaterialIcons
-            name={
-              (vitalName === 'Weight' && heroWeightTrend
-                ? heroWeightTrend.icon
-                : iconInfo.icon) as any
-            }
+            name={iconInfo.icon as any}
             size={24}
-            color={
-              vitalName === 'Weight' && heroWeightTrend
-                ? heroWeightTrend.color
-                : iconInfo.color
-            }
+            color={iconInfo.color}
           />
         </View>
 

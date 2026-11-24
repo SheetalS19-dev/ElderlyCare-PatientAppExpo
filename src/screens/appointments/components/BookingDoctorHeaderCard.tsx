@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { memo } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppCard, StarRating } from '../../../components';
 import { Colors } from '../../../constants';
@@ -14,7 +14,7 @@ interface Props {
   onPressClinic?: (clinicId: string) => void;
 }
 
-export const BookingDoctorHeaderCard: React.FC<Props> = ({
+export const BookingDoctorHeaderCard: React.FC<Props> = memo(({
   doctor,
   ratingAverage,
   reviewsCount,
@@ -110,7 +110,7 @@ export const BookingDoctorHeaderCard: React.FC<Props> = ({
       )}
     </>
   );
-};
+});
 
 const styles = StyleSheet.create({
   card: {

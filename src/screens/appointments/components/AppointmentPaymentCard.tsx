@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Colors } from '../../../constants';
 import type { AppointmentModel } from '../../../types';
@@ -9,7 +9,7 @@ interface Props {
   appointment: AppointmentModel;
 }
 
-export const AppointmentPaymentCard: React.FC<Props> = ({ appointment }) => {
+export const AppointmentPaymentCard: React.FC<Props> = memo(({ appointment }) => {
   const amount = Number(appointment.amount || (appointment as any)?.total_amount || 0);
   const paymentStatus = appointment.payment_status || 'Pending';
   const paymentMethod = (appointment as any)?.payment_type || (appointment as any)?.payment_method || '--';
@@ -48,7 +48,7 @@ export const AppointmentPaymentCard: React.FC<Props> = ({ appointment }) => {
       )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   card: {

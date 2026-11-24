@@ -90,6 +90,7 @@ export const LoginScreen: React.FC = () => {
     handleSubmitOtp,
     handleSubmitRegister,
     handleSendResetLink,
+    navigation,
   } = useLogin();
 
   return (
@@ -111,9 +112,11 @@ export const LoginScreen: React.FC = () => {
           {/* Hero header: navy -> teal gradient with logo, title and subtitle */}
           <View style={[styles.heroHeader, { paddingTop: Math.max(insets.top + 8, 24) }]}>
             <HeaderBackdrop id="authHeaderGrad" />
-            <TouchableOpacity style={styles.heroBackBtn} onPress={handleBack} activeOpacity={0.8}>
-              <MaterialIcons name="arrow-back" size={fs(22)} color={Colors.white} />
-            </TouchableOpacity>
+            {(step !== 'form' || navigation.canGoBack()) && (
+              <TouchableOpacity style={styles.heroBackBtn} onPress={handleBack} activeOpacity={0.8}>
+                <MaterialIcons name="arrow-back" size={fs(22)} color={Colors.white} />
+              </TouchableOpacity>
+            )}
             <View style={styles.heroLogoChip}>
               <Image source={Images.logo} style={styles.logoImage} resizeMode="contain" />
             </View>

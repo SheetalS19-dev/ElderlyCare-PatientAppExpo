@@ -16,6 +16,8 @@ import {
 import { AppHeader, ErrorState, LoadingIndicator } from '../../components';
 import { Colors } from '../../constants';
 import { DateTimeUtils, fs, getImageUrl, hs, TYPOGRAPHY, ws } from '../../utils';
+import { FIELD_LIMITS } from '../../validation';
+import { BlogContentRenderer, cleanMojibake } from './components';
 import { useBlogDetail } from './useBlogDetail';
 
 export const BlogDetailScreen: React.FC = () => {
@@ -39,13 +41,15 @@ export const BlogDetailScreen: React.FC = () => {
     setIsDescExpanded,
     handleShare,
     handleSendComment,
+    commentErrors,
+    setCommentErrors,
     stripHtml,
   } = useBlogDetail();
 
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <AppHeader title="Blog Details" onBackPress={() => navigation.goBack()} />
+        <AppHeader title="Health Blogs & Articles" onBackPress={() => navigation.goBack()} />
         <LoadingIndicator />
       </View>
     );
@@ -54,7 +58,7 @@ export const BlogDetailScreen: React.FC = () => {
   if (isError || !blog) {
     return (
       <View style={styles.container}>
-        <AppHeader title="Blog Details" onBackPress={() => navigation.goBack()} />
+        <AppHeader title="Health Blogs & Articles" onBackPress={() => navigation.goBack()} />
         <ErrorState message="Couldn't load article details" onRetry={refetch} />
       </View>
     );
@@ -70,7 +74,7 @@ export const BlogDetailScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Blog Details" onBackPress={() => navigation.goBack()} />
+      <AppHeader title="Health Blogs & Articles" onBackPress={() => navigation.goBack()} />
 
       <KeyboardAvoidingView
         style={styles.flexOne}
@@ -109,7 +113,7 @@ export const BlogDetailScreen: React.FC = () => {
           )}
 
           {/* Article Title */}
-          <Text style={styles.title}>{blog.title}</Text>
+          <Text style={styles.title}>{cleanMojibake(blog.title)}</Text>
 
           {/* Author & Published Info Row */}
           <View style={styles.metaRow}>
@@ -142,22 +146,21 @@ export const BlogDetailScreen: React.FC = () => {
 
           {/* Main Article Content */}
           <View style={styles.bodyCard}>
-            <Text style={styles.bodyText}>
-              {isDescExpanded || cleanDescription.length <= 320
-                ? cleanDescription
-                : `${cleanDescription.slice(0, 320)}...`}
-            </Text>
-            {cleanDescription.length > 320 && (
-              <TouchableOpacity
-                onPress={() => setIsDescExpanded((prev) => !prev)}
-                style={styles.readMoreBtn}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.readMoreText}>
-                  {isDescExpanded ? 'Read Less' : 'Read More >'}
-                </Text>
-              </TouchableOpacity>
-            )}
+            <BlogContentRenderer htmlContent={blog.description} isExpanded={isDescExpanded} />
+            <TouchableOpacity
+              onPress={() => setIsDescExpanded((prev) => !prev)}
+              style={styles.readMoreBtn}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.readMoreText}>
+                {isDescExpanded ? 'Read Less' : 'Read More'}
+              </Text>
+              <MaterialIcons
+                name={isDescExpanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                size={fs(18)}
+                color={Colors.primaryColor}
+              />
+            </TouchableOpacity>
           </View>
 
           {/* Care Helpline Callout Box */}
@@ -207,7 +210,7 @@ export const BlogDetailScreen: React.FC = () => {
           <View style={styles.leaveCommentCard}>
             <Text style={styles.leaveCommentTitle}>Leave A Comment</Text>
             <Text style={styles.leaveCommentSubtitle}>
-              Your email address will not be published. Required fields are marked as <Text style={{ color: Colors.red_EF4444 }}>*</Text>.
+              Share your thoughts below. Your email stays private and won’t be shown publicly.
             </Text>
 
             <View style={styles.inputRow}>
@@ -216,12 +219,17 @@ export const BlogDetailScreen: React.FC = () => {
                   Name <Text style={{ color: Colors.red_EF4444 }}>*</Text>
                 </Text>
                 <TextInput
-                  style={styles.formInput}
+                  style={[styles.formInput, !!commentErrors.name && styles.inputError]}
                   placeholder="Please Enter Your Name"
                   placeholderTextColor={Colors.secondaryFontColor}
                   value={commentName}
-                  onChangeText={setCommentName}
+                  onChangeText={(t) => {
+                    setCommentName(t);
+                    if (commentErrors.name) setCommentErrors((p) => ({ ...p, name: '' }));
+                  }}
+                  maxLength={FIELD_LIMITS.NAME_MAX}
                 />
+                {!!commentErrors.name && <Text style={styles.errorText}>{commentErrors.name}</Text>}
               </View>
 
               <View style={styles.inputFieldContainer}>
@@ -229,31 +237,55 @@ export const BlogDetailScreen: React.FC = () => {
                   Email <Text style={{ color: Colors.red_EF4444 }}>*</Text>
                 </Text>
                 <TextInput
-                  style={styles.formInput}
+                  style={[styles.formInput, !!commentErrors.email && styles.inputError]}
                   placeholder="Please Enter Your Email"
                   placeholderTextColor={Colors.secondaryFontColor}
                   value={commentEmail}
-                  onChangeText={setCommentEmail}
+                  onChangeText={(t) => {
+                    setCommentEmail(t);
+                    if (commentErrors.email) setCommentErrors((p) => ({ ...p, email: '' }));
+                  }}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  maxLength={FIELD_LIMITS.EMAIL_MAX}
                 />
+                {!!commentErrors.email && <Text style={styles.errorText}>{commentErrors.email}</Text>}
               </View>
             </View>
 
             <View style={styles.inputFieldContainer}>
-              <Text style={styles.fieldLabel}>
-                Comment <Text style={{ color: Colors.red_EF4444 }}>*</Text>
-              </Text>
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabelInline}>
+                  Comment <Text style={{ color: Colors.red_EF4444 }}>*</Text>
+                </Text>
+                <Text
+                  style={[
+                    styles.counterText,
+                    commentText.length >= FIELD_LIMITS.COMMENT_MAX && styles.counterTextExceeded,
+                  ]}
+                >
+                  {commentText.length}/{FIELD_LIMITS.COMMENT_MAX}
+                </Text>
+              </View>
+
               <TextInput
-                style={[styles.formInput, styles.commentTextArea]}
+                style={[styles.formInput, styles.commentTextArea, !!commentErrors.comment && styles.inputError]}
                 placeholder="Please Enter Your Comment"
                 placeholderTextColor={Colors.secondaryFontColor}
                 value={commentText}
-                onChangeText={setCommentText}
+                onChangeText={(t) => {
+                  setCommentText(t);
+                  if (commentErrors.comment) setCommentErrors((p) => ({ ...p, comment: '' }));
+                }}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
+                maxLength={FIELD_LIMITS.COMMENT_MAX}
               />
+
+              {!!commentErrors.comment && (
+                <Text style={styles.errorText}>{commentErrors.comment}</Text>
+              )}
             </View>
 
             <TouchableOpacity
@@ -426,12 +458,15 @@ const styles = StyleSheet.create({
     lineHeight: fs(22),
   },
   readMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
     alignSelf: 'flex-start',
-    marginTop: hs(10),
+    marginTop: hs(12),
     paddingVertical: hs(4),
+    gap: ws(4),
   },
   readMoreText: {
-    fontSize: fs(13),
+    fontSize: fs(13.5),
     ...TYPOGRAPHY.bold,
     color: Colors.primaryColor,
   },
@@ -573,6 +608,46 @@ const styles = StyleSheet.create({
   commentTextArea: {
     minHeight: hs(80),
     paddingTop: hs(10),
+  },
+  inputError: {
+    borderColor: Colors.redColor,
+    backgroundColor: Colors.red_FFF5F5,
+  },
+
+  counterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: hs(4),
+    paddingHorizontal: ws(2),
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: hs(6),
+  },
+  fieldLabelInline: {
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
+    color: Colors.primaryFontColor,
+  },
+
+  counterText: {
+    fontSize: fs(11),
+    ...TYPOGRAPHY.medium,
+    color: Colors.secondaryFontColor,
+  },
+
+  errorText: {
+    fontSize: fs(11),
+    color: Colors.redColor,
+    marginTop: hs(4),
+    ...TYPOGRAPHY.regular,
+  },
+  counterTextExceeded: {
+    color: Colors.redColor,
+    ...TYPOGRAPHY.bold,
   },
   postCommentBtn: {
     backgroundColor: Colors.primaryColor,

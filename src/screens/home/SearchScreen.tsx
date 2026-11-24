@@ -1,5 +1,5 @@
 import { FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   FlatList,
   Image,
@@ -60,9 +60,89 @@ export const SearchScreen: React.FC = () => {
     handleDoctorBookPress,
   } = useSearch();
 
+  const doctorKeyExtractor = useCallback((item: any, index: number) => `doc-${item.user_id ?? item.id ?? index}`, []);
+
+  const handleDoctorPress = useCallback(
+    (item: any) => {
+      navigation.navigate('DoctorDetails', {
+        doctId: String(item.user_id || item.id),
+      });
+    },
+    [navigation]
+  );
+
+  const renderDoctorItem = useCallback(
+    ({ item }: { item: any }) => (
+      <DoctorCard
+        doctor={item}
+        variant="list"
+        onPress={() => handleDoctorPress(item)}
+        onBookPress={() => handleDoctorBookPress(item)}
+      />
+    ),
+    [handleDoctorPress, handleDoctorBookPress]
+  );
+
+  const clinicKeyExtractor = useCallback((item: any, index: number) => `clinic-${item.id ?? index}`, []);
+
+  const handleClinicPress = useCallback(
+    (item: any) => {
+      navigation.navigate('Clinic', { clinicId: String(item.id) });
+    },
+    [navigation]
+  );
+
+  const renderClinicItem = useCallback(
+    ({ item }: { item: any }) => {
+      const clinicImg = item.image ? getImageUrl(item.image) : '';
+      return (
+        <TouchableOpacity
+          style={styles.clinicCard}
+          activeOpacity={0.8}
+          onPress={() => handleClinicPress(item)}
+        >
+          {clinicImg ? (
+            <Image
+              source={{ uri: clinicImg }}
+              style={styles.clinicImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.placeholderImage}>
+              <FontAwesome5 name="hospital" size={26} color={Colors.primaryColor} />
+            </View>
+          )}
+
+          <View style={styles.clinicDetails}>
+            <Text style={styles.clinicTitle} numberOfLines={1}>
+              {item.title}
+            </Text>
+            <Text style={styles.clinicAddress} numberOfLines={2}>
+              {item.address}
+            </Text>
+            {item.city_title ? (
+              <View style={styles.cityBadge}>
+                <Ionicons
+                  name="location-outline"
+                  size={12}
+                  color={Colors.primaryColor}
+                  style={{ marginRight: ws(3) }}
+                />
+                <Text style={styles.cityBadgeText}>{item.city_title}</Text>
+              </View>
+            ) : null}
+          </View>
+
+          <Ionicons name="chevron-forward" size={20} color={Colors.secondaryFontColor} />
+        </TouchableOpacity>
+      );
+    },
+    [handleClinicPress]
+  );
+
   return (
     <View style={styles.container}>
-      <AppHeader title="Search" onBackPress={() => navigation.goBack()} />
+      <AppHeader title="Find Doctors & Clinics" onBackPress={() => navigation.goBack()} />
 
       <View style={styles.content}>
         {/* 1. Search Box at top */}
@@ -75,6 +155,7 @@ export const SearchScreen: React.FC = () => {
               : 'Search clinics by name, address...'
           }
           containerStyle={styles.searchBoxOverride}
+          showClearButton={false}
         />
 
         {/* 2. Compact Segmented Tabs: Doctors & Clinics */}
@@ -131,16 +212,11 @@ export const SearchScreen: React.FC = () => {
             >
               {selectedCity.title ? selectedCity.title.split(',')[0].trim() : 'All Cities'}
             </Text>
-            {hasCityFilter ? (
-              <TouchableOpacity
-                onPress={() => setSelectedCity({ id: '', title: '' })}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="close-circle" size={fs(15)} color={Colors.primaryColor} />
-              </TouchableOpacity>
-            ) : (
-              <Ionicons name="chevron-down" size={fs(13)} color={Colors.slate_94A3B8} />
-            )}
+            <Ionicons
+              name="chevron-down"
+              size={fs(13)}
+              color={hasCityFilter ? Colors.primaryColor : Colors.slate_94A3B8}
+            />
           </TouchableOpacity>
 
           {/* Department Filter Chip (Only in Doctors Tab) */}
@@ -161,16 +237,11 @@ export const SearchScreen: React.FC = () => {
               >
                 {selectedDeptTitle || 'Select Department'}
               </Text>
-              {hasDeptFilter ? (
-                <TouchableOpacity
-                  onPress={() => handleSelectDepartment(undefined)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="close-circle" size={fs(15)} color={Colors.primaryColor} />
-                </TouchableOpacity>
-              ) : (
-                <Ionicons name="chevron-down" size={fs(13)} color={Colors.slate_94A3B8} />
-              )}
+              <Ionicons
+                name="chevron-down"
+                size={fs(13)}
+                color={hasDeptFilter ? Colors.primaryColor : Colors.slate_94A3B8}
+              />
             </TouchableOpacity>
           )}
         </View>
@@ -199,24 +270,13 @@ export const SearchScreen: React.FC = () => {
           ) : (
             <FlatList
               data={filteredDoctors}
-              keyExtractor={(item, index) => `doc-${item.user_id ?? item.id ?? index}`}
+              keyExtractor={doctorKeyExtractor}
               contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + hs(80), 110) }]}
               showsVerticalScrollIndicator={false}
               ListEmptyComponent={
                 <EmptyState message="No doctors found matching your search criteria" />
               }
-              renderItem={({ item }) => (
-                <DoctorCard
-                  doctor={item}
-                  variant="list"
-                  onPress={() =>
-                    navigation.navigate('DoctorDetails', {
-                      doctId: String(item.user_id || item.id),
-                    })
-                  }
-                  onBookPress={() => handleDoctorBookPress(item)}
-                />
-              )}
+              renderItem={renderDoctorItem}
             />
           )
         ) : (
@@ -226,61 +286,13 @@ export const SearchScreen: React.FC = () => {
           ) : (
             <FlatList
               data={filteredClinics}
-              keyExtractor={(item, index) => `clinic-${item.id ?? index}`}
+              keyExtractor={clinicKeyExtractor}
               contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + hs(80), 110) }]}
               showsVerticalScrollIndicator={false}
               ListEmptyComponent={
                 <EmptyState message="No clinics found matching your search criteria" />
               }
-              renderItem={({ item }) => {
-                const clinicImg = item.image ? getImageUrl(item.image) : '';
-                return (
-                  <TouchableOpacity
-                    style={styles.clinicCard}
-                    activeOpacity={0.8}
-                    onPress={() =>
-                      navigation.navigate('Clinic', { clinicId: String(item.id) })
-                    }
-                  >
-                    {clinicImg ? (
-                      <Image
-                        source={{ uri: clinicImg }}
-                        style={styles.clinicImage}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View style={styles.placeholderImage}>
-                        <FontAwesome5 name="hospital" size={26} color={Colors.primaryColor} />
-                      </View>
-                    )}
-
-                    <View style={styles.clinicDetails}>
-                      <Text style={styles.clinicTitle} numberOfLines={1}>
-                        {item.title}
-                      </Text>
-                      <Text style={styles.clinicAddress} numberOfLines={2}>
-                        {item.address}
-                      </Text>
-                      {item.city_title ? (
-                        <View style={styles.cityBadge}>
-                          <Ionicons
-                            name="location-outline"
-                            size={12}
-                            color={Colors.primaryColor}
-                          />
-                          <Text style={styles.cityBadgeText}>{item.city_title}</Text>
-                        </View>
-                      ) : null}
-                    </View>
-
-                    <Ionicons
-                      name="chevron-forward"
-                      size={20}
-                      color={Colors.secondaryFontColor}
-                    />
-                  </TouchableOpacity>
-                );
-              }}
+              renderItem={renderClinicItem}
             />
           )
         )}

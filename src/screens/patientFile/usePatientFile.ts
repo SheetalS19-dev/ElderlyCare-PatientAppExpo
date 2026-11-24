@@ -3,7 +3,7 @@ import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Linking, Platform } from 'react-native';
+import { Keyboard, Linking, Platform } from 'react-native';
 import { ApiEndpoints, AppConstants } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import { useDebounce } from '../../hooks';
@@ -13,6 +13,7 @@ import {
   useGetFamilyMembersQuery,
 } from '../../redux/apis/bookingApi';
 import { patientFilesApi, useGetPatientFilesQuery } from '../../redux/apis/patientFilesApi';
+import { useGetUserProfileQuery } from '../../redux/apis/userApi';
 import { useAppDispatch } from '../../redux/hooks';
 import { storageService } from '../../services/storageService';
 import type { FamilyMemberModel, PatientFileModel } from '../../types';
@@ -70,7 +71,20 @@ export const usePatientFile = () => {
 
   const uid = String(user?.id ?? (user as any)?.user_id ?? asyncUid ?? '');
 
-  const initialMemberId = route.params?.familyMemberId ? String(route.params.familyMemberId) : 'all';
+  const { data: userProfileData, refetch: refetchUserProfile } = useGetUserProfileQuery(uid, {
+    skip: !uid,
+    refetchOnMountOrArgChange: true,
+  });
+
+  const mainUser = useMemo(() => {
+    const rawProfile = userProfileData?.data ?? userProfileData;
+    return {
+      ...(user && typeof user === 'object' ? user : {}),
+      ...(rawProfile && typeof rawProfile === 'object' ? rawProfile : {}),
+    };
+  }, [userProfileData, user]);
+
+  const initialMemberId = route.params?.familyMemberId ? String(route.params.familyMemberId) : 'self';
   const [search, setSearch] = useState('');
   const [selectedMemberId, setSelectedMemberId] = useState<string>(initialMemberId);
   const [showMemberDropdown, setShowMemberDropdown] = useState<boolean>(false);
@@ -115,8 +129,9 @@ export const usePatientFile = () => {
       if (uid) {
         refetch();
         refetchFamily();
+        refetchUserProfile();
       }
-    }, [uid, refetch, refetchFamily])
+    }, [uid, refetch, refetchFamily, refetchUserProfile])
   );
 
   const rawFamilyList: FamilyMemberModel[] = useMemo(() => {
@@ -137,7 +152,7 @@ export const usePatientFile = () => {
 
   // Find existing self member in family_members table
   const existingSelfMemberInDb = useMemo(() => {
-    const matched = rawFamilyList.find((m) => isUserSelfMember(m, user));
+    const matched = rawFamilyList.find((m) => isUserSelfMember(m, mainUser));
     if (matched) return matched;
 
     const byRel = rawFamilyList.find((m) => {
@@ -147,43 +162,52 @@ export const usePatientFile = () => {
     if (byRel) return byRel;
 
     return null;
-  }, [rawFamilyList, user]);
+  }, [rawFamilyList, mainUser]);
 
   const effectiveSelfId = useMemo(() => {
     if (existingSelfMemberInDb?.id) {
       return String(existingSelfMemberInDb.id);
     }
-    return String(user?.id ?? uid ?? 'self');
-  }, [existingSelfMemberInDb, user?.id, uid]);
+    return String(mainUser?.id ?? user?.id ?? uid ?? 'self');
+  }, [existingSelfMemberInDb, mainUser?.id, user?.id, uid]);
 
   const familyList: FamilyMemberModel[] = useMemo(() => {
     const result: FamilyMemberModel[] = [];
     const seenKeys = new Set<string>();
 
+    const selfFName = (mainUser?.f_name || user?.f_name || existingSelfMemberInDb?.f_name || 'Self').trim();
+    const selfLName = (mainUser?.l_name ?? user?.l_name ?? existingSelfMemberInDb?.l_name ?? '').trim();
+
     // 1. Add Self (Account Holder) first with real family_members table ID when present
-    if (user) {
+    if (user || mainUser) {
       const selfItem: FamilyMemberModel = {
         id: effectiveSelfId,
-        user_id: user.id,
-        f_name: existingSelfMemberInDb?.f_name || user.f_name || 'Self',
-        l_name: existingSelfMemberInDb?.l_name || user.l_name || '',
-        name: `${user.f_name ?? ''} ${user.l_name ?? ''}`.trim() || 'Self',
-        phone: existingSelfMemberInDb?.phone || user.phone || '',
-        gender: existingSelfMemberInDb?.gender || user.gender || '',
-        dob: existingSelfMemberInDb?.dob || user.dob || '',
-        isd_code: existingSelfMemberInDb?.isd_code || user.isd_code || '+91',
+        user_id: mainUser?.id ?? user?.id,
+        f_name: selfFName,
+        l_name: selfLName,
+        name: `${selfFName} ${selfLName}`.trim() || 'Self',
+        phone: mainUser?.phone || user?.phone || existingSelfMemberInDb?.phone || '',
+        gender: mainUser?.gender || user?.gender || existingSelfMemberInDb?.gender || '',
+        dob: mainUser?.dob || user?.dob || existingSelfMemberInDb?.dob || '',
+        isd_code: mainUser?.isd_code || user?.isd_code || existingSelfMemberInDb?.isd_code || '+91',
         relationship: 'Self',
       };
       (selfItem as any).is_self = true;
       result.push(selfItem);
 
-      const selfKey = `${(user.f_name || '').trim().toLowerCase()}_${(user.l_name || '').trim().toLowerCase()}`;
-      if (selfKey !== '_') seenKeys.add(selfKey);
+      const k1 = `${selfFName.toLowerCase()}_${selfLName.toLowerCase()}`;
+      if (k1 !== '_') seenKeys.add(k1);
+      const k2 = `${(user?.f_name || '').trim().toLowerCase()}_${(user?.l_name || '').trim().toLowerCase()}`;
+      if (k2 !== '_') seenKeys.add(k2);
+      if (existingSelfMemberInDb?.f_name) {
+        const k3 = `${(existingSelfMemberInDb.f_name || '').trim().toLowerCase()}_${(existingSelfMemberInDb.l_name || '').trim().toLowerCase()}`;
+        if (k3 !== '_') seenKeys.add(k3);
+      }
     }
 
-    // 2. Add family members from rawFamilyList (excluding Self duplicate)
+    // 2. Add family members from active rawFamilyList (excluding Self duplicate)
     for (const m of rawFamilyList) {
-      if (isUserSelfMember(m, user)) continue;
+      if (isUserSelfMember(m, mainUser)) continue;
       if (existingSelfMemberInDb && String(m.id) === String(existingSelfMemberInDb.id)) continue;
       if (effectiveSelfId && String(m.id) === effectiveSelfId) continue;
 
@@ -197,50 +221,23 @@ export const usePatientFile = () => {
       if (mFName) seenKeys.add(key);
     }
 
-    // 3. Add any other patients found in rawData who are not yet represented
-    let fileList: any[] = [];
-    if (Array.isArray(rawData)) fileList = rawData;
-    else if (Array.isArray((rawData as any)?.data)) fileList = (rawData as any).data;
-    else if (Array.isArray((rawData as any)?.data?.data)) fileList = (rawData as any).data.data;
-    else if (Array.isArray((rawData as any)?.response)) fileList = (rawData as any).response;
-
-    for (const f of fileList) {
-      const fFName = (f.patient_f_name || f.f_name || '').trim().toLowerCase();
-      const fLName = (f.patient_l_name || f.l_name || '').trim().toLowerCase();
-      const key = `${fFName}_${fLName}`;
-
-      if (fFName && !seenKeys.has(key)) {
-        seenKeys.add(key);
-        const pId = String(f.patient_id ?? f.family_member_id ?? f.id);
-        result.push({
-          id: pId as any,
-          user_id: user?.id,
-          f_name: f.patient_f_name || f.f_name,
-          l_name: f.patient_l_name || f.l_name || '',
-          name: `${f.patient_f_name || f.f_name} ${f.patient_l_name || f.l_name || ''}`.trim(),
-          phone: f.phone || f.patient_phone || '',
-          gender: '',
-          dob: '',
-          isd_code: f.isd_code || '+91',
-          relationship: 'Patient',
-        });
-      }
-    }
-
+    // NOTE: We deliberately do NOT synthesize ghost patients from old rawData files,
+    // so deleted family members or old patient names will NOT reappear in the dropdowns.
     return result;
-  }, [rawFamilyList, existingSelfMemberInDb, effectiveSelfId, user, rawData]);
+  }, [rawFamilyList, existingSelfMemberInDb, effectiveSelfId, user, mainUser]);
 
   const getMemberDisplayName = (mem?: FamilyMemberModel | null): string => {
     if (!mem) return 'Patient';
     const isSelf =
       (mem as any).is_self === true ||
       (mem.relationship || '').toLowerCase() === 'self' ||
+      String(mem.id) === String(mainUser?.id) ||
       String(mem.id) === String(user?.id) ||
       String(mem.id) === effectiveSelfId ||
       (existingSelfMemberInDb && String(mem.id) === String(existingSelfMemberInDb.id));
 
     if (isSelf) {
-      const uFull = `${user?.f_name ?? mem.f_name ?? ''} ${user?.l_name ?? mem.l_name ?? ''}`.trim();
+      const uFull = `${mainUser?.f_name || user?.f_name || mem.f_name || ''} ${mainUser?.l_name ?? user?.l_name ?? mem.l_name ?? ''}`.trim();
       return uFull ? `${uFull} (Self)` : 'Self (Account Holder)';
     }
     const full = `${mem.f_name ?? ''} ${mem.l_name ?? ''}`.trim();
@@ -252,6 +249,7 @@ export const usePatientFile = () => {
     const isSelf =
       (mem as any).is_self === true ||
       (mem.relationship || '').toLowerCase() === 'self' ||
+      String(mem.id) === String(mainUser?.id) ||
       String(mem.id) === String(user?.id) ||
       String(mem.id) === effectiveSelfId ||
       (existingSelfMemberInDb && String(mem.id) === String(existingSelfMemberInDb.id));
@@ -275,12 +273,13 @@ export const usePatientFile = () => {
       (m) =>
         String(m.id) === selectedMemberId ||
         ((m as any).is_self &&
-          (selectedMemberId === String(user?.id) ||
+          (selectedMemberId === String(mainUser?.id) ||
+            selectedMemberId === String(user?.id) ||
             selectedMemberId === effectiveSelfId ||
             selectedMemberId === 'self'))
     );
     return target ? getMemberDisplayName(target) : 'All Members';
-  }, [selectedMemberId, familyList, user, effectiveSelfId]);
+  }, [selectedMemberId, familyList, user, mainUser, effectiveSelfId]);
 
   const files: PatientFileModel[] = useMemo(() => {
     let list: PatientFileModel[] = [];
@@ -292,12 +291,23 @@ export const usePatientFile = () => {
     else if (Array.isArray((rawData as any)?.response?.data)) list = (rawData as any).response.data;
     else if (Array.isArray((rawData as any)?.result)) list = (rawData as any).result;
 
+    // 1. Filter out files not belonging to this account holder
+    list = list.filter((item: any) => {
+      const itemUserId = item.user_id != null ? String(item.user_id) : '';
+      if (itemUserId && itemUserId !== String(uid)) {
+        return false;
+      }
+      return true;
+    });
+
+    // 2. Member filter if a specific member is selected
     if (selectedMemberId !== 'all') {
       const curMember = familyList.find(
         (m) =>
           String(m.id) === String(selectedMemberId) ||
           ((m as any).is_self &&
-            (selectedMemberId === String(user?.id) ||
+            (selectedMemberId === String(mainUser?.id) ||
+              selectedMemberId === String(user?.id) ||
               selectedMemberId === effectiveSelfId ||
               selectedMemberId === 'self'))
       );
@@ -306,6 +316,7 @@ export const usePatientFile = () => {
       const isSelfSelection =
         (curMember as any)?.is_self === true ||
         (curMember?.relationship || '').toLowerCase() === 'self' ||
+        String(selectedMemberId) === String(mainUser?.id) ||
         String(selectedMemberId) === String(user?.id) ||
         String(selectedMemberId) === effectiveSelfId ||
         (existingSelfMemberInDb && String(selectedMemberId) === String(existingSelfMemberInDb.id));
@@ -313,25 +324,25 @@ export const usePatientFile = () => {
       list = list.filter((item: any) => {
         const itemPatientId = String(item.patient_id ?? item.family_member_id ?? item.member_id ?? '');
 
-        // 1. Direct ID match
+        // Direct ID match
         if (
           itemPatientId &&
           (itemPatientId === String(selectedMemberId) ||
             (curMember && itemPatientId === String(curMember.id)) ||
             (isSelfSelection && existingSelfMemberInDb && itemPatientId === String(existingSelfMemberInDb.id)) ||
             (isSelfSelection && effectiveSelfId && itemPatientId === effectiveSelfId) ||
+            (isSelfSelection && itemPatientId === String(mainUser?.id)) ||
             (isSelfSelection && itemPatientId === String(user?.id)))
         ) {
           return true;
         }
 
-        // 2. Name match (First name + Last name)
+        // Name match (First name + Last name)
         const itemFName = (item.patient_f_name || item.f_name || '').trim().toLowerCase();
         const itemLName = (item.patient_l_name || item.l_name || '').trim().toLowerCase();
 
         if (curFName && itemFName) {
           if (curFName === itemFName) {
-            // If both specify last names, require last name match
             if (curLName && itemLName) {
               if (curLName === itemLName) return true;
             } else {
@@ -340,18 +351,18 @@ export const usePatientFile = () => {
           }
         }
 
-        // 3. Self selection fallback: matches user name or direct user_id or empty / 0
+        // Self selection fallback
         if (isSelfSelection) {
-          const userFName = (user?.f_name || '').trim().toLowerCase();
-          const userLName = (user?.l_name || '').trim().toLowerCase();
-          if (userFName && itemFName === userFName) {
-            if (userLName && itemLName) {
-              if (userLName === itemLName) return true;
+          const uFName = (mainUser?.f_name || user?.f_name || '').trim().toLowerCase();
+          const uLName = (mainUser?.l_name ?? user?.l_name ?? '').trim().toLowerCase();
+          if (uFName && itemFName === uFName) {
+            if (uLName && itemLName) {
+              if (uLName === itemLName) return true;
             } else {
               return true;
             }
           }
-          if (!itemPatientId || itemPatientId === '0' || itemPatientId === String(user?.id)) {
+          if (!itemPatientId || itemPatientId === '0' || itemPatientId === String(mainUser?.id) || itemPatientId === String(user?.id)) {
             return true;
           }
         }
@@ -360,6 +371,7 @@ export const usePatientFile = () => {
       });
     }
 
+    // 3. Search query filter
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter((item: any) => {
@@ -375,9 +387,9 @@ export const usePatientFile = () => {
     }
 
     return list;
-  }, [rawData, selectedMemberId, familyList, user, search, effectiveSelfId, existingSelfMemberInDb]);
+  }, [rawData, selectedMemberId, familyList, user, mainUser, search, effectiveSelfId, existingSelfMemberInDb, uid]);
 
-  const handleDownload = async (item: any) => {
+  const handleDownload = useCallback(async (item: any) => {
     const fileSource =
       item.file_url ||
       item.file ||
@@ -400,9 +412,9 @@ export const usePatientFile = () => {
     } else {
       showToast('File attachment not found');
     }
-  };
+  }, []);
 
-  const handleOpenFile = (item: any) => {
+  const handleOpenFile = useCallback((item: any) => {
     const fileSource =
       item.file_url ||
       item.file ||
@@ -418,25 +430,25 @@ export const usePatientFile = () => {
     } else {
       showToast('File attachment not found');
     }
-  };
+  }, []);
 
-  const formatPatientName = (item: any) => {
+  const formatPatientName = useCallback((item: any) => {
     return (
       item.patient_name ||
       `${item.patient_f_name ?? item.f_name ?? ''} ${item.patient_l_name ?? item.l_name ?? ''}`.trim() ||
       user?.f_name ||
       'Patient'
     );
-  };
+  }, [user?.f_name]);
 
-  const formatFileDate = (item: any) => {
+  const formatFileDate = useCallback((item: any) => {
     const d = item.created_at || item.date || item.updated_at;
     if (!d) return '--';
     const str = String(d).trim();
     return DateTimeUtils.getDataFormatWithTime(str) || str;
-  };
+  }, []);
 
-  const openUploadSheet = () => {
+  const openUploadSheet = useCallback(() => {
     setShowMemberDropdown(false);
     let defaultId =
       selectedMemberId !== 'all'
@@ -459,14 +471,17 @@ export const usePatientFile = () => {
     setUploadError('');
     setShowUploadMembers(false);
     setUploadVisible(true);
-  };
+  }, [selectedMemberId, familyList, effectiveSelfId, uid, user?.id]);
 
-  const closeUploadSheet = () => {
+  const closeUploadSheet = useCallback(() => {
+    Keyboard.dismiss();
     if (isUploading) return;
     setUploadVisible(false);
-  };
+    setTimeout(() => Keyboard.dismiss(), 100);
+  }, [isUploading]);
 
   const applyPickedFile = (file: PickedFile) => {
+    Keyboard.dismiss();
     const ext = (file.name.split('.').pop() || '').toLowerCase();
     const isAllowedExt = ALLOWED_EXTENSIONS.includes(ext);
     const isAllowedMime = ALLOWED_MIME_TYPES.some((m) =>
@@ -490,20 +505,25 @@ export const usePatientFile = () => {
       setUploadTitle(file.name.replace(/\.[^/.]+$/, '').slice(0, 60));
       setTitleError('');
     }
+    setTimeout(() => Keyboard.dismiss(), 150);
+    setTimeout(() => Keyboard.dismiss(), 300);
   };
 
   const pickFromGallery = async () => {
+    Keyboard.dismiss();
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (perm.status !== 'granted') {
         showToast('Gallery permission is required to select photos');
         return;
       }
+      Keyboard.dismiss();
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         quality: 0.8,
         allowsEditing: false,
       });
+      Keyboard.dismiss();
       if (!res.canceled && res.assets?.length) {
         const a = res.assets[0];
         const name = a.fileName || a.uri.split('/').pop() || `file_${Date.now()}.jpg`;
@@ -516,20 +536,25 @@ export const usePatientFile = () => {
       }
     } catch (e: any) {
       showToast(e?.message || 'Could not open gallery');
+    } finally {
+      Keyboard.dismiss();
     }
   };
 
   const pickFromCamera = async () => {
+    Keyboard.dismiss();
     try {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (perm.status !== 'granted') {
         showToast('Camera permission is required to take a photo');
         return;
       }
+      Keyboard.dismiss();
       const res = await ImagePicker.launchCameraAsync({
         quality: 0.8,
         allowsEditing: false,
       });
+      Keyboard.dismiss();
       if (!res.canceled && res.assets?.length) {
         const a = res.assets[0];
         const name = a.fileName || a.uri.split('/').pop() || `photo_${Date.now()}.jpg`;
@@ -542,11 +567,14 @@ export const usePatientFile = () => {
       }
     } catch (e: any) {
       showToast(e?.message || 'Could not open camera');
+    } finally {
+      Keyboard.dismiss();
     }
   };
 
   const pickDocument = async () => {
     if (!DocumentPicker) return;
+    Keyboard.dismiss();
     try {
       const res = await DocumentPicker.getDocumentAsync({
         type: [
@@ -557,6 +585,7 @@ export const usePatientFile = () => {
         ],
         copyToCacheDirectory: true,
       });
+      Keyboard.dismiss();
       if (!res.canceled && res.assets?.length) {
         const a = res.assets[0];
         applyPickedFile({
@@ -568,6 +597,8 @@ export const usePatientFile = () => {
       }
     } catch (e: any) {
       showToast(e?.message || 'Could not open documents');
+    } finally {
+      Keyboard.dismiss();
     }
   };
 
@@ -666,6 +697,7 @@ export const usePatientFile = () => {
   };
 
   const handleUpload = async () => {
+    Keyboard.dismiss();
     let hasError = false;
     const trimmedTitle = uploadTitle.trim();
 
@@ -689,7 +721,7 @@ export const usePatientFile = () => {
     }
 
     if (!pickedFile) {
-      setFileError('Please choose a file to upload (max 5 MB)');
+      setFileError('Please choose a file to upload');
       hasError = true;
     } else {
       const ext = (pickedFile.name.split('.').pop() || '').toLowerCase();
@@ -762,11 +794,14 @@ export const usePatientFile = () => {
       }
 
       showToast('File uploaded successfully');
+      Keyboard.dismiss();
       setUploadVisible(false);
       setUploadTitle('');
       setTitleError('');
       setFileError('');
       setPickedFile(null);
+      setTimeout(() => Keyboard.dismiss(), 100);
+      setTimeout(() => Keyboard.dismiss(), 350);
       if (uploadMemberId) {
         setSelectedMemberId(uploadMemberId);
       }
@@ -775,7 +810,6 @@ export const usePatientFile = () => {
     } catch (err: any) {
       const msg = err?.message || 'Failed to upload patient file. Please try again.';
       setUploadError(msg);
-      showToast(msg);
     } finally {
       setIsUploading(false);
     }
@@ -786,12 +820,13 @@ export const usePatientFile = () => {
       (m) =>
         String(m.id) === String(uploadMemberId) ||
         ((m as any).is_self &&
-          (String(uploadMemberId) === String(user?.id) ||
+          (String(uploadMemberId) === String(mainUser?.id) ||
+            String(uploadMemberId) === String(user?.id) ||
             String(uploadMemberId) === effectiveSelfId ||
             uploadMemberId === 'self'))
     );
-    return getMemberDisplayName(mem);
-  }, [uploadMemberId, familyList, effectiveSelfId, user]);
+    return getMemberDisplayName(mem || familyList[0]);
+  }, [uploadMemberId, familyList, effectiveSelfId, user, mainUser]);
 
   return {
     navigation,

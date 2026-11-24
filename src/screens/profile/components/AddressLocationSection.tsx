@@ -30,7 +30,7 @@ interface Props {
   };
 }
 
-export const AddressLocationSection: React.FC<Props> = ({
+const AddressLocationSectionComponent: React.FC<Props> = ({
   address,
   onChangeAddress,
   city,
@@ -180,6 +180,8 @@ export const AddressLocationSection: React.FC<Props> = ({
     </View>
   );
 };
+
+export const AddressLocationSection = React.memo(AddressLocationSectionComponent);
 
 const styles = StyleSheet.create({
   sectionCard: {

@@ -176,7 +176,7 @@ export const HomePatientDashboard = memo(({
                 <Text style={styles.memberDropdownSubText} numberOfLines={1}>
                   {selectedMemberId === 'SELF'
                     ? 'Self • Account Holder'
-                    : `${activePatientInfo.relation || 'Family Member'} • Patient`}
+                    : `${activePatientInfo.relation || 'Family Member'}`}
                 </Text>
               </View>
             </View>
@@ -275,7 +275,7 @@ export const HomePatientDashboard = memo(({
                         ]}
                         numberOfLines={1}
                       >
-                        {relationLabel} • Family Member
+                        {relationLabel}
                       </Text>
                     </View>
                     {isSelected && (
@@ -284,22 +284,6 @@ export const HomePatientDashboard = memo(({
                   </TouchableOpacity>
                 );
               })}
-
-              {/* Manage Members Link / Footer */}
-              <TouchableOpacity
-                style={styles.memberDropdownFooterAction}
-                activeOpacity={0.7}
-                onPress={() => {
-                  onToggleMemberDropdown();
-                  onManageMembers();
-                }}
-              >
-                <View style={styles.memberDropdownFooterIconWrap}>
-                  <MaterialIcons name="groups" size={fs(16)} color={Colors.primaryColor} />
-                </View>
-                <Text style={styles.memberDropdownFooterActionText}>Manage / Add Members</Text>
-                <MaterialIcons name="chevron-right" size={fs(18)} color={Colors.primaryColor} />
-              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -310,7 +294,7 @@ export const HomePatientDashboard = memo(({
           {[
             {
               key: 'name',
-              label: 'Patient Name',
+              label: 'Patient',
               value: activePatientInfo.name,
               icon: 'person' as const,
               fg: Colors.teal,
@@ -447,9 +431,9 @@ export const HomePatientDashboard = memo(({
             title="Weight"
             subtitle="Recent 5 visits"
             unit="kg"
-            iconName={weightTrendInfo.icon}
-            iconColor={weightTrendInfo.color}
-            pillBgColor={weightTrendInfo.bgColor}
+            iconName="fitness-center"
+            iconColor={Colors.green_10B981}
+            pillBgColor={Colors.green_ECFDF5}
             headers={['WEIGHT', 'DATE', 'TIME', 'ACTION']}
             records={rawWeightVitals}
             latestVal={getLatestVitalValue(rawWeightVitals, 'Weight')}
@@ -465,7 +449,7 @@ export const HomePatientDashboard = memo(({
             subtitle="Recent 5 visits"
             unit="°C"
             iconName="thermostat"
-            iconColor={Colors.amber_F59E0B}
+            iconColor={Colors.amber_D97706}
             pillBgColor={Colors.amber_FEF3C7}
             headers={['TEMP (°C)', 'DATE', 'TIME', 'ACTION']}
             records={rawTempVitals}

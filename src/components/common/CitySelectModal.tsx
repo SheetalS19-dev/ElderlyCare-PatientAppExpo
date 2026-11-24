@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -7,6 +7,7 @@ import {
   Keyboard,
   Modal,
   Platform,
+  SectionList,
   StyleSheet,
   Text,
   TextInput,
@@ -18,8 +19,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants';
 import { useGetStatesQuery } from '../../redux/apis/doctorApi';
 import type { CityModel, StateModel } from '../../types';
+import { isUnionTerritory } from '../../utils';
 import { fs, hs, ws } from '../../utils/metrics';
 import { TYPOGRAPHY } from '../../utils/typography';
+import { FIELD_LIMITS } from '../../validation';
 
 export interface CitySelectModalProps {
   visible: boolean;
@@ -41,9 +44,12 @@ interface StateGroup {
   cities: CityModel[];
 }
 
+const cleanDisplayTitle = (title: string): string =>
+  (title || '').replace(/\s*\((state|ut|union territory)\)/gi, '').trim();
+
 const PAGE_SIZE = 10;
 
-export const CitySelectModal: React.FC<CitySelectModalProps> = ({
+export const CitySelectModal: React.FC<CitySelectModalProps> = memo(({
   visible,
   onClose,
   cities,
@@ -108,10 +114,11 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
     return [];
   }, [statesData]);
 
-  // Reset transient pagination when closing or changing search
+  // Reset transient state and ensure all dropdowns are closed when opening or closing modal
   useEffect(() => {
     if (!visible) {
       setSearchQuery('');
+      setExpandedStateKey(null);
       setStatePageLimit(PAGE_SIZE);
       setSearchPageLimit(PAGE_SIZE);
       setExpandedCitiesLimit(PAGE_SIZE);
@@ -124,29 +131,11 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
       return;
     }
 
-    // Auto-expand the state owning the currently selected city, if any
-    const selStr = selectedCityId != null ? String(selectedCityId).trim() : '';
-    if (
-      selStr &&
-      selStr !== 'ALL' &&
-      selStr !== 'CURRENT' &&
-      selStr.toLowerCase() !== 'all'
-    ) {
-      const matchedCity = cities.find(
-        (c) =>
-          String(c.id ?? '') === selStr ||
-          (c.title && c.title.toLowerCase() === selStr.toLowerCase())
-      );
-      if (matchedCity) {
-        const key =
-          matchedCity.state_id != null
-            ? `id:${matchedCity.state_id}`
-            : `title:${String(matchedCity.state_title || '').trim().toLowerCase()}`;
-        setExpandedStateKey(key);
-        setExpandedCitiesLimit(PAGE_SIZE);
-      }
-    }
-  }, [visible, selectedCityId, cities]);
+    // Modal was opened: always start with all state dropdowns collapsed
+    setExpandedStateKey(null);
+    setSearchQuery('');
+    setExpandedCitiesLimit(PAGE_SIZE);
+  }, [visible]);
 
   useEffect(() => {
     setSearchPageLimit(PAGE_SIZE);
@@ -230,6 +219,47 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
     return groups;
   }, [visible, apiStates, cities]);
 
+  const { statesList, utsList } = useMemo(() => {
+    const states: StateGroup[] = [];
+    const uts: StateGroup[] = [];
+
+    for (const group of stateGroups) {
+      if (isUnionTerritory(group.stateTitle)) {
+        uts.push(group);
+      } else {
+        states.push(group);
+      }
+    }
+
+    states.sort((a, b) =>
+      cleanDisplayTitle(a.stateTitle).localeCompare(cleanDisplayTitle(b.stateTitle))
+    );
+    uts.sort((a, b) =>
+      cleanDisplayTitle(a.stateTitle).localeCompare(cleanDisplayTitle(b.stateTitle))
+    );
+
+    return { statesList: states, utsList: uts };
+  }, [stateGroups]);
+
+  const locationSections = useMemo(() => {
+    const list: { title: string; key: 'states' | 'uts'; data: StateGroup[] }[] = [];
+    if (statesList.length > 0) {
+      list.push({
+        title: 'States',
+        key: 'states',
+        data: statesList,
+      });
+    }
+    if (utsList.length > 0) {
+      list.push({
+        title: 'Union Territories',
+        key: 'uts',
+        data: utsList,
+      });
+    }
+    return list;
+  }, [statesList, utsList]);
+
   const trimmedQuery = searchQuery.trim().toLowerCase();
   const isSearching = trimmedQuery.length > 0;
 
@@ -243,19 +273,13 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
     );
   }, [visible, isSearching, cities, trimmedQuery]);
 
-  const paginatedStates = useMemo(
-    () => stateGroups.slice(0, statePageLimit),
-    [stateGroups, statePageLimit]
-  );
-
   const paginatedSearchCities = useMemo(
     () => filteredSearchCities.slice(0, searchPageLimit),
     [filteredSearchCities, searchPageLimit]
   );
 
-  const hasMoreStates = !isSearching && statePageLimit < stateGroups.length;
   const hasMoreSearch = isSearching && searchPageLimit < filteredSearchCities.length;
-  const hasMoreTopLevel = isSearching ? hasMoreSearch : hasMoreStates;
+  const hasMoreTopLevel = hasMoreSearch;
 
   const handleLoadMoreTopLevel = () => {
     if (!hasMoreTopLevel || isLoadingMore) return;
@@ -300,12 +324,14 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
 
   const handleClose = () => {
     Keyboard.dismiss();
+    setExpandedStateKey(null);
     onClose();
   };
 
   const handleSelect = (city: CityModel | null | undefined) => {
     Keyboard.dismiss();
     setSearchQuery('');
+    setExpandedStateKey(null);
     onSelectCity(city);
     onClose();
   };
@@ -411,8 +437,6 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
             <MaterialIcons name="check-circle" size={fs(20)} color={Colors.primaryColor} />
           ) : null}
         </TouchableOpacity>
-
-        <Text style={styles.sectionLabel}>States & Union Territories</Text>
       </>
     );
   };
@@ -423,14 +447,12 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
         <View style={styles.footerLoaderContainer}>
           <ActivityIndicator size="small" color={Colors.primaryColor} />
           <Text style={styles.footerLoaderText}>
-            {isSearching ? 'Loading more locations...' : 'Loading more states...'}
+            {isSearching ? 'Loading more locations...' : 'Loading more...'}
           </Text>
         </View>
       );
     }
-    if (hasMoreTopLevel) {
-      const shownCount = isSearching ? paginatedSearchCities.length : paginatedStates.length;
-      const totalCount = isSearching ? filteredSearchCities.length : stateGroups.length;
+    if (isSearching && searchPageLimit < filteredSearchCities.length) {
       return (
         <TouchableOpacity
           style={styles.loadMoreHintBtn}
@@ -438,7 +460,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
           activeOpacity={0.75}
         >
           <Text style={styles.loadMoreHintText}>
-            Showing {shownCount} of {totalCount} — Scroll for 10 more
+            Showing {paginatedSearchCities.length} of {filteredSearchCities.length} — Scroll for 10 more
           </Text>
         </TouchableOpacity>
       );
@@ -533,6 +555,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
                 onChangeText={setSearchQuery}
                 autoCorrect={false}
                 returnKeyType="search"
+                maxLength={FIELD_LIMITS.SEARCH_MAX}
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -605,33 +628,40 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
                 }}
               />
             ) : (
-              <FlatList
-                data={paginatedStates}
+              <SectionList<StateGroup, { title: string; key: 'states' | 'uts'; data: StateGroup[] }>
+                sections={locationSections}
                 keyExtractor={(group: StateGroup) => group.key}
                 style={[styles.cityList, { maxHeight: listMaxHeight }]}
                 contentContainerStyle={styles.cityListContent}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
-                initialNumToRender={PAGE_SIZE}
-                maxToRenderPerBatch={PAGE_SIZE}
-                windowSize={5}
-                onEndReached={handleLoadMoreTopLevel}
-                onEndReachedThreshold={0.25}
+                stickySectionHeadersEnabled={false}
+                initialNumToRender={20}
+                maxToRenderPerBatch={20}
+                windowSize={7}
                 ListHeaderComponent={renderTopOptionsHeader}
                 ListEmptyComponent={
                   statesLoading ? (
                     <View style={styles.footerLoaderContainer}>
                       <ActivityIndicator size="small" color={Colors.primaryColor} />
-                      <Text style={styles.footerLoaderText}>Loading states...</Text>
+                      <Text style={styles.footerLoaderText}>Loading locations...</Text>
                     </View>
                   ) : (
                     <View style={styles.emptyContainer}>
                       <MaterialIcons name="location-off" size={fs(32)} color={Colors.secondaryFontColor} />
-                      <Text style={styles.emptyText}>No states available</Text>
+                      <Text style={styles.emptyText}>No locations available</Text>
                     </View>
                   )
                 }
                 ListFooterComponent={renderFooter}
+                renderSectionHeader={({ section: { title, key, data } }) => (
+                  <View style={[styles.sectionHeaderRow, key === 'uts' && styles.sectionHeaderRowSpaced]}>
+                    <Text style={styles.sectionLabel}>{title}</Text>
+                    <View style={styles.sectionCountPill}>
+                      <Text style={styles.sectionCountText}>{data.length} {key === 'uts' ? 'UTs' : 'States'}</Text>
+                    </View>
+                  </View>
+                )}
                 renderItem={({ item: group }: { item: StateGroup }) => {
                   const isExpanded = expandedStateKey === group.key;
                   const visibleCities = isExpanded
@@ -670,11 +700,11 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
                               ]}
                               numberOfLines={1}
                             >
-                              {group.stateTitle}
+                              {cleanDisplayTitle(group.stateTitle)}
                             </Text>
                             <Text style={styles.cityStateText}>
                               {group.cities.length}{' '}
-                              {group.cities.length === 1 ? 'area / city' : 'areas / cities'}
+                              {group.cities.length === 1 ? 'City' : 'Cities'}
                             </Text>
                           </View>
                         </View>
@@ -685,11 +715,11 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
                         />
                       </TouchableOpacity>
 
-                      {/* Nested Areas / Cities Dropdown */}
+                      {/* Nested Cities Dropdown */}
                       {isExpanded && (
                         <View style={styles.nestedAreasBox}>
                           {group.cities.length === 0 ? (
-                            <Text style={styles.noAreasText}>No areas listed for this state</Text>
+                            <Text style={styles.noAreasText}>No areas listed for this location</Text>
                           ) : (
                             <>
                               {visibleCities.map((city, cIdx) => {
@@ -769,7 +799,7 @@ export const CitySelectModal: React.FC<CitySelectModalProps> = ({
       )}
     </Modal>
   );
-};
+});
 
 const styles = StyleSheet.create({
   modalBackdrop: {
@@ -864,15 +894,39 @@ const styles = StyleSheet.create({
     color: Colors.primaryFontColor,
     paddingVertical: 0,
   },
-  sectionLabel: {
-    ...TYPOGRAPHY.bold,
-    fontSize: fs(11.5),
-    color: Colors.secondaryFontColor,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.slate_F8FAFC,
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(6),
+    borderRadius: fs(8),
     marginTop: hs(6),
     marginBottom: hs(8),
-    paddingHorizontal: ws(2),
+    borderWidth: 1,
+    borderColor: Colors.slate_E2E8F0,
+  },
+  sectionHeaderRowSpaced: {
+    marginTop: hs(18),
+  },
+  sectionLabel: {
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(12),
+    color: Colors.primaryFontColor,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  sectionCountPill: {
+    backgroundColor: Colors.aquaSoft,
+    paddingHorizontal: ws(8),
+    paddingVertical: hs(2),
+    borderRadius: fs(10),
+  },
+  sectionCountText: {
+    ...TYPOGRAPHY.bold,
+    fontSize: fs(11),
+    color: Colors.primaryColor,
   },
   cityList: {
     flexShrink: 1,

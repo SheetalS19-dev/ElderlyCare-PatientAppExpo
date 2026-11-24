@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { memo, useEffect, useMemo, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -18,6 +18,7 @@ import type { DepartmentModel } from '../../types';
 import { getDepartmentImageUrl } from '../../utils';
 import { fs, hs, ws } from '../../utils/metrics';
 import { TYPOGRAPHY } from '../../utils/typography';
+import { FIELD_LIMITS } from '../../validation';
 
 export interface DepartmentSelectModalProps {
   visible: boolean;
@@ -29,7 +30,7 @@ export interface DepartmentSelectModalProps {
   title?: string;
 }
 
-export const DepartmentSelectModal: React.FC<DepartmentSelectModalProps> = ({
+export const DepartmentSelectModal: React.FC<DepartmentSelectModalProps> = memo(({
   visible,
   onClose,
   departments,
@@ -116,6 +117,7 @@ export const DepartmentSelectModal: React.FC<DepartmentSelectModalProps> = ({
               value={searchQuery}
               onChangeText={setSearchQuery}
               autoCorrect={false}
+              maxLength={FIELD_LIMITS.SEARCH_MAX}
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -208,7 +210,7 @@ export const DepartmentSelectModal: React.FC<DepartmentSelectModalProps> = ({
       </KeyboardAvoidingView>
     </Modal>
   );
-};
+});
 
 const styles = StyleSheet.create({
   modalBackdrop: {

@@ -12,7 +12,7 @@ interface Props {
   onTakePhoto: () => void;
 }
 
-export const ImagePickerSheet: React.FC<Props> = ({
+const ImagePickerSheetComponent: React.FC<Props> = ({
   visible,
   onClose,
   onPickFromGallery,
@@ -60,6 +60,8 @@ export const ImagePickerSheet: React.FC<Props> = ({
     </Modal>
   );
 };
+
+export const ImagePickerSheet = React.memo(ImagePickerSheetComponent);
 
 const styles = StyleSheet.create({
   bottomModalBackdrop: {

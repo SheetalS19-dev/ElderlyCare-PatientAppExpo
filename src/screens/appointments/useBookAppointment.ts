@@ -1,7 +1,7 @@
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { AppConstants } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
@@ -305,7 +305,7 @@ export const useBookAppointment = () => {
     return '';
   }, [selectedMember]);
 
-  const handleApplyCoupon = async () => {
+  const handleApplyCoupon = useCallback(async () => {
     if (!couponCode.trim()) {
       setCouponError('Please enter a coupon code');
       return;
@@ -322,13 +322,13 @@ export const useBookAppointment = () => {
     } catch (e: any) {
       setCouponError(e?.data?.message || 'Invalid coupon code');
     }
-  };
+  }, [couponCode, doctId, validateCoupon]);
 
-  const handleRemoveCoupon = () => {
+  const handleRemoveCoupon = useCallback(() => {
     setAppliedCoupon(null);
     setCouponCode('');
     setCouponError(undefined);
-  };
+  }, []);
 
   const handleSubmitPayment = async (choice: PaymentMethodChoice) => {
     if (!selectedType) {

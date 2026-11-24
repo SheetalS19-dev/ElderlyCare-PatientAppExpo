@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import { FlatList, Image, StyleSheet, Text, View } from 'react-native';
 import {
   AppCard,
@@ -12,7 +12,35 @@ import {
 } from '../../components';
 import { ApiEndpoints, Colors } from '../../constants';
 import { fs, hs, TYPOGRAPHY, ws } from '../../utils';
+import type { TestimonialModel } from '../../types';
 import { useTestimonial } from './useTestimonial';
+
+const TestimonialItemCard = memo(({ item }: { item: TestimonialModel }) => (
+  <AppCard style={styles.card}>
+    <View style={styles.headerRow}>
+      {item.image ? (
+        <Image
+          source={{ uri: `${ApiEndpoints.imageUrl}/${item.image}` }}
+          style={styles.avatar}
+        />
+      ) : (
+        <View style={styles.avatarPlaceholder}>
+          <Ionicons name="person" size={22} color={Colors.primaryColor} />
+        </View>
+      )}
+
+      <View style={styles.userMeta}>
+        <Text style={styles.userName}>{item.title || (item as any).name || 'Patient Review'}</Text>
+        <StarRating
+          rating={Number((item as any).ratting ?? (item as any).rating ?? 5)}
+          starSize={fs(13)}
+        />
+      </View>
+    </View>
+
+    <Text style={styles.description}>{item.desc || (item as any).description || ''}</Text>
+  </AppCard>
+));
 
 export const TestimonialScreen: React.FC = () => {
   const {
@@ -25,9 +53,44 @@ export const TestimonialScreen: React.FC = () => {
     refetch,
   } = useTestimonial();
 
+  const handleBackPress = useCallback(() => navigation.goBack(), [navigation]);
+  const keyExtractor = useCallback((item: TestimonialModel, index: number) => `testi-${item.id ?? index}`, []);
+  const renderItem = useCallback(({ item }: { item: TestimonialModel }) => <TestimonialItemCard item={item} />, []);
+
+  const listHeader = useMemo(() => {
+    if (testimonials.length === 0 || avgRating <= 0) return null;
+    return (
+      <AppCard style={styles.heroCard}>
+        <View style={styles.heroRow}>
+          <View style={styles.heroRatingBox}>
+            <Text style={styles.heroRatingScore}>{avgRating.toFixed(1)}</Text>
+            <StarRating rating={avgRating} starSize={fs(14)} />
+            <Text style={styles.heroRatingSub}>Patient Satisfaction</Text>
+          </View>
+
+          <View style={styles.heroDivider} />
+
+          <View style={styles.heroTextCol}>
+            <View style={styles.quoteBadge}>
+              <MaterialIcons name="format-quote" size={24} color={Colors.primaryColor} />
+            </View>
+            <Text style={styles.heroTitle}>Trusted Elderly Care</Text>
+            <Text style={styles.heroDesc}>
+              Real stories from patients and families experiencing compassionate care.
+            </Text>
+          </View>
+        </View>
+      </AppCard>
+    );
+  }, [testimonials.length, avgRating]);
+
+  const listEmpty = useMemo(() => (
+    <EmptyState message="No patient testimonials available yet" />
+  ), []);
+
   return (
     <View style={styles.container}>
-      <AppHeader title="Patient Reviews" onBackPress={() => navigation.goBack()} />
+      <AppHeader title="Patient Reviews" onBackPress={handleBackPress} />
 
       {isLoading ? (
         <LoadingIndicator />
@@ -36,64 +99,15 @@ export const TestimonialScreen: React.FC = () => {
       ) : (
         <FlatList
           data={testimonials}
-          keyExtractor={(item, index) => `testi-${item.id ?? index}`}
+          keyExtractor={keyExtractor}
           contentContainerStyle={[
             styles.listContainer,
             { flexGrow: 1, paddingBottom: Math.max(insets.bottom + hs(20), hs(30)) },
           ]}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={
-            testimonials.length > 0 && avgRating > 0 ? (
-              <AppCard style={styles.heroCard}>
-                <View style={styles.heroRow}>
-                  <View style={styles.heroRatingBox}>
-                    <Text style={styles.heroRatingScore}>{avgRating.toFixed(1)}</Text>
-                    <StarRating rating={avgRating} starSize={fs(14)} />
-                    <Text style={styles.heroRatingSub}>Patient Satisfaction</Text>
-                  </View>
-
-                  <View style={styles.heroDivider} />
-
-                  <View style={styles.heroTextCol}>
-                    <View style={styles.quoteBadge}>
-                      <MaterialIcons name="format-quote" size={24} color={Colors.primaryColor} />
-                    </View>
-                    <Text style={styles.heroTitle}>Trusted Elderly Care</Text>
-                    <Text style={styles.heroDesc}>
-                      Real stories from patients and families experiencing compassionate care.
-                    </Text>
-                  </View>
-                </View>
-              </AppCard>
-            ) : null
-          }
-          ListEmptyComponent={<EmptyState message="No patient testimonials available yet" />}
-          renderItem={({ item }) => (
-            <AppCard style={styles.card}>
-              <View style={styles.headerRow}>
-                {item.image ? (
-                  <Image
-                    source={{ uri: `${ApiEndpoints.imageUrl}/${item.image}` }}
-                    style={styles.avatar}
-                  />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Ionicons name="person" size={22} color={Colors.primaryColor} />
-                  </View>
-                )}
-
-                <View style={styles.userMeta}>
-                  <Text style={styles.userName}>{item.title || (item as any).name || 'Patient Review'}</Text>
-                  <StarRating
-                    rating={Number((item as any).ratting ?? (item as any).rating ?? 5)}
-                    starSize={fs(13)}
-                  />
-                </View>
-              </View>
-
-              <Text style={styles.description}>{item.desc || (item as any).description || ''}</Text>
-            </AppCard>
-          )}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={listEmpty}
+          renderItem={renderItem}
         />
       )}
     </View>

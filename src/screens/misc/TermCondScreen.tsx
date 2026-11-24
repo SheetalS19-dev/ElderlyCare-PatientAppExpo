@@ -1,6 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppCard, AppHeader } from '../../components';
@@ -37,7 +36,7 @@ export const TermCondScreen = ({ navigation }: Props) => {
               </Text>
             </View>
           </View>
-          <Text style={styles.dateTag}>Effective Date: August 2026</Text>
+          {/* <Text style={styles.dateTag}>Effective Date: August 2026</Text> */}
         </AppCard>
 
         {/* Content Section 1 */}

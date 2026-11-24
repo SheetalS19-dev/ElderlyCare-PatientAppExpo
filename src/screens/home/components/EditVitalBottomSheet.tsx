@@ -7,12 +7,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { AppButton, AppTextField } from '../../../components';
+import { AppButton } from '../../../components';
 import { Colors, Typography } from '../../../constants';
-import { DateTimeUtils, fs, hs, TYPOGRAPHY, ws } from '../../../utils';
+import { DateTimeUtils, fs, getVitalIconInfo, hs, TYPOGRAPHY, ws } from '../../../utils';
+import { FIELD_LIMITS } from '../../../validation';
 
 interface EditVitalBottomSheetProps {
   visible: boolean;
@@ -32,6 +34,7 @@ interface EditVitalBottomSheetProps {
   onChangeSugarRandom: (val: string) => void;
   onSubmit: () => void;
   isUpdating: boolean;
+  errors?: Record<string, string>;
 }
 
 export const EditVitalBottomSheet = memo(({
@@ -52,6 +55,7 @@ export const EditVitalBottomSheet = memo(({
   onChangeSugarRandom,
   onSubmit,
   isUpdating,
+  errors,
 }: EditVitalBottomSheetProps) => {
   return (
     <Modal
@@ -110,48 +114,218 @@ export const EditVitalBottomSheet = memo(({
             {/* Dynamic Vital Fields */}
             {vitalType === 'Blood Pressure' ? (
               <>
-                <Text style={styles.fieldLabel}>Systolic (mmHg)</Text>
-                <AppTextField
-                  placeholder="e.g. 120"
-                  keyboardType="number-pad"
-                  value={systolic}
-                  onChangeText={onChangeSystolic}
-                />
-                <Text style={styles.fieldLabel}>Diastolic (mmHg)</Text>
-                <AppTextField
-                  placeholder="e.g. 80"
-                  keyboardType="number-pad"
-                  value={diastolic}
-                  onChangeText={onChangeDiastolic}
-                />
+                <Text style={styles.fieldLabel}>Systolic (mmHg) *</Text>
+                <View
+                  style={[
+                    styles.inputWithIconContainer,
+                    !!errors?.systolic && styles.inputErrorBorder,
+                  ]}
+                >
+                  <View style={[styles.fieldIconBadge, { backgroundColor: Colors.red_FEE2E2 }]}>
+                    <MaterialIcons name="favorite" size={ws(16)} color={Colors.redColor} />
+                  </View>
+                  <TextInput
+                    style={styles.textInputWithIcon}
+                    placeholder="e.g. 120"
+                    placeholderTextColor={Colors.slate_94A3B8}
+                    keyboardType="number-pad"
+                    value={systolic}
+                    onChangeText={onChangeSystolic}
+                    maxLength={FIELD_LIMITS.VITAL_INPUT_MAX}
+                  />
+                  <Text style={styles.inputUnitSuffix}>mmHg</Text>
+                </View>
+                {!!errors?.systolic && (
+                  <View style={styles.errorRow}>
+                    <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
+                    <Text style={styles.errorText}>{errors.systolic}</Text>
+                  </View>
+                )}
+
+                <Text style={styles.fieldLabel}>Diastolic (mmHg) *</Text>
+                <View
+                  style={[
+                    styles.inputWithIconContainer,
+                    !!errors?.diastolic && styles.inputErrorBorder,
+                  ]}
+                >
+                  <View style={[styles.fieldIconBadge, { backgroundColor: Colors.red_FEE2E2 }]}>
+                    <MaterialIcons name="favorite" size={ws(16)} color={Colors.redColor} />
+                  </View>
+                  <TextInput
+                    style={styles.textInputWithIcon}
+                    placeholder="e.g. 80"
+                    placeholderTextColor={Colors.slate_94A3B8}
+                    keyboardType="number-pad"
+                    value={diastolic}
+                    onChangeText={onChangeDiastolic}
+                    maxLength={FIELD_LIMITS.VITAL_INPUT_MAX}
+                  />
+                  <Text style={styles.inputUnitSuffix}>mmHg</Text>
+                </View>
+                {!!errors?.diastolic && (
+                  <View style={styles.errorRow}>
+                    <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
+                    <Text style={styles.errorText}>{errors.diastolic}</Text>
+                  </View>
+                )}
               </>
             ) : vitalType === 'Sugar' ? (
               <>
                 <Text style={styles.fieldLabel}>Fasting (mg/dL) *</Text>
-                <AppTextField
-                  placeholder="e.g. 95"
-                  keyboardType="number-pad"
-                  value={value}
-                  onChangeText={onChangeValue}
-                />
+                <View
+                  style={[
+                    styles.inputWithIconContainer,
+                    !!errors?.value && styles.inputErrorBorder,
+                  ]}
+                >
+                  <View style={[styles.fieldIconBadge, { backgroundColor: Colors.purple_EDE9FE }]}>
+                    <MaterialIcons name="opacity" size={ws(16)} color={Colors.purple_8B5CF6} />
+                  </View>
+                  <TextInput
+                    style={styles.textInputWithIcon}
+                    placeholder="e.g. 95"
+                    placeholderTextColor={Colors.slate_94A3B8}
+                    keyboardType="number-pad"
+                    value={value}
+                    onChangeText={onChangeValue}
+                    maxLength={FIELD_LIMITS.VITAL_INPUT_MAX}
+                  />
+                  <Text style={styles.inputUnitSuffix}>mg/dL</Text>
+                </View>
+                {!!errors?.value && (
+                  <View style={styles.errorRow}>
+                    <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
+                    <Text style={styles.errorText}>{errors.value}</Text>
+                  </View>
+                )}
+
                 <Text style={styles.fieldLabel}>Random (mg/dL) *</Text>
-                <AppTextField
-                  placeholder="e.g. 140"
-                  keyboardType="number-pad"
-                  value={sugarRandom}
-                  onChangeText={onChangeSugarRandom}
-                />
+                <View
+                  style={[
+                    styles.inputWithIconContainer,
+                    !!errors?.sugarRandom && styles.inputErrorBorder,
+                  ]}
+                >
+                  <View style={[styles.fieldIconBadge, { backgroundColor: Colors.purple_EDE9FE }]}>
+                    <MaterialIcons name="opacity" size={ws(16)} color={Colors.purple_8B5CF6} />
+                  </View>
+                  <TextInput
+                    style={styles.textInputWithIcon}
+                    placeholder="e.g. 140"
+                    placeholderTextColor={Colors.slate_94A3B8}
+                    keyboardType="number-pad"
+                    value={sugarRandom}
+                    onChangeText={onChangeSugarRandom}
+                    maxLength={FIELD_LIMITS.VITAL_INPUT_MAX}
+                  />
+                  <Text style={styles.inputUnitSuffix}>mg/dL</Text>
+                </View>
+                {!!errors?.sugarRandom && (
+                  <View style={styles.errorRow}>
+                    <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
+                    <Text style={styles.errorText}>{errors.sugarRandom}</Text>
+                  </View>
+                )}
+              </>
+            ) : vitalType === 'Temperature' ? (
+              <>
+                <Text style={styles.fieldLabel}>Temperature (°C) *</Text>
+                <View
+                  style={[
+                    styles.inputWithIconContainer,
+                    !!errors?.value && styles.inputErrorBorder,
+                  ]}
+                >
+                  <View style={[styles.fieldIconBadge, { backgroundColor: Colors.amber_FEF3C7 }]}>
+                    <MaterialIcons name="thermostat" size={ws(16)} color={Colors.amber_D97706} />
+                  </View>
+                  <TextInput
+                    style={styles.textInputWithIcon}
+                    placeholder="Enter temperature in °C (e.g. 37.0)"
+                    placeholderTextColor={Colors.slate_94A3B8}
+                    keyboardType="decimal-pad"
+                    value={value}
+                    onChangeText={onChangeValue}
+                    maxLength={FIELD_LIMITS.VITAL_INPUT_MAX}
+                  />
+                  <Text style={styles.inputUnitSuffix}>°C</Text>
+                </View>
+                {!!errors?.value && (
+                  <View style={styles.errorRow}>
+                    <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
+                    <Text style={styles.errorText}>{errors.value}</Text>
+                  </View>
+                )}
+              </>
+            ) : vitalType === 'Weight' ? (
+              <>
+                <Text style={styles.fieldLabel}>Weight (kg) *</Text>
+                <View
+                  style={[
+                    styles.inputWithIconContainer,
+                    !!errors?.value && styles.inputErrorBorder,
+                  ]}
+                >
+                  <View style={[styles.fieldIconBadge, { backgroundColor: Colors.green_ECFDF5 }]}>
+                    <MaterialIcons name="fitness-center" size={ws(16)} color={Colors.green_10B981} />
+                  </View>
+                  <TextInput
+                    style={styles.textInputWithIcon}
+                    placeholder="Enter weight in kg"
+                    placeholderTextColor={Colors.slate_94A3B8}
+                    keyboardType="decimal-pad"
+                    value={value}
+                    onChangeText={onChangeValue}
+                    maxLength={FIELD_LIMITS.VITAL_INPUT_MAX}
+                  />
+                  <Text style={styles.inputUnitSuffix}>kg</Text>
+                </View>
+                {!!errors?.value && (
+                  <View style={styles.errorRow}>
+                    <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
+                    <Text style={styles.errorText}>{errors.value}</Text>
+                  </View>
+                )}
               </>
             ) : (
               <>
-                <Text style={styles.fieldLabel}>{vitalType === 'Temperature' ? 'Temperature (°C)' : vitalType}</Text>
-                <AppTextField
-                  placeholder={`Enter ${vitalType === 'Temperature' ? 'temperature in °C' : vitalType} reading`}
-                  keyboardType="decimal-pad"
-                  value={value}
-                  onChangeText={onChangeValue}
-                />
+                <Text style={styles.fieldLabel}>{vitalType === 'SpO2' ? 'SpO2 (%) *' : `${vitalType} *`}</Text>
+                <View
+                  style={[
+                    styles.inputWithIconContainer,
+                    !!errors?.value && styles.inputErrorBorder,
+                  ]}
+                >
+                  <View style={[styles.fieldIconBadge, { backgroundColor: Colors.sky_E0F2FE }]}>
+                    <MaterialIcons name="air" size={ws(16)} color={Colors.sky_0284C7} />
+                  </View>
+                  <TextInput
+                    style={styles.textInputWithIcon}
+                    placeholder={`Enter ${vitalType} reading`}
+                    placeholderTextColor={Colors.slate_94A3B8}
+                    keyboardType="decimal-pad"
+                    value={value}
+                    onChangeText={onChangeValue}
+                    maxLength={FIELD_LIMITS.VITAL_INPUT_MAX}
+                  />
+                  {vitalType === 'SpO2' && <Text style={styles.inputUnitSuffix}>%</Text>}
+                </View>
+                {!!errors?.value && (
+                  <View style={styles.errorRow}>
+                    <MaterialIcons name="error-outline" size={ws(13)} color={Colors.redColor} />
+                    <Text style={styles.errorText}>{errors.value}</Text>
+                  </View>
+                )}
               </>
+            )}
+
+            {/* General Error Banner */}
+            {!!errors?.general && (
+              <View style={styles.generalErrorBox}>
+                <MaterialIcons name="error-outline" size={16} color={Colors.redColor} />
+                <Text style={styles.generalErrorText}>{errors.general}</Text>
+              </View>
             )}
 
             {/* Action Buttons */}
@@ -226,11 +400,77 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.medium,
     color: Colors.ink,
   },
+  fieldIconBadge: {
+    width: ws(30),
+    height: ws(30),
+    borderRadius: ws(8),
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: ws(10),
+  },
+  inputWithIconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border || Colors.gray_CBD5E1,
+    borderRadius: ws(10),
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(8),
+    backgroundColor: Colors.white,
+    marginBottom: hs(4),
+  },
+  inputErrorBorder: {
+    borderColor: Colors.redColor,
+  },
+  textInputWithIcon: {
+    flex: 1,
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(14),
+    color: Colors.primaryFontColor,
+    paddingVertical: 0,
+  },
+  inputUnitSuffix: {
+    ...TYPOGRAPHY.medium,
+    fontSize: fs(12),
+    color: Colors.secondaryFontColor,
+    marginLeft: ws(6),
+  },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: hs(2),
+    marginBottom: hs(6),
+    gap: ws(4),
+  },
+  errorText: {
+    ...TYPOGRAPHY.regular,
+    fontSize: fs(11),
+    color: Colors.redColor,
+  },
   modalActions: {
     flexDirection: 'row',
     gap: ws(12),
     marginTop: hs(20),
     marginBottom: hs(10),
+  },
+  generalErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.red_FFF5F5,
+    borderRadius: fs(8),
+    borderWidth: 1,
+    borderColor: Colors.redColor,
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(8),
+    marginTop: hs(8),
+    marginBottom: hs(4),
+    gap: ws(6),
+  },
+  generalErrorText: {
+    flex: 1,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
+    color: Colors.redColor,
   },
   cancelBtn: {
     flex: 1,

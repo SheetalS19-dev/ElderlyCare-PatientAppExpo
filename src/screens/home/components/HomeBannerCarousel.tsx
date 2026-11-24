@@ -10,7 +10,7 @@ export interface HomeBannerCarouselProps {
   onBannerPress?: (banner: BannerModel) => void;
 }
 
-export const HomeBannerCarousel: React.FC<HomeBannerCarouselProps> = ({ banners, onBannerPress }) => {
+export const HomeBannerCarousel: React.FC<HomeBannerCarouselProps> = React.memo(({ banners, onBannerPress }) => {
   const [activeIndex, setActiveIndex] = useState(0);
 
   if (!banners || banners.length === 0) return null;
@@ -60,7 +60,7 @@ export const HomeBannerCarousel: React.FC<HomeBannerCarouselProps> = ({ banners,
       )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   carouselContainer: {

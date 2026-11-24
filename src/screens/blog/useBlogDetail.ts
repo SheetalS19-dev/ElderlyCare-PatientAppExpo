@@ -1,7 +1,7 @@
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Keyboard, Platform, Share } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -13,6 +13,7 @@ import {
   useSaveBlogCommentMutation,
 } from '../../redux/apis/blogApi';
 import { DateTimeUtils, showToast } from '../../utils';
+import { validateComment, validateEmail, validateName } from '../../validation';
 
 export interface CommentItem {
   id: string;
@@ -32,6 +33,7 @@ export const useBlogDetail = () => {
   const [commentName, setCommentName] = useState('');
   const [commentEmail, setCommentEmail] = useState('');
   const [commentText, setCommentText] = useState('');
+  const [commentErrors, setCommentErrors] = useState<Record<string, string>>({});
   const [localComments, setLocalComments] = useState<CommentItem[]>([]);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
@@ -97,7 +99,7 @@ export const useBlogDetail = () => {
     return combined;
   }, [localComments, apiComments]);
 
-  const handleShare = async () => {
+  const handleShare = useCallback(async () => {
     try {
       if (blog?.title) {
         await Share.share({
@@ -107,17 +109,44 @@ export const useBlogDetail = () => {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, [blog?.title]);
 
-  const handleSendComment = async (overrideText?: string) => {
+  const handleSendComment = useCallback(async (overrideText?: string) => {
     const textToSend = (overrideText || commentText).trim();
     if (!textToSend || isPostingComment) return;
+
+    const newErrors: Record<string, string> = {};
+
+    const commentRes = validateComment(textToSend, true);
+    if (!commentRes.isValid) {
+      newErrors.comment = commentRes.error || 'Please enter a valid comment';
+    }
+
+    if (commentName.trim()) {
+      const nameRes = validateName(commentName.trim(), true, 'Name');
+      if (!nameRes.isValid) {
+        newErrors.name = nameRes.error || 'Please enter a valid name';
+      }
+    }
+
+    if (commentEmail.trim()) {
+      const emailRes = validateEmail(commentEmail.trim(), true);
+      if (!emailRes.isValid) {
+        newErrors.email = emailRes.error || 'Please enter a valid email address';
+      }
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setCommentErrors(newErrors);
+      return;
+    }
 
     const authorName = commentName.trim() || (user
       ? `${user.f_name ?? ''} ${user.l_name ?? ''}`.trim() || 'Patient'
       : 'Guest User');
     const authorEmail = commentEmail.trim() || user?.email || '';
 
+    setCommentErrors({});
     setCommentText('');
     Keyboard.dismiss();
 
@@ -144,9 +173,19 @@ export const useBlogDetail = () => {
       showToast('Comment posted successfully!');
       refetchComments();
     }
-  };
+  }, [
+    commentText,
+    isPostingComment,
+    commentName,
+    commentEmail,
+    user,
+    saveBlogComment,
+    blogId,
+    refetch,
+    refetchComments,
+  ]);
 
-  const stripHtml = (html?: string) => {
+  const stripHtml = useCallback((html?: string) => {
     if (!html) return '';
     return html
       .replace(/<br\s*[\/]?>/gi, '\n')
@@ -160,7 +199,7 @@ export const useBlogDetail = () => {
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
       .trim();
-  };
+  }, []);
 
   return {
     navigation,
@@ -185,6 +224,8 @@ export const useBlogDetail = () => {
     setIsDescExpanded,
     handleShare,
     handleSendComment,
+    commentErrors,
+    setCommentErrors,
     stripHtml,
   };
 };

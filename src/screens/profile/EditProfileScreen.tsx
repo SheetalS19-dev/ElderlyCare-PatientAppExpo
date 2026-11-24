@@ -1,4 +1,5 @@
-import React from 'react';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import React, { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -95,10 +96,12 @@ export const EditProfileScreen: React.FC = () => {
     getPickerTitleAndOptions,
   } = useEditProfile();
 
+  const handleBackPress = useCallback(() => navigation.goBack(), [navigation]);
+
   if (isProfileLoading && !user) {
     return (
       <View style={styles.container}>
-        <AppHeader title="Patient Profile" onBackPress={() => navigation.goBack()} />
+        <AppHeader title="Patient Profile" onBackPress={handleBackPress} />
         <LoadingIndicator />
       </View>
     );
@@ -106,9 +109,45 @@ export const EditProfileScreen: React.FC = () => {
 
   const pickerInfo = getPickerTitleAndOptions();
 
+  const handleOpenImagePicker = useCallback(() => setIsImagePickerModalVisible(true), [setIsImagePickerModalVisible]);
+  const handleCloseImagePicker = useCallback(() => setIsImagePickerModalVisible(false), [setIsImagePickerModalVisible]);
+  const handleOpenDatePicker = useCallback(() => setIsDatePickerVisible(true), [setIsDatePickerVisible]);
+  const handleCloseDatePicker = useCallback(() => setIsDatePickerVisible(false), [setIsDatePickerVisible]);
+  const handleOpenGenderPicker = useCallback(() => setActivePicker('gender'), [setActivePicker]);
+  const handleOpenOccupationPicker = useCallback(() => setActivePicker('occupation'), [setActivePicker]);
+  const handleOpenMaritalStatusPicker = useCallback(() => setActivePicker('marital_status'), [setActivePicker]);
+  const handleOpenBloodGroupPicker = useCallback(() => setActivePicker('blood_group'), [setActivePicker]);
+  const handlePressState = useCallback(() => setAddressDropdown('state'), [setAddressDropdown]);
+  const handleCloseDeleteModal = useCallback(() => setIsDeleteModalVisible(false), [setIsDeleteModalVisible]);
+  const handleClosePicker = useCallback(() => setActivePicker(null), [setActivePicker]);
+
+  const handlePressCity = useCallback(() => {
+    if (!state.trim()) {
+      setFieldErrors((prev) => ({ ...prev, state: 'Please select a State / UT first' }));
+      return;
+    }
+    setAddressDropdown('city');
+  }, [state, setFieldErrors, setAddressDropdown]);
+
+  const handlePressPostalCode = useCallback(() => {
+    if (!city.trim()) {
+      setFieldErrors((prev) => ({ ...prev, city: 'Please select a City first' }));
+      return;
+    }
+    setAddressDropdown('postal');
+  }, [city, setFieldErrors, setAddressDropdown]);
+
+  const fullName = useMemo(() => `${fName} ${lName}`.trim(), [fName, lName]);
+  const addressErrors = useMemo(() => ({
+    address: fieldErrors.address,
+    city: fieldErrors.city,
+    state: fieldErrors.state,
+    postalCode: fieldErrors.postalCode,
+  }), [fieldErrors.address, fieldErrors.city, fieldErrors.state, fieldErrors.postalCode]);
+
   return (
     <View style={styles.container}>
-      <AppHeader title="Patient Profile" onBackPress={() => navigation.goBack()} />
+      <AppHeader title="Patient Profile" onBackPress={handleBackPress} />
 
       <KeyboardAvoidingView
         style={styles.flexOne}
@@ -129,8 +168,8 @@ export const EditProfileScreen: React.FC = () => {
             selectedImageUri={selectedImageUri}
             remoteImage={remoteImage}
             isUploadingPhoto={isUploadingPhoto}
-            onOpenImagePicker={() => setIsImagePickerModalVisible(true)}
-            fullName={`${fName} ${lName}`.trim()}
+            onOpenImagePicker={handleOpenImagePicker}
+            fullName={fullName}
             email={email}
           />
 
@@ -157,15 +196,15 @@ export const EditProfileScreen: React.FC = () => {
               if (fieldErrors.phone) setFieldErrors((prev) => ({ ...prev, phone: '' }));
             }}
             dob={dob}
-            onOpenDatePicker={() => setIsDatePickerVisible(true)}
+            onOpenDatePicker={handleOpenDatePicker}
             gender={gender}
-            onOpenGenderPicker={() => setActivePicker('gender')}
+            onOpenGenderPicker={handleOpenGenderPicker}
             occupation={occupation}
-            onOpenOccupationPicker={() => setActivePicker('occupation')}
+            onOpenOccupationPicker={handleOpenOccupationPicker}
             maritalStatus={maritalStatus}
-            onOpenMaritalStatusPicker={() => setActivePicker('marital_status')}
+            onOpenMaritalStatusPicker={handleOpenMaritalStatusPicker}
             bloodGroup={bloodGroup}
-            onOpenBloodGroupPicker={() => setActivePicker('blood_group')}
+            onOpenBloodGroupPicker={handleOpenBloodGroupPicker}
             errors={fieldErrors}
           />
 
@@ -191,35 +230,26 @@ export const EditProfileScreen: React.FC = () => {
               setPostalCode(t.replace(/\D/g, ''));
               if (fieldErrors.postalCode) setFieldErrors((prev) => ({ ...prev, postalCode: '' }));
             }}
-            onPressState={() => setAddressDropdown('state')}
-            onPressCity={() => {
-              if (!state.trim()) {
-                setFieldErrors((prev) => ({ ...prev, state: 'Please select a State / UT first' }));
-                return;
-              }
-              setAddressDropdown('city');
-            }}
-            onPressPostalCode={() => {
-              if (!city.trim()) {
-                setFieldErrors((prev) => ({ ...prev, city: 'Please select a City first' }));
-                return;
-              }
-              setAddressDropdown('postal');
-            }}
-            errors={{
-              address: fieldErrors.address,
-              city: fieldErrors.city,
-              state: fieldErrors.state,
-              postalCode: fieldErrors.postalCode,
-            }}
+            onPressState={handlePressState}
+            onPressCity={handlePressCity}
+            onPressPostalCode={handlePressPostalCode}
+            errors={addressErrors}
           />
+
+          {/* General Error Banner */}
+          {!!fieldErrors.general && (
+            <View style={styles.generalErrorBox}>
+              <MaterialIcons name="error-outline" size={16} color={Colors.redColor} />
+              <Text style={styles.generalErrorText}>{fieldErrors.general}</Text>
+            </View>
+          )}
 
           {/* Action Buttons Row */}
           <View style={styles.actionsRow}>
             <TouchableOpacity
               style={styles.cancelBtn}
               activeOpacity={0.8}
-              onPress={() => navigation.goBack()}
+              onPress={handleBackPress}
             >
               <Text style={styles.cancelBtnText} numberOfLines={1}>Cancel</Text>
             </TouchableOpacity>
@@ -248,19 +278,19 @@ export const EditProfileScreen: React.FC = () => {
         selectedValue={pickerInfo.current}
         onSelect={(opt) => {
           pickerInfo.onSelect(opt);
-          setActivePicker(null);
+          handleClosePicker();
         }}
-        onClose={() => setActivePicker(null)}
+        onClose={handleClosePicker}
       />
 
       {/* Date Picker Modal */}
       <AppDatePickerModal
         visible={isDatePickerVisible}
-        onClose={() => setIsDatePickerVisible(false)}
+        onClose={handleCloseDatePicker}
         onSelectDate={(selected) => {
           setDob(selected);
           setFieldErrors((prev) => ({ ...prev, dob: '' }));
-          setIsDatePickerVisible(false);
+          handleCloseDatePicker();
         }}
         initialDate={dob}
         maxDate={new Date()}
@@ -277,6 +307,7 @@ export const EditProfileScreen: React.FC = () => {
         selectedValue={state}
         isLoading={isStatesLoading}
         emptyMessage="No states available"
+        pageSize={60}
         onSelect={(option) => {
           const pickedState = String(option.label || '').trim();
           const pickedStateId = String(option.id || '');
@@ -340,7 +371,7 @@ export const EditProfileScreen: React.FC = () => {
       {/* Image Picker Sheet */}
       <ImagePickerSheet
         visible={isImagePickerModalVisible}
-        onClose={() => setIsImagePickerModalVisible(false)}
+        onClose={handleCloseImagePicker}
         onPickFromGallery={handlePickFromGallery}
         onTakePhoto={handleTakePhoto}
       />
@@ -348,7 +379,7 @@ export const EditProfileScreen: React.FC = () => {
       {/* Delete Account Confirmation Modal */}
       <DeleteAccountModal
         visible={isDeleteModalVisible}
-        onClose={() => setIsDeleteModalVisible(false)}
+        onClose={handleCloseDeleteModal}
         onConfirmDelete={handleDeleteAccount}
         isDeleting={isDeleting}
       />
@@ -375,6 +406,25 @@ const styles = StyleSheet.create({
     gap: ws(12),
     marginTop: hs(8),
     marginBottom: hs(16),
+  },
+  generalErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.red_FFF5F5,
+    borderRadius: fs(8),
+    borderWidth: 1,
+    borderColor: Colors.redColor,
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(8),
+    marginTop: hs(4),
+    marginBottom: hs(10),
+    gap: ws(6),
+  },
+  generalErrorText: {
+    flex: 1,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
+    color: Colors.redColor,
   },
   cancelBtn: {
     flex: 1,

@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../../navigation/types';
 import {
@@ -10,6 +10,8 @@ import {
   type BlogCategoryModel,
   type BlogModel,
 } from '../../redux/apis/blogApi';
+
+import { cleanMojibake } from './components/BlogContentRenderer';
 
 export const useBlogList = () => {
   const insets = useSafeAreaInsets();
@@ -82,12 +84,12 @@ export const useBlogList = () => {
     return map;
   }, [categories]);
 
-  const formatTagLabel = (rawTag: string) => {
+  const formatTagLabel = useCallback((rawTag: string) => {
     const clean = String(rawTag || '').trim();
     if (!clean) return '';
     if (clean.toLowerCase() === 'surgey') return 'Surgery';
     return clean.charAt(0).toUpperCase() + clean.slice(1);
-  };
+  }, []);
 
   // Filtered blogs list
   const filteredBlogs = useMemo(() => {
@@ -126,22 +128,28 @@ export const useBlogList = () => {
   }, [rawBlogs, selectedCategory, selectedTag, searchQuery]);
 
   // Clean HTML from blog description
-  const stripHtml = (html?: string) => {
+  const stripHtml = useCallback((html?: string) => {
     if (!html) return '';
-    return html.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
-  };
+    return cleanMojibake(
+      html
+        .replace(/<[^>]*>?/gm, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    );
+  }, []);
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     refetchBlogs();
     refetchCategories();
     refetchTags();
-  };
+  }, [refetchBlogs, refetchCategories, refetchTags]);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setSelectedCategory(null);
     setSelectedTag(null);
     setSearchQuery('');
-  };
+  }, []);
 
   return {
     navigation,

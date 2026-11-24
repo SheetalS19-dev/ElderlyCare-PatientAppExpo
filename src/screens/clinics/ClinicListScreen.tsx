@@ -1,7 +1,7 @@
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   FlatList,
   Image,
@@ -50,9 +50,62 @@ export const ClinicListScreen: React.FC = () => {
     handleCityModalSelect,
   } = useClinicList();
 
+  const handleBackPress = useCallback(() => navigation.goBack(), [navigation]);
+
+  const keyExtractor = useCallback((item: any, index: number) => `clinic-${item.id ?? index}`, []);
+
+  const handlePressClinic = useCallback(
+    (clinicId: string | number | undefined) => {
+      navigation.navigate('Clinic', { clinicId: String(clinicId) });
+    },
+    [navigation]
+  );
+
+  const renderClinicItem = useCallback(
+    ({ item }: { item: any }) => (
+      <TouchableOpacity
+        style={styles.clinicCard}
+        activeOpacity={0.85}
+        onPress={() => handlePressClinic(item.id)}
+      >
+        {item.image ? (
+          <Image
+            source={{ uri: getImageUrl(item.image) }}
+            style={styles.clinicImage}
+          />
+        ) : (
+          <View style={styles.placeholderImage}>
+            <FontAwesome5 name="hospital-alt" size={fs(26)} color={Colors.primaryColor} />
+          </View>
+        )}
+
+        <View style={styles.clinicDetails}>
+          <View style={styles.badgeRow}>
+            <View style={styles.verifiedBadge}>
+              <MaterialIcons name="verified" size={fs(12)} color={Colors.green_059669} />
+              <Text style={styles.verifiedText}>Verified Center</Text>
+            </View>
+          </View>
+
+          <Text style={styles.clinicTitle} numberOfLines={1}>
+            {item.title}
+          </Text>
+          <Text style={styles.clinicAddress} numberOfLines={2}>
+            {item.address}
+          </Text>
+        </View>
+
+        <View style={styles.chevronCircle}>
+          <Ionicons name="chevron-forward" size={fs(18)} color={Colors.primaryColor} />
+        </View>
+      </TouchableOpacity>
+    ),
+    [handlePressClinic]
+  );
+
   return (
     <View style={styles.container}>
-      <AppHeader title="Care Clinics & Centers" onBackPress={() => navigation.goBack()} />
+      <AppHeader title="Care Clinics & Centers" onBackPress={handleBackPress} />
 
       <View style={styles.content}>
         {/* City Selector Pill */}
@@ -105,7 +158,8 @@ export const ClinicListScreen: React.FC = () => {
         ) : (
           <FlatList
             data={clinics}
-            keyExtractor={(item, index) => `clinic-${item.id ?? index}`}
+            keyExtractor={keyExtractor}
+            renderItem={renderClinicItem}
             contentContainerStyle={[
               styles.listContainer,
               { flexGrow: 1, paddingBottom: hs(80) + Math.max(insets.bottom, hs(24)) },
@@ -143,44 +197,6 @@ export const ClinicListScreen: React.FC = () => {
                 )}
               </View>
             }
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.clinicCard}
-                activeOpacity={0.85}
-                onPress={() => navigation.navigate('Clinic', { clinicId: String(item.id) })}
-              >
-                {item.image ? (
-                  <Image
-                    source={{ uri: getImageUrl(item.image) }}
-                    style={styles.clinicImage}
-                  />
-                ) : (
-                  <View style={styles.placeholderImage}>
-                    <FontAwesome5 name="hospital-alt" size={fs(26)} color={Colors.primaryColor} />
-                  </View>
-                )}
-
-                <View style={styles.clinicDetails}>
-                  <View style={styles.badgeRow}>
-                    <View style={styles.verifiedBadge}>
-                      <MaterialIcons name="verified" size={fs(12)} color={Colors.green_059669} />
-                      <Text style={styles.verifiedText}>Verified Center</Text>
-                    </View>
-                  </View>
-
-                  <Text style={styles.clinicTitle} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                  <Text style={styles.clinicAddress} numberOfLines={2}>
-                    {item.address}
-                  </Text>
-                </View>
-
-                <View style={styles.chevronCircle}>
-                  <Ionicons name="chevron-forward" size={fs(18)} color={Colors.primaryColor} />
-                </View>
-              </TouchableOpacity>
-            )}
           />
         )}
       </View>

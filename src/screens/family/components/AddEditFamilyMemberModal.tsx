@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppDatePickerModal } from '../../../components';
 import { Colors } from '../../../constants';
 import { DateTimeUtils, fs, hs, TYPOGRAPHY, ws } from '../../../utils';
+import { FIELD_LIMITS } from '../../../validation';
 
 export const RELATION_OPTIONS = [
   'Husband',
@@ -52,9 +53,10 @@ interface AddEditFamilyMemberModalProps {
   clearError: (field: string) => void;
   onSave: () => void;
   isSubmitting: boolean;
+  existingMembers?: any[];
 }
 
-export const AddEditFamilyMemberModal: React.FC<AddEditFamilyMemberModalProps> = ({
+export const AddEditFamilyMemberModal: React.FC<AddEditFamilyMemberModalProps> = React.memo(({
   visible,
   onClose,
   editingId,
@@ -75,6 +77,7 @@ export const AddEditFamilyMemberModal: React.FC<AddEditFamilyMemberModalProps> =
   clearError,
   onSave,
   isSubmitting,
+  existingMembers = [],
 }) => {
   const insets = useSafeAreaInsets();
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -119,7 +122,7 @@ export const AddEditFamilyMemberModal: React.FC<AddEditFamilyMemberModalProps> =
               <View style={styles.col}>
                 <Text style={[styles.inputLabel, styles.firstInputLabel]}>First Name *</Text>
                 <TextInput
-                  style={styles.textInput}
+                  style={[styles.textInput, !!errors.firstName && styles.inputError]}
                   placeholder="Enter first name"
                   placeholderTextColor={Colors.slate_94A3B8}
                   value={firstName}
@@ -127,6 +130,8 @@ export const AddEditFamilyMemberModal: React.FC<AddEditFamilyMemberModalProps> =
                     setFirstName(v);
                     clearError('firstName');
                   }}
+                  autoCapitalize="words"
+                  maxLength={FIELD_LIMITS.NAME_MAX}
                 />
                 {!!errors.firstName && <Text style={styles.errorText}>{errors.firstName}</Text>}
               </View>
@@ -134,7 +139,7 @@ export const AddEditFamilyMemberModal: React.FC<AddEditFamilyMemberModalProps> =
               <View style={styles.col}>
                 <Text style={[styles.inputLabel, styles.firstInputLabel]}>Last Name</Text>
                 <TextInput
-                  style={styles.textInput}
+                  style={[styles.textInput, !!errors.lastName && styles.inputError]}
                   placeholder="Enter last name"
                   placeholderTextColor={Colors.slate_94A3B8}
                   value={lastName}
@@ -142,19 +147,21 @@ export const AddEditFamilyMemberModal: React.FC<AddEditFamilyMemberModalProps> =
                     setLastName(v);
                     clearError('lastName');
                   }}
+                  autoCapitalize="words"
+                  maxLength={FIELD_LIMITS.NAME_MAX}
                 />
                 {!!errors.lastName && <Text style={styles.errorText}>{errors.lastName}</Text>}
               </View>
             </View>
 
             <Text style={styles.inputLabel}>Mobile Number *</Text>
-            <View style={styles.phoneInputRow}>
+            <View style={[styles.phoneInputRow, !!errors.phone && styles.inputError]}>
               <TextInput
                 style={styles.phoneInput}
                 placeholder="Enter 10-digit mobile number"
                 placeholderTextColor={Colors.slate_94A3B8}
                 keyboardType="phone-pad"
-                maxLength={10}
+                maxLength={FIELD_LIMITS.PHONE_MAX}
                 value={phone}
                 onChangeText={(v) => {
                   setPhone(v.replace(/[^0-9]/g, ''));
@@ -167,7 +174,7 @@ export const AddEditFamilyMemberModal: React.FC<AddEditFamilyMemberModalProps> =
             {/* Date of Birth Selection Tile */}
             <Text style={styles.inputLabel}>Date of Birth *</Text>
             <TouchableOpacity
-              style={styles.dateSelectorTile}
+              style={[styles.dateSelectorTile, !!errors.dob && styles.inputError]}
               onPress={() => setShowDatePicker(true)}
               activeOpacity={0.7}
             >
@@ -204,6 +211,7 @@ export const AddEditFamilyMemberModal: React.FC<AddEditFamilyMemberModalProps> =
               style={[
                 styles.dateSelectorTile,
                 showRelationList && styles.selectorTileActive,
+                !!errors.relation && styles.inputError,
               ]}
               onPress={() => {
                 setShowRelationList((v) => {
@@ -242,6 +250,25 @@ export const AddEditFamilyMemberModal: React.FC<AddEditFamilyMemberModalProps> =
                   {RELATION_OPTIONS.map((opt, index) => {
                     const isSelected = relation === opt;
                     const isLast = index === RELATION_OPTIONS.length - 1;
+
+                    const UNIQUE_MAP: Record<string, string> = {
+                      father: 'Father',
+                      mother: 'Mother',
+                      husband: 'Spouse',
+                      wife: 'Spouse',
+                      spouse: 'Spouse',
+                      grandfather: 'Grandfather',
+                      grandmother: 'Grandmother',
+                    };
+                    const uniqueGroup = UNIQUE_MAP[opt.toLowerCase()];
+                    const isTaken =
+                      Boolean(uniqueGroup) &&
+                      existingMembers.some(
+                        (m) =>
+                          String(m.id) !== String(editingId) &&
+                          UNIQUE_MAP[(m.relation || m.relationship || '').trim().toLowerCase()] === uniqueGroup
+                      );
+
                     return (
                       <TouchableOpacity
                         key={opt}
@@ -249,8 +276,11 @@ export const AddEditFamilyMemberModal: React.FC<AddEditFamilyMemberModalProps> =
                           styles.relationOptionItem,
                           isSelected && styles.relationOptionItemSelected,
                           isLast && styles.relationOptionItemLast,
+                          isTaken && { opacity: 0.45, backgroundColor: Colors.slate_F8FAFC },
                         ]}
+                        disabled={isTaken}
                         onPress={() => {
+                          if (isTaken) return;
                           setRelation(opt);
                           setShowRelationList(false);
                           clearError('relation');
@@ -261,17 +291,29 @@ export const AddEditFamilyMemberModal: React.FC<AddEditFamilyMemberModalProps> =
                           style={[
                             styles.relationOptionText,
                             isSelected && styles.relationOptionTextSelected,
+                            isTaken && { color: Colors.slate_94A3B8 },
                           ]}
                         >
-                          {opt}
+                          {opt}{isTaken ? ' (Already added)' : ''}
                         </Text>
                         {isSelected && (
                           <MaterialIcons name="check" size={ws(18)} color={Colors.primaryColor} />
+                        )}
+                        {isTaken && !isSelected && (
+                          <MaterialIcons name="block" size={ws(16)} color={Colors.slate_94A3B8} />
                         )}
                       </TouchableOpacity>
                     );
                   })}
                 </ScrollView>
+              </View>
+            )}
+
+            {/* General Error Banner */}
+            {!!errors.general && (
+              <View style={styles.generalErrorBox}>
+                <MaterialIcons name="error-outline" size={16} color={Colors.redColor} />
+                <Text style={styles.generalErrorText}>{errors.general}</Text>
               </View>
             )}
 
@@ -316,7 +358,7 @@ export const AddEditFamilyMemberModal: React.FC<AddEditFamilyMemberModalProps> =
       />
     </Modal>
   );
-};
+});
 
 const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
@@ -503,6 +545,29 @@ const styles = StyleSheet.create({
     color: Colors.redColor,
     marginTop: hs(2),
     ...TYPOGRAPHY.regular,
+  },
+  inputError: {
+    borderColor: Colors.redColor,
+    backgroundColor: Colors.red_FFF5F5,
+  },
+  generalErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.red_FFF5F5,
+    borderRadius: fs(8),
+    borderWidth: 1,
+    borderColor: Colors.redColor,
+    paddingHorizontal: ws(12),
+    paddingVertical: hs(8),
+    marginTop: hs(8),
+    marginBottom: hs(4),
+    gap: ws(6),
+  },
+  generalErrorText: {
+    flex: 1,
+    fontSize: fs(12),
+    ...TYPOGRAPHY.medium,
+    color: Colors.redColor,
   },
   modalActionRow: {
     flexDirection: 'row',

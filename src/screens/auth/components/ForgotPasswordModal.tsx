@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Colors } from '../../../constants';
 import { fs, hs, TYPOGRAPHY, ws } from '../../../utils';
+import { FIELD_LIMITS } from '../../../validation';
 
 export interface ForgotPasswordModalProps {
   visible: boolean;
@@ -59,6 +60,7 @@ export const ForgotPasswordModal = memo(({
             autoCapitalize="none"
             value={forgotEmail}
             onChangeText={onEmailChange}
+            maxLength={FIELD_LIMITS.EMAIL_MAX}
           />
           {!!forgotEmailError && (
             <Text style={styles.fieldErrorText}>

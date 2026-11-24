@@ -5,21 +5,13 @@ import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop, Text as SvgText } 
 import { Colors } from '../../../constants';
 import { DateTimeUtils, fs, hs, isWithinLast7Days, sortVitalsDescending, TYPOGRAPHY, ws } from '../../../utils';
 
-/** Catmull-Rom -> cubic bezier so vital trends render as smooth curves. */
-const buildSmoothPath = (pts: { x: number; y: number }[]): string => {
+/** Build SVG path with straight lines between points (M x y L x y ...) */
+const buildStraightPath = (pts: { x: number; y: number }[]): string => {
   if (pts.length === 0) return '';
   if (pts.length === 1) return `M${pts[0].x} ${pts[0].y}`;
   let d = `M${pts[0].x} ${pts[0].y}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] || pts[i];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[i + 2] || p2;
-    const c1x = p1.x + (p2.x - p0.x) / 6;
-    const c1y = p1.y + (p2.y - p0.y) / 6;
-    const c2x = p2.x - (p3.x - p1.x) / 6;
-    const c2y = p2.y - (p3.y - p1.y) / 6;
-    d += ` C${c1x} ${c1y} ${c2x} ${c2y} ${p2.x} ${p2.y}`;
+  for (let i = 1; i < pts.length; i++) {
+    d += ` L${pts[i].x} ${pts[i].y}`;
   }
   return d;
 };
@@ -48,7 +40,7 @@ export interface VitalChartCardProps {
   yLabels?: string[];
 }
 
-export const VitalChartCard = ({
+export const VitalChartCard = React.memo(({
   vitalType,
   title,
   subtitle,
@@ -240,14 +232,14 @@ export const VitalChartCard = ({
     }
     const dates = [];
     const today = new Date();
-      for (let i = 4; i >= 0; i--) {
-        const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
-        let dateFormatted = DateTimeUtils.getDataFormat(d.toISOString().split('T')[0]);
-        dateFormatted = dateFormatted.replace(/,?\s*\d{4}/g, '').trim();
-        dates.push(`${dateFormatted} 00:00`);
-      }
-      return dates;
-    }, [last7DaysRecords]);
+    for (let i = 4; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+      let dateFormatted = DateTimeUtils.getDataFormat(d.toISOString().split('T')[0]);
+      dateFormatted = dateFormatted.replace(/,?\s*\d{4}/g, '').trim();
+      dates.push(`${dateFormatted} 00:00`);
+    }
+    return dates;
+  }, [last7DaysRecords]);
 
   const [chartW, setChartW] = useState(0);
 
@@ -274,15 +266,9 @@ export const VitalChartCard = ({
         { color: Colors.orange_F96335, get: (r) => Number(r.sugar_random || 0) },
       ];
     } else if (vitalType === 'Weight') {
-      const isLatestDecreased =
-        slice.length >= 2 &&
-        Number(slice[slice.length - 1].weight || slice[slice.length - 1].value || 0) <
-        Number(slice[slice.length - 2].weight || slice[slice.length - 2].value || 0);
-
-      const weightColor = isLatestDecreased ? Colors.redColor : Colors.green_10B981;
       defs = [
         {
-          color: weightColor,
+          color: iconColor,
           get: (r) => Number(r.weight || r.value || 0),
         },
       ];
@@ -319,7 +305,7 @@ export const VitalChartCard = ({
       const c1y = p1.y + (p2.y - p0.y) / 6;
       const c2x = p2.x + (p3.x - p1.x) / 6;
       const c2y = p2.y + (p3.y - p1.y) / 6;
-      const d = `M${p1.x} ${p1.y} C${c1x} ${c1y} ${c2x} ${c2y} ${p2.x} ${p2.y}`;
+      const d = `M${p1.x} ${p1.y} L${p2.x} ${p2.y}`;
       const isDecreased = (p2 as any).val < (p1 as any).val;
       const color = isDecreased ? Colors.redColor : Colors.green_10B981;
       segs.push({ d, color, isDecreased });
@@ -354,14 +340,14 @@ export const VitalChartCard = ({
       <View style={styles.vitalsCardHeaderRow}>
         <View style={[styles.vitalsTitlePill, { backgroundColor: pillBgColor }]}>
           <MaterialIcons name={iconName} size={fs(14)} color={iconColor} />
-          <Text style={[styles.vitalsCardTitle, vitalType === 'Weight' && { color: iconColor }]} numberOfLines={1}>{title}</Text>
+          <Text style={styles.vitalsCardTitle} numberOfLines={1}>{title}</Text>
         </View>
-        <View style={styles.vitalsNotePill}>
+        {/* <View style={styles.vitalsNotePill}>
           <MaterialIcons name="info-outline" size={fs(12)} color={Colors.redColor} />
           <Text style={styles.vitalsSevenDaysNote} numberOfLines={1}>
             Note: Data beyond 7 days is not shown
           </Text>
-        </View>
+        </View> */}
       </View>
 
       {legendItems.length > 0 && (
@@ -440,7 +426,7 @@ export const VitalChartCard = ({
                 if (sr.points.length === 0) return null;
                 const first = sr.points[0];
                 const last = sr.points[sr.points.length - 1];
-                const linePath = buildSmoothPath(sr.points);
+                const linePath = buildStraightPath(sr.points);
                 return (
                   <React.Fragment key={`series-${si}`}>
                     {sr.points.length > 1 && (
@@ -449,37 +435,35 @@ export const VitalChartCard = ({
                         fill={`url(#vitalFill-${fillKey}-${si})`}
                       />
                     )}
-                      {
-                        sr.points.length > 1 && vitalType === 'Weight' && weightSegments.length > 0 ? (
-                          weightSegments.map((seg, sIdx) => (
-                            <Path
-                              key={`weight-seg-${sIdx}`}
-                              d={seg.d}
-                              stroke={seg.color}
-                              strokeWidth={2.4}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              fill="none"
-                            />
-                          ))
-                        ) : sr.points.length > 1 ? (
-                          <Path
-                            d={linePath}
-                            stroke={sr.color}
-                            strokeWidth={2.2}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            fill="none"
-                          />
+                    {sr.points.length > 1 && vitalType === 'Weight' && weightSegments.length > 0 ? (
+                      weightSegments.map((seg, sIdx) => (
+                        <Path
+                          key={`weight-seg-${sIdx}`}
+                          d={seg.d}
+                          stroke={seg.color}
+                          strokeWidth={2.4}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          fill="none"
+                        />
+                      ))
+                    ) : sr.points.length > 1 ? (
+                      <Path
+                        d={linePath}
+                        stroke={sr.color}
+                        strokeWidth={2.2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                      />
                     ) : null}
                     {sr.points.map((p, pi) => {
                       let dotColor = sr.color;
-                      if (vitalType === 'Weight') {
-                        if (pi > 0) {
-                          dotColor = (p as any).val < (sr.points[pi - 1] as any).val ? Colors.redColor : Colors.green_10B981;
-                        } else if (sr.points.length > 1) {
-                          dotColor = (sr.points[1] as any).val < (p as any).val ? Colors.green_10B981 : Colors.green_10B981;
-                        }
+                      if (vitalType === 'Weight' && pi > 0) {
+                        dotColor =
+                          (p as any).val < (sr.points[pi - 1] as any).val
+                            ? Colors.redColor
+                            : Colors.green_10B981;
                       }
                       return (
                         <Circle
@@ -664,7 +648,7 @@ export const VitalChartCard = ({
       </ScrollView>
     </TouchableOpacity>
   );
-};
+});
 
 const styles = StyleSheet.create({
   vitalsGridCard: {
@@ -681,7 +665,7 @@ const styles = StyleSheet.create({
   vitalsCardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     gap: ws(8),
     marginBottom: hs(10),
   },
@@ -689,26 +673,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: ws(6),
+    justifyContent: 'center',
     borderRadius: fs(16),
     paddingVertical: hs(6),
     paddingHorizontal: ws(12),
   },
-  vitalsNotePill: {
-    flexShrink: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ws(4),
-    borderRadius: fs(14),
-    backgroundColor: Colors.red_FFE8E8,
-    paddingVertical: hs(6),
-    paddingHorizontal: ws(9),
-  },
+  // vitalsNotePill: {
+  //   flexShrink: 1,
+  //   flexDirection: 'row',
+  //   alignItems: 'center',
+  //   gap: ws(4),
+  //   borderRadius: fs(14),
+  //   backgroundColor: Colors.red_FFE8E8,
+  //   paddingVertical: hs(6),
+  //   paddingHorizontal: ws(9),
+  // },
   vitalsLegendRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: ws(14),
     marginBottom: hs(6),
-    paddingLeft: ws(4),
+    // paddingLeft: ws(4),
   },
   vitalsLegendItem: {
     flexDirection: 'row',

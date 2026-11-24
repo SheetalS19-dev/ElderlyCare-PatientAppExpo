@@ -28,7 +28,7 @@ interface Props {
   onUploadPress: () => void;
 }
 
-export const PatientFileHeaderFilter: React.FC<Props> = ({
+export const PatientFileHeaderFilter: React.FC<Props> = React.memo(({
   search,
   onChangeSearch,
   selectedMemberDisplayName,
@@ -180,6 +180,7 @@ export const PatientFileHeaderFilter: React.FC<Props> = ({
             onChangeText={onChangeSearch}
             placeholder="Search files..."
             onClear={() => onChangeSearch('')}
+            showClearButton={false}
           />
         </View>
       </View>
@@ -192,7 +193,7 @@ export const PatientFileHeaderFilter: React.FC<Props> = ({
       )}
     </>
   );
-};
+});
 
 const styles = StyleSheet.create({
   topFilterSection: {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Text as RNText, StyleProp, TextProps as RNTextProps, TextStyle } from 'react-native';
 import { Colors } from '../../constants';
 import { fs } from '../../utils/metrics';
@@ -25,7 +25,7 @@ export interface AppTextProps extends RNTextProps {
   children: React.ReactNode;
 }
 
-export const AppText: React.FC<AppTextProps> = ({
+export const AppText: React.FC<AppTextProps> = memo(({
   variant = 'body',
   weight,
   color = Colors.primaryFontColor || Colors.slate_1E293B,
@@ -87,4 +87,4 @@ export const AppText: React.FC<AppTextProps> = ({
       {children}
     </RNText>
   );
-};
+});

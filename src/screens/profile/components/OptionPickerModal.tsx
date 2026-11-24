@@ -14,7 +14,7 @@ interface Props {
   onClose: () => void;
 }
 
-export const OptionPickerModal: React.FC<Props> = ({
+const OptionPickerModalComponent: React.FC<Props> = ({
   visible,
   title,
   options,
@@ -53,6 +53,8 @@ export const OptionPickerModal: React.FC<Props> = ({
     </Modal>
   );
 };
+
+export const OptionPickerModal = React.memo(OptionPickerModalComponent);
 
 const styles = StyleSheet.create({
   modalBackdrop: {

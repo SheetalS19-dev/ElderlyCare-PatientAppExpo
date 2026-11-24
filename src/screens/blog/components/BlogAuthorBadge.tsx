@@ -12,7 +12,7 @@ interface Props {
   categoryName?: string;
 }
 
-export const BlogAuthorBadge: React.FC<Props> = ({ blog, categoryName }) => {
+export const BlogAuthorBadge: React.FC<Props> = React.memo(({ blog, categoryName }) => {
   const authorName = blog.author_name || blog.author || 'Medical Health Team';
   const dateStr = (blog as any)?.date || blog.created_at || '';
   const dateFormatted = DateTimeUtils.getDataFormat(dateStr) || dateStr || '--';
@@ -36,7 +36,7 @@ export const BlogAuthorBadge: React.FC<Props> = ({ blog, categoryName }) => {
       )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -1,8 +1,8 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Platform } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Keyboard, Platform } from 'react-native';
 import { ApiEndpoints, AppConstants } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
@@ -21,6 +21,7 @@ import { useAppDispatch } from '../../redux/hooks';
 import { storageService } from '../../services/storageService';
 import type { CityModel, PostalCodeModel, StateModel, UserModel } from '../../types';
 import {
+  isUnionTerritory,
   logApiCall,
   showToast,
   validateCityName,
@@ -158,16 +159,31 @@ export const useEditProfile = () => {
   }, [postalData]);
 
   const stateDropdownOptions: SearchableSelectOption<StateModel>[] = useMemo(() => {
-    return [...apiStates]
-      .map((s) => {
-        const cleanTitle = (s.title || '').replace(/\s*\((state|ut)\)/gi, '').trim();
-        return {
-          id: String(s.id),
-          label: cleanTitle,
-          data: s,
-        };
-      })
-      .sort((a, b) => a.label.localeCompare(b.label));
+    const states: SearchableSelectOption<StateModel>[] = [];
+    const uts: SearchableSelectOption<StateModel>[] = [];
+
+    for (const s of apiStates) {
+      if (s.active === 0) continue;
+      const cleanTitle = (s.title || '').replace(/\s*\((state|ut|union territory)\)/gi, '').trim();
+      const isUT = isUnionTerritory(s.title);
+      const item: SearchableSelectOption<StateModel> = {
+        id: String(s.id),
+        label: cleanTitle,
+        subtitle: isUT ? 'Union Territory' : 'State',
+        section: isUT ? 'Union Territories' : 'States',
+        data: s,
+      };
+      if (isUT) {
+        uts.push(item);
+      } else {
+        states.push(item);
+      }
+    }
+
+    states.sort((a, b) => a.label.localeCompare(b.label));
+    uts.sort((a, b) => a.label.localeCompare(b.label));
+
+    return [...states, ...uts];
   }, [apiStates]);
 
   const cityDropdownOptions: SearchableSelectOption<CityModel>[] = useMemo(() => {
@@ -215,7 +231,7 @@ export const useEditProfile = () => {
 
   const remoteImage = user?.image || user?.image_url || authUser?.image || authUser?.image_url || '';
 
-  const addCustomOccupation = (value: string) => {
+  const addCustomOccupation = useCallback((value: string) => {
     const clean = value.trim();
     if (!clean || clean.toLowerCase() === 'others') return;
     setCustomOccupations((prev) => {
@@ -227,7 +243,7 @@ export const useEditProfile = () => {
       storageService.setItem(CUSTOM_OCCUPATIONS_KEY, next).catch(() => { });
       return next;
     });
-  };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -278,7 +294,7 @@ export const useEditProfile = () => {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const uploadProfileWithXHR = async (
+  const uploadProfileWithXHR = useCallback(async (
     url: string,
     fields: Record<string, string>,
     imageUri: string | null,
@@ -378,9 +394,9 @@ export const useEditProfile = () => {
 
       xhr.send(formData);
     });
-  };
+  }, []);
 
-  const uploadImageDirectly = async (uri: string) => {
+  const uploadImageDirectly = useCallback(async (uri: string) => {
     if (!userId) return;
     setIsUploadingPhoto(true);
     try {
@@ -420,9 +436,10 @@ export const useEditProfile = () => {
     } finally {
       setIsUploadingPhoto(false);
     }
-  };
+  }, [userId, authUser, updateAuthUser, refetch, uploadProfileWithXHR]);
 
-  const handlePickFromGallery = async () => {
+  const handlePickFromGallery = useCallback(async () => {
+    Keyboard.dismiss();
     setIsImagePickerModalVisible(false);
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -430,7 +447,7 @@ export const useEditProfile = () => {
         allowsEditing: false,
         quality: 0.8,
       });
-
+      Keyboard.dismiss();
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const chosenUri = result.assets[0].uri;
         setSelectedImageUri(chosenUri);
@@ -438,10 +455,13 @@ export const useEditProfile = () => {
       }
     } catch (err: any) {
       showToast(err?.message || 'Could not open gallery');
+    } finally {
+      Keyboard.dismiss();
     }
-  };
+  }, [uploadImageDirectly]);
 
-  const handleTakePhoto = async () => {
+  const handleTakePhoto = useCallback(async () => {
+    Keyboard.dismiss();
     setIsImagePickerModalVisible(false);
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -452,12 +472,12 @@ export const useEditProfile = () => {
         );
         return;
       }
-
+      Keyboard.dismiss();
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: false,
         quality: 0.8,
       });
-
+      Keyboard.dismiss();
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const chosenUri = result.assets[0].uri;
         setSelectedImageUri(chosenUri);
@@ -465,10 +485,12 @@ export const useEditProfile = () => {
       }
     } catch (err: any) {
       showToast(err?.message || 'Could not open camera');
+    } finally {
+      Keyboard.dismiss();
     }
-  };
+  }, [uploadImageDirectly]);
 
-  const handleUpdate = async () => {
+  const handleUpdate = useCallback(async () => {
     const errs: Record<string, string> = {};
 
     const fnRes = validateName(fName, true, 'First name');
@@ -522,12 +544,11 @@ export const useEditProfile = () => {
 
     setFieldErrors(errs);
     if (Object.keys(errs).length > 0) {
-      showToast('Please fix the errors before updating profile');
       return;
     }
 
     if (!userId) {
-      showToast('Session expired. Please log in again.');
+      setFieldErrors((prev) => ({ ...prev, general: 'Session expired. Please log in again.' }));
       return;
     }
 
@@ -603,13 +624,57 @@ export const useEditProfile = () => {
         routes: [{ name: 'Main' }],
       });
     } catch (err: any) {
-      showToast(err?.message || 'Could not update profile');
+      const msg = err?.data?.message || err?.message || 'Could not update profile';
+      const lower = msg.toLowerCase();
+      if (lower.includes('email')) {
+        setFieldErrors((prev) => ({ ...prev, email: msg }));
+      } else if (lower.includes('phone') || lower.includes('mobile')) {
+        setFieldErrors((prev) => ({ ...prev, phone: msg }));
+      } else if (lower.includes('first name') || lower.includes('f_name')) {
+        setFieldErrors((prev) => ({ ...prev, fName: msg }));
+      } else if (lower.includes('last name') || lower.includes('l_name')) {
+        setFieldErrors((prev) => ({ ...prev, lName: msg }));
+      } else if (lower.includes('address')) {
+        setFieldErrors((prev) => ({ ...prev, address: msg }));
+      } else if (lower.includes('city')) {
+        setFieldErrors((prev) => ({ ...prev, city: msg }));
+      } else if (lower.includes('state')) {
+        setFieldErrors((prev) => ({ ...prev, state: msg }));
+      } else if (lower.includes('postal') || lower.includes('pin')) {
+        setFieldErrors((prev) => ({ ...prev, postalCode: msg }));
+      } else {
+        setFieldErrors((prev) => ({ ...prev, general: msg }));
+      }
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [
+    fName,
+    lName,
+    email,
+    phone,
+    dob,
+    gender,
+    bloodGroup,
+    address,
+    state,
+    city,
+    postalCode,
+    apiStates.length,
+    resolvedStateObj,
+    filteredCitiesForState,
+    userId,
+    occupation,
+    addCustomOccupation,
+    uploadProfileWithXHR,
+    selectedImageUri,
+    authUser,
+    updateAuthUser,
+    dispatch,
+    navigation,
+  ]);
 
-  const handleDeleteAccount = async () => {
+  const handleDeleteAccount = useCallback(async () => {
     setIsDeleteModalVisible(false);
     try {
       await softDelete(userId).unwrap();
@@ -617,14 +682,14 @@ export const useEditProfile = () => {
       await logout();
       navigation.reset({
         index: 0,
-        routes: [{ name: 'Main' }],
+        routes: [{ name: 'Login' }],
       });
     } catch (err: any) {
       showToast(err?.data?.message || 'Could not delete account');
     }
-  };
+  }, [userId, softDelete, logout, navigation]);
 
-  const getPickerTitleAndOptions = () => {
+  const getPickerTitleAndOptions = useCallback(() => {
     switch (activePicker) {
       case 'gender':
         return {
@@ -663,7 +728,7 @@ export const useEditProfile = () => {
       default:
         return { title: '', options: [], current: '', onSelect: () => {} };
     }
-  };
+  }, [activePicker, gender, maritalStatus, bloodGroup, occupationOptions, occupation]);
 
   return {
     navigation,

@@ -1,7 +1,7 @@
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Linking } from 'react-native';
 import { ApiEndpoints, Colors } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
@@ -63,7 +63,7 @@ export const useAppointmentDetails = () => {
     return (rawDoctorData as any)?.data ?? rawDoctorData;
   }, [rawDoctorData]);
 
-  const handleAddToGoogleCalendar = () => {
+  const handleAddToGoogleCalendar = useCallback(() => {
     if (!appointment) return;
     const doctName = formatDoctorName(appointment.doct_f_name, appointment.doct_l_name);
     const title = encodeURIComponent(`Doctor Appointment - ${doctName}`);
@@ -72,9 +72,9 @@ export const useAppointmentDetails = () => {
     );
     const gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}`;
     Linking.openURL(gCalUrl).catch(() => showToast('Could not open Google Calendar'));
-  };
+  }, [appointment]);
 
-  const handleSubmitReview = async () => {
+  const handleSubmitReview = useCallback(async () => {
     if (!appointment) return;
     if (!reviewRating || reviewRating < 1) {
       showToast('Please select a star rating');
@@ -106,15 +106,15 @@ export const useAppointmentDetails = () => {
     } catch {
       showToast('Could not submit your review');
     }
-  };
+  }, [appointment, reviewRating, reviewText, addDoctorReview, appId, user?.id, refetch]);
 
-  const handleJoinCall = () => {
+  const handleJoinCall = useCallback(() => {
     if (appointment?.meeting_link) {
       Linking.openURL(appointment.meeting_link).catch(() => showToast('Could not open the meeting link'));
     }
-  };
+  }, [appointment?.meeting_link]);
 
-  const fetchInvoiceData = async () => {
+  const fetchInvoiceData = useCallback(async () => {
     if (!appointment) throw new Error('Appointment not found');
     const response = await fetch(`${ApiEndpoints.getInvoiceByAppIdUrl}/${appId}`);
     if (!response.ok) {
@@ -141,13 +141,13 @@ export const useAppointmentDetails = () => {
     };
 
     return { invoice, appointmentInfo };
-  };
+  }, [appointment, appId]);
 
-  const handleOpenInvoiceModal = () => {
+  const handleOpenInvoiceModal = useCallback(() => {
     setIsInvoiceModalVisible(true);
-  };
+  }, []);
 
-  const handleViewInvoice = async () => {
+  const handleViewInvoice = useCallback(async () => {
     try {
       setIsInvoiceProcessing(true);
       setInvoiceProcessingMsg('Opening invoice preview...');
@@ -160,9 +160,9 @@ export const useAppointmentDetails = () => {
     } finally {
       setIsInvoiceProcessing(false);
     }
-  };
+  }, [fetchInvoiceData]);
 
-  const handleDownloadInvoice = async () => {
+  const handleDownloadInvoice = useCallback(async () => {
     try {
       setIsInvoiceProcessing(true);
       setInvoiceProcessingMsg('Saving invoice to device...');
@@ -180,9 +180,9 @@ export const useAppointmentDetails = () => {
     } finally {
       setIsInvoiceProcessing(false);
     }
-  };
+  }, [fetchInvoiceData]);
 
-  const handleShareInvoice = async () => {
+  const handleShareInvoice = useCallback(async () => {
     try {
       setIsInvoiceProcessing(true);
       setInvoiceProcessingMsg('Sharing invoice...');
@@ -195,7 +195,7 @@ export const useAppointmentDetails = () => {
     } finally {
       setIsInvoiceProcessing(false);
     }
-  };
+  }, [fetchInvoiceData]);
 
   const statusColor = appointment ? (STATUS_COLORS[appointment.status ?? ''] ?? Colors.secondaryFontColor) : Colors.secondaryFontColor;
   const canReview = appointment ? (appointment.status === 'Completed' || appointment.status === 'Visited') : false;
@@ -206,7 +206,7 @@ export const useAppointmentDetails = () => {
     ['pending', 'confirmed', 'rescheduled', 'scheduled', 'booked', 'active', 'approved', 'paid', 'in-process'].includes(appStatusLower) &&
     !['completed', 'visited', 'rejected', 'cancelled', 'canceled'].includes(appStatusLower);
 
-  const handleReschedule = () => {
+  const handleReschedule = useCallback(() => {
     if (!appointment) return;
     const docId =
       appointment.doct_id ||
@@ -223,9 +223,9 @@ export const useAppointmentDetails = () => {
         rescheduledFromAppId: appointment.id,
       });
     } else {
-      showToast('Doctor details not available for rescheduling');
+      navigation.navigate('Search');
     }
-  };
+  }, [appointment, navigation]);
 
   return {
     navigation,

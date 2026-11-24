@@ -135,29 +135,6 @@ export const ContactUsScreen: React.FC = () => {
             <MaterialIcons name="chevron-right" size={fs(14)} color={Colors.purple_9333EA} />
           </View>
         </TouchableOpacity>
-
-        {/* FAQ Quick Link Card */}
-        <View style={styles.faqBanner}>
-          <View style={styles.faqBannerRow}>
-            <View style={styles.faqIconCircle}>
-              <MaterialIcons name="help-outline" size={fs(24)} color={Colors.primaryColor} />
-            </View>
-            <View style={styles.faqTextCol}>
-              <Text style={styles.faqTitle}>Need instant answers?</Text>
-              <Text style={styles.faqDesc}>
-                Browse our frequently asked questions for booking, appointments, and care guidance.
-              </Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={styles.faqBtn}
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate('Faq')}
-          >
-            <Text style={styles.faqBtnText}>Visit FAQ Section</Text>
-            <MaterialIcons name="arrow-forward" size={fs(14)} color={Colors.white} />
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </View>
   );

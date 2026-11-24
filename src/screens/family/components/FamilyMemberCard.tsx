@@ -30,7 +30,7 @@ function calculateAge(dobStr?: string): string | null {
   }
 }
 
-export const FamilyMemberCard: React.FC<FamilyMemberCardProps> = ({ item, onEdit, onDelete }) => {
+export const FamilyMemberCard: React.FC<FamilyMemberCardProps> = React.memo(({ item, onEdit, onDelete }) => {
   const memberName = `${item.f_name ?? ''} ${item.l_name ?? ''}`.trim() || 'Family Member';
   const itemDob = item.dob || '';
   const initial = memberName ? memberName.charAt(0).toUpperCase() : 'M';
@@ -143,7 +143,7 @@ export const FamilyMemberCard: React.FC<FamilyMemberCardProps> = ({ item, onEdit
       </TouchableOpacity>
     </AppCard>
   );
-};
+});
 
 const styles = StyleSheet.create({
   card: {

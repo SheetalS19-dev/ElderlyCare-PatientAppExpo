@@ -73,7 +73,7 @@ export const BookAppointmentScreen: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <AppHeader title="Book Appointment" onBackPress={() => navigation.goBack()} />
+        <AppHeader title="Book Appointment" onBackPress={navigation.goBack} />
         <LoadingIndicator />
       </View>
     );
@@ -82,7 +82,7 @@ export const BookAppointmentScreen: React.FC = () => {
   if (isError || !doctor) {
     return (
       <View style={styles.container}>
-        <AppHeader title="Book Appointment" onBackPress={() => navigation.goBack()} />
+        <AppHeader title="Book Appointment" onBackPress={navigation.goBack} />
         <ErrorState message="Couldn't load doctor details" onRetry={refetch} />
       </View>
     );
